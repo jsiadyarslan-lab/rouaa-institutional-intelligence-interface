@@ -1,28 +1,62 @@
-# ROUAA INSTITUTIONAL INTELLIGENCE — INTERFACE PROTOTYPE V1
+# ROUAA INSTITUTIONAL INTELLIGENCE — INTERFACE PROTOTYPE V2 (BLACK INSTITUTIONAL TERMINAL)
 
-**Public deployment (GitHub Pages)** of the executive consumption prototype ordered by
-*EXECUTIVE ORDER — ROUAA INSTITUTIONAL INTELLIGENCE INTERFACE V1 — GitHub Pages / Real
-Core Outputs / Executive Consumption Prototype.*
+**Public deployment (GitHub Pages)** of the institutional consumption interface, evolved per
+*ROUAA INSTITUTIONAL INTELLIGENCE INTERFACE — V2* executive directive: presentation layer only,
+**better consumption of existing truth — not creation of new truth.**
 
 ## What you are looking at
 
-A **read-only institutional intelligence interface** built exclusively from real ROUAA
-Core production outputs — the first time the pipeline's actual
-`SOURCE → DOCUMENT → FACT → EVENT → INTELLIGENCE` output is placed in front of a human
-decision-maker.
+A **read-only black institutional intelligence terminal** built exclusively from real ROUAA
+Core production outputs. V2 re-architects the interface around the analyst workstation:
+dense tables, evidence traces, and first-class documents, facts and sources — not cards.
 
 - **It is NOT a live feed.** It is a frozen repository production snapshot.
 - **It is NOT a mockup.** Every intelligence object, fact, excerpt, document and source
   is real, committed output of ROUAA Core.
-- **Nothing is invented.** Where the Core has not yet attached a capability (executive
-  interpretation, undated objects), the interface says so explicitly.
+- **Nothing is invented.** Missing Core capabilities (semantic titles, interpretation
+  layer, fact units/periods) are stated explicitly, never filled by the interface.
+
+## V2 interface architecture
+
+`OVERVIEW · INTELLIGENCE · DOCUMENTS · FACTS · SOURCES · PRODUCTION`
+(EVENTS omitted deliberately: no separate events store exists in the snapshot.)
+
+- **OVERVIEW** — answers *What happened? / What is important? / What can I verify?* in
+  seconds, then the Intelligence Feed ordered FRESH (26) → HISTORICAL (47) → UNDATED (74);
+  no temporal class is hidden.
+- **INTELLIGENCE** — IO as the primary unit, identified by real metadata (institution +
+  event type); Core template headlines demoted to technical provenance. Table view:
+  `Status | Institution | Type | Date | Facts | Evidence | Document` with sorting,
+  filtering and pagination. Detail pages follow the institutional reading order:
+  identity → CONTEXT → WHAT HAPPENED → KEY FACTS → EVIDENCE → PRIMARY DOCUMENT → SOURCE.
+- **EVIDENCE VIEW & TRACE EVIDENCE** — per-fact chain `FACT → EXCERPT → DOCUMENT → SOURCE`
+  and per-IO chain `SOURCE → DOCUMENT → EVIDENCE → FACT → INTELLIGENCE OBJECT`; every
+  level clickable; `pattern:…#occ` shown only as *Technical location*.
+- **FACTS** — dedicated explorer over 1,989 IO-bound facts (2,360 exist; 371 not IO-bound,
+  stated honestly). `UNIT` and `PERIOD` columns reserved for future Core schema — never
+  invented.
+- **DOCUMENTS** — first-class objects: 957 records, search across url / institution /
+  source / jurisdiction / type / date, pagination 25/50/100, document record pages.
+- **SOURCES** — real entity profiles: metadata, production, freshness, evidence coverage,
+  and the `SOURCE → DOCUMENT → FACT → INTELLIGENCE` relationship (42 VIO-producing
+  sources vs 357 registered).
+- **PRODUCTION** — deliberately demoted transparency section with committed wave
+  accounting, S-levels, verification, and discovered/acquired/stored/productive
+  definitions.
+- **Global search** — one search bar across intelligence, facts, documents and sources
+  with categorized results.
+- **Trust badges are data-backed only**: OFFICIAL SOURCE / EVIDENCE LINKED / TRACEABLE /
+  FRESH / HISTORICAL / UNDATED. No "verified/trusted/high-quality" claims — Core supplies
+  no basis for them.
+- **CONTEXT is honest**: *"No interpretation supplied by Core."* — the interface never
+  sells analysis that does not exist.
 
 ## Snapshot provenance
 
 | Field | Value |
 |---|---|
 | Core repository | `jsiadyarslan-lab/rouaa-intelligence-core` (private) |
-| Interface branch | `rouaa-institutional-intelligence-interface-v1` |
+| Interface branch | `rouaa-institutional-intelligence-interface-v1` (V2 commit `d8b1fc5`) |
 | Production commit | `c78b96af53e4d66eb81a45557cc82e952cd973da` |
 | Production wave | LSE-V4 (run `lsev4-targeted-high-yield-fresh-production`) |
 | Snapshot date | 2026-09-19 |
@@ -31,23 +65,25 @@ decision-maker.
 ## Contents
 
 - 147 intelligence objects — 100% of the wave's VIO production (135 net-new + 12
-  re-discoveries; freshness ladder 23 recent / 39 historical / 73 undated)
+  re-discoveries; net-new freshness ladder 23 fresh / 39 historical / 73 undated, exact
+  match to official scorecard; all-147 ladder 26/47/74)
 - 957 official documents (canonical URLs, freshness classification, text layers)
 - 357 wave sources with full registry profiles
-- Full wave + global production accounting (secondary view)
+- Full wave + global production accounting (demoted PRODUCTION view)
 
 ## Reproducibility
 
 The presentation data in `data/` is generated by the read-only adapter
 (`interface/build_presentation.py`) committed on the interface branch of the Core
 repository, from committed Core production artifacts. The committed JSON is
-byte-identical to the adapter output at the production commit above.
+byte-identical to the adapter output at the production commit above. V2 changed
+presentation files only (`index.html`, `style.css`, `app.js`); data files are unchanged.
 
 ## Primary user persona
 
 > A senior bank executive / institutional investment or risk executive reviewing
-> intelligence at the beginning of the business day.
+> intelligence at the beginning of the business day; an institutional analyst working a
+> dense desk; a forensic reviewer who must verify every claim to its official source.
 
-The interface answers **"What should I know?"** first — not "how many rows are in the
-database" — and lets the executive descend: intelligence → facts → evidence → document →
-official source.
+Acceptance-tested against all three personas (executive 10 s / analyst 30 s / forensic
+60 s). Desktop-first; tablet-responsive.

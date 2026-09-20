@@ -1,16 +1,43 @@
 /* ==========================================================================
-   ROUAA INSTITUTIONAL INTELLIGENCE — V1 PROTOTYPE (static, read-only)
-   Repository Production Snapshot · Wave LSE-V4 · NOT A LIVE FEED
-   All data loaded from ./data/*.json — generated verbatim from committed
-   Core production artifacts by build_presentation.py (read-only adapter).
+   ROUAA INSTITUTIONAL INTELLIGENCE — INTERFACE V2 (presentation layer only)
+   Black Institutional Terminal · Repository Production Snapshot · NOT LIVE
+   ---------------------------------------------------------------------------
+   V2 MANDATE: better consumption of existing truth — not creation of new truth.
+   - Data is loaded verbatim from ./data/*.json (read-only Core outputs).
+   - No invented data: missing fields render as "Not available".
+   - Semantic titles do not exist in Core -> identity = INSTITUTION + TYPE metadata.
+   - No interpretation layer exists in Core -> CONTEXT states so explicitly.
+   - Fact UNIT / PERIOD are not produced by Core -> columns reserved, marked "—".
    ========================================================================== */
 
 'use strict';
 
-const D = { meta: null, intelligence: [], documents: [], sources: [], production: null };
-const docIndex = {}, srcIndex = {};
+/* ============================================================ constants */
 
-/* ---------------------------------------------------------------- utils */
+const PER_PAGE_OPTS = [25, 50, 100];
+const FRESH_DEF  = 'Publication date attributed by Core inside the frozen fresh window';
+const HIST_DEF   = 'Publication date attributed by Core, outside the fresh window';
+const UNDAT_DEF  = 'No publication date attributed by Core (undated)';
+
+const D = { meta: null, intelligence: [], documents: [], sources: [], production: null };
+const IX = { docs: {}, srcs: {}, ios: {} };   // id -> record
+const FACTS = [];                              // flat fact index built from IO chains
+const SRC_STATS = {};                          // source_id -> derived presentation stats
+
+/* list-view state (filters / sort / pagination) */
+const LS = {
+  intel:   { q: '', mode: 'feed', fresh: null, jur: null, sector: null, type: null, lang: null, inst: '',
+             sort: 'rank', dir: 'asc', page: 1, per: 50 },
+  docs:    { q: '', fresh: null, jur: null, layer: null, prod: null,
+             sort: 'date', dir: 'desc', page: 1, per: 25 },
+  facts:   { q: '', metric: null, tstat: null, sector: null, inst: '', src: null,
+             sort: 'doc', dir: 'asc', page: 1, per: 25 },
+  sources: { q: '', jur: null, auth: null, sector: null, prod: null,
+             sort: 'ios', dir: 'desc', page: 1, per: 25 },
+};
+
+/* ============================================================ utilities */
+
 function esc(s) {
   return String(s == null ? '' : s)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -19,679 +46,1640 @@ function esc(s) {
 function fmtDate(iso) {
   if (!iso) return '';
   const d = new Date(iso.length <= 10 ? iso + 'T00:00:00Z' : iso);
-  if (isNaN(d)) return iso;
+  if (isNaN(d)) return String(iso);
   return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' });
 }
 function fmtDateTime(iso) {
   if (!iso) return '';
   const d = new Date(iso);
-  if (isNaN(d)) return iso;
+  if (isNaN(d)) return String(iso);
   return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' }) +
-    ' · ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }) + ' UTC';
+    ' ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }) + ' UTC';
 }
-function shortId(id) { return id || ''; }
+function na(v) { return (v == null || v === '') ? '<span class="na">Not available</span>' : esc(v); }
+function nDash() { return '<span class="na" title="Field not yet produced by ROUAA Core — column reserved for future schema">—</span>'; }
+function num(n) { return (n == null) ? '<span class="na">—</span>' : String(n); }
+function lower(s) { return String(s == null ? '' : s).toLowerCase(); }
 
-function dateBadge(io) {
-  if (io.date_status === 'FRESH') return '<span class="badge fresh" title="Publication date inside the frozen fresh window">Recent</span>';
-  if (io.date_status === 'HISTORICAL') return '<span class="badge historical" title="Dated, but outside the fresh window">Historical</span>';
-  return '<span class="badge undated" title="No publication date attributed by Core">Undated</span>';
+function cleanUrl(u) {
+  if (!u) return '';
+  try { const x = new URL(u); return x.hostname.replace(/^www\./, '') + (x.pathname === '/' ? '' : x.pathname); }
+  catch (e) { return String(u); }
 }
-function dateLine(io) {
-  if (io.date_status === 'FRESH') {
-    const basis = io.publication_provenance || 'attributed';
-    return (io.publication_time ? fmtDateTime(io.publication_time) : fmtDate(io.best_document_date)) + ' · basis: ' + esc(basis);
-  }
-  if (io.date_status === 'HISTORICAL') {
-    const basis = io.publication_provenance || 'attributed';
-    return (io.publication_time ? fmtDateTime(io.publication_time) : fmtDate(io.best_document_date)) + ' · basis: ' + esc(basis);
-  }
-  return 'No publication date attributed';
+function ioDateKey(io) {
+  return io.publication_time || io.best_document_date || null;
+}
+function statusRank(s) { return s === 'FRESH' ? 0 : (s === 'HISTORICAL' ? 1 : 2); }
+
+/* badges ------------------------------------------------------------- */
+function bStatus(st) {
+  if (st === 'FRESH') return '<span class="badge b-fresh" title="' + esc(FRESH_DEF) + '">FRESH</span>';
+  if (st === 'HISTORICAL') return '<span class="badge b-historical" title="' + esc(HIST_DEF) + '">HISTORICAL</span>';
+  if (st === 'POST_WINDOW') return '<span class="badge b-postwindow" title="Document dated after the frozen fresh window">POST-WINDOW</span>';
+  if (st === 'DATE_UNKNOWN') return '<span class="badge b-dateunknown" title="No date attributed by Core">DATE&nbsp;UNKNOWN</span>';
+  return '<span class="badge b-undated" title="' + esc(UNDAT_DEF) + '">UNDATED</span>';
+}
+function bOfficial(src) {
+  if (!src) return '';
+  return '<span class="badge b-trust" title="Registered official source — authority: ' +
+    esc(src.authority_type) + ' (' + esc(src.authority_level) + '), domain ' + esc(src.official_domain) +
+    '">OFFICIAL SOURCE</span>';
+}
+function bEvidence(n) {
+  if (!n) return '<span class="badge b-undated">NO EVIDENCE</span>';
+  return '<span class="badge b-trust" title="' + n + ' fact(s) carry verbatim evidence excerpts bound to a stored document">EVIDENCE LINKED</span>';
+}
+function bTraceable(ok) {
+  if (!ok) return '<span class="badge b-undated">TRACE INCOMPLETE</span>';
+  return '<span class="badge b-trust" title="Fact, evidence, document and official source all resolve inside this snapshot">TRACEABLE</span>';
 }
 
-/* ---------------------------------------------------------------- boot */
+/* io helpers ---------------------------------------------------------- */
+function ioTraceable(io) {
+  if (!io.chain || !io.chain.length) return false;
+  return io.chain.every(c => c.document_id && c.source_id && c.canonical_url && IX.docs[c.document_id] && IX.srcs[c.source_id]);
+}
+function ioDateLine(io) {
+  if (io.date_status === 'FRESH' || io.date_status === 'HISTORICAL') {
+    const d = io.publication_time ? fmtDateTime(io.publication_time) : fmtDate(io.best_document_date);
+    const basis = io.publication_provenance || io.publication_basis || 'attributed';
+    return d + ' <span class="dim">· basis: ' + esc(basis) + '</span>';
+  }
+  return '<span class="dim">No publication date attributed by Core</span>';
+}
+function ioSortDate(io) {
+  const k = ioDateKey(io);
+  if (!k) return '0000-00-00';
+  return String(k).slice(0, 10);
+}
+
+/* ============================================================ boot */
+
 async function boot() {
   const el = document.getElementById('app');
   el.innerHTML = '<div class="loading">Loading repository production snapshot…</div>';
-  const base = 'data/';
-  const [meta, intelligence, documents, sources, production] = await Promise.all([
-    fetch(base + 'meta.json').then(r => r.json()),
-    fetch(base + 'intelligence.json').then(r => r.json()),
-    fetch(base + 'documents.json').then(r => r.json()),
-    fetch(base + 'sources.json').then(r => r.json()),
-    fetch(base + 'production.json').then(r => r.json()),
-  ]);
-  D.meta = meta; D.intelligence = intelligence; D.documents = documents; D.sources = sources; D.production = production;
-  documents.forEach(d => docIndex[d.document_id] = d);
-  sources.forEach(s => srcIndex[s.source_id] = s);
-  renderMasthead();
-  window.addEventListener('hashchange', route);
-  route();
+  try {
+    const [meta, intelligence, documents, sources, production] = await Promise.all([
+      fetch('data/meta.json').then(r => r.json()),
+      fetch('data/intelligence.json').then(r => r.json()),
+      fetch('data/documents.json').then(r => r.json()),
+      fetch('data/sources.json').then(r => r.json()),
+      fetch('data/production.json').then(r => r.json()),
+    ]);
+    D.meta = meta; D.intelligence = intelligence; D.documents = documents;
+    D.sources = sources; D.production = production;
+
+    documents.forEach(d => { IX.docs[d.document_id] = d; });
+    sources.forEach(s => { IX.srcs[s.source_id] = s; });
+    intelligence.forEach(io => { IX.ios[io.io_id] = io; });
+
+    buildFactIndex();
+    buildSourceStats();
+    renderSysline();
+    initGlobalSearch();
+    window.addEventListener('hashchange', route);
+    route();
+  } catch (e) {
+    el.innerHTML = '<div class="note"><b>Failed to load snapshot data.</b> ' + esc(e.message) + '</div>';
+  }
 }
 
-/* ---------------------------------------------------------------- masthead */
-function renderMasthead() {
+/* flat fact index from IO chains (verbatim; 1:1 with Core chain bindings) */
+function buildFactIndex() {
+  D.intelligence.forEach(io => {
+    (io.chain || []).forEach(c => {
+      FACTS.push({
+        fact_id: c.fact_id, metric: c.metric, value: c.value, raw_value: c.raw_value,
+        excerpt: c.excerpt, evidence_id: c.evidence_id, evidence_location: c.evidence_location,
+        document_id: c.document_id, canonical_url: c.canonical_url, source_id: c.source_id,
+        io_id: io.io_id, institution: io.institution_name, jurisdiction: io.jurisdiction,
+        sector_label: io.sector_label, date_status: io.date_status,
+        doc_date: (IX.docs[c.document_id] || {}).best_iso || null,
+        doc_fresh: (IX.docs[c.document_id] || {}).fresh_status || null,
+        _lc: lower([c.metric, c.value, c.raw_value, io.institution_name, c.document_id, c.source_id, io.sector_label, io.jurisdiction].join(' ')),
+      });
+    });
+  });
+}
+
+/* derived presentation stats per source (arithmetic on real committed data) */
+function buildSourceStats() {
+  D.sources.forEach(s => { SRC_STATS[s.source_id] = { chain_facts: 0, evidence_facts: 0, docs_listed: 0, undated_vio: 0 }; });
+  FACTS.forEach(f => {
+    const st = SRC_STATS[f.source_id]; if (!st) return;
+    st.chain_facts += 1;
+    if (f.excerpt && f.evidence_id) st.evidence_facts += 1;
+  });
+  D.documents.forEach(d => { const st = SRC_STATS[d.source_id]; if (st) st.docs_listed += 1; });
+  D.intelligence.forEach(io => {
+    const st = SRC_STATS[io.source_id]; if (!st) return;
+    if (io.date_status === 'UNDATED') st.undated_vio += 1;
+  });
+}
+
+/* ============================================================ chrome */
+
+function renderSysline() {
   const m = D.meta;
-  document.getElementById('masthead-meta').innerHTML =
-    '<div class="strong">Repository Production Snapshot</div>' +
-    '<div>Wave ' + esc(m.wave) + ' · Snapshot ' + esc(m.snapshot_date) + '</div>';
-  document.getElementById('system-strip').innerHTML =
-    '<span><span class="dot"></span><span class="mode">' + esc(m.snapshot_kind) + '</span>' +
-    '&nbsp;·&nbsp;ROUAA Core commit ' + esc(m.production_commit.slice(0, 7)) +
-    '&nbsp;·&nbsp;fresh window ' + esc(m.fresh_window.start) + ' → ' + esc(m.fresh_window.end) + '</span>' +
-    '<span>THIS IS NOT A LIVE PRODUCTION FEED — frozen snapshot of committed Core outputs</span>';
+  document.getElementById('sysline').innerHTML =
+    '<span class="dot">&#9632;</span> <b>' + esc(m.snapshot_kind) + '</b>' +
+    ' &nbsp;·&nbsp; NOT A LIVE FEED' +
+    ' &nbsp;·&nbsp; Core commit <b>' + esc(m.production_commit.slice(0, 10)) + '</b> on ' + esc(m.production_branch) +
+    ' &nbsp;·&nbsp; fresh window ' + esc(m.fresh_window.start) + ' &rarr; ' + esc(m.fresh_window.end) +
+    ' &nbsp;·&nbsp; snapshot ' + esc(m.snapshot_date) +
+    ' &nbsp;·&nbsp; interface V2 — presentation layer only';
+  document.getElementById('snapshot-chip').innerHTML = 'SNAPSHOT · ' + esc(m.wave) + ' · ' + esc(m.snapshot_date);
 }
 
-/* ---------------------------------------------------------------- router */
+function setNav(key) {
+  document.querySelectorAll('#topnav a').forEach(a => a.classList.toggle('on', a.dataset.key === key));
+}
+
+/* ============================================================ global search */
+
+const GS = { timer: null, items: [], active: -1 };
+
+function initGlobalSearch() {
+  const input = document.getElementById('gsearch-input');
+  const drop = document.getElementById('gsearch-drop');
+  input.addEventListener('input', () => {
+    clearTimeout(GS.timer);
+    GS.timer = setTimeout(() => runGlobalSearch(input.value), 130);
+  });
+  input.addEventListener('focus', () => { if (input.value.trim()) runGlobalSearch(input.value); });
+  input.addEventListener('keydown', e => {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (!GS.items.length) return;
+      GS.active += (e.key === 'ArrowDown' ? 1 : -1);
+      if (GS.active < 0) GS.active = GS.items.length - 1;
+      if (GS.active >= GS.items.length) GS.active = 0;
+      renderGsDrop(true);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (GS.active >= 0 && GS.items[GS.active]) { location.hash = GS.items[GS.active].href; closeGs(); input.blur(); }
+      else if (input.value.trim()) { location.hash = '#/search?q=' + encodeURIComponent(input.value.trim()); closeGs(); input.blur(); }
+    } else if (e.key === 'Escape') { closeGs(); }
+  });
+  document.addEventListener('click', e => {
+    if (!document.getElementById('gsearch').contains(e.target)) closeGs();
+  });
+}
+function closeGs() {
+  document.getElementById('gsearch-drop').hidden = true;
+  GS.active = -1;
+}
+function gsMatch(q) {
+  const t = lower(q).trim();
+  if (!t) return { intel: [], docs: [], facts: [], srcs: [] };
+  const has = s => lower(s).indexOf(t) !== -1;
+  const intel = D.intelligence.filter(io => has(io.institution_name + ' ' + io.event_type_label + ' ' + io.jurisdiction + ' ' + io.sector_label + ' ' + io.headline + ' ' + io.io_id)).slice(0, 4);
+  const docs = D.documents.filter(d => has(d.canonical_url + ' ' + d.document_id + ' ' + ((IX.srcs[d.source_id] || {}).institution_name || '') + ' ' + d.source_id)).slice(0, 4);
+  const facts = FACTS.filter(f => f._lc.indexOf(t) !== -1).slice(0, 4);
+  const srcs = D.sources.filter(s => has(s.institution_name + ' ' + s.official_domain + ' ' + s.jurisdiction + ' ' + s.source_id + ' ' + s.sector_label)).slice(0, 4);
+  return { intel, docs, facts, srcs };
+}
+function runGlobalSearch(q) {
+  const r = gsMatch(q);
+  GS.items = [];
+  const drop = document.getElementById('gsearch-drop');
+  if (!q.trim()) { drop.hidden = true; return; }
+  const total = r.intel.length + r.docs.length + r.facts.length + r.srcs.length;
+  if (!total) {
+    drop.innerHTML = '<div class="gs-empty">No objects in this snapshot match &ldquo;' + esc(q) + '&rdquo;.</div>';
+    drop.hidden = false; return;
+  }
+  let html = '';
+  const cat = (label, arr, render) => {
+    if (!arr.length) return;
+    html += '<div class="gs-cat">' + label + ' <b>' + arr.length + ' shown</b></div>';
+    arr.forEach(it => { const o = render(it); GS.items.push({ href: o.href }); html += o.html; });
+  };
+  cat('INTELLIGENCE', r.intel, io => ({
+    href: '#/intelligence/' + io.io_id,
+    html: '<a class="gs-row" href="#/intelligence/' + io.io_id + '"><span class="gs-t ellip">' + esc(io.institution_name) + '</span><span class="gs-m">' + esc(io.event_type_label) + ' · ' + io.n_facts + ' facts</span></a>',
+  }));
+  cat('DOCUMENTS', r.docs, d => ({
+    href: '#/documents/' + d.document_id,
+    html: '<a class="gs-row" href="#/documents/' + d.document_id + '"><span class="gs-t ellip">' + esc(cleanUrl(d.canonical_url)) + '</span><span class="gs-m">' + esc((IX.srcs[d.source_id] || {}).institution_name || d.source_id) + '</span></a>',
+  }));
+  cat('FACTS', r.facts, f => ({
+    href: '#/evidence/' + f.io_id + '/' + f.fact_id,
+    html: '<a class="gs-row" href="#/evidence/' + f.io_id + '/' + f.fact_id + '"><span class="gs-t ellip">' + esc(f.value) + ' — ' + esc(String(f.raw_value).slice(0, 70)) + '</span><span class="gs-m">' + esc(f.metric) + '</span></a>',
+  }));
+  cat('SOURCES', r.srcs, s => ({
+    href: '#/sources/' + s.source_id,
+    html: '<a class="gs-row" href="#/sources/' + s.source_id + '"><span class="gs-t ellip">' + esc(s.institution_name) + '</span><span class="gs-m">' + esc(s.jurisdiction) + '</span></a>',
+  }));
+  html += '<a class="gs-more" href="#/search?q=' + encodeURIComponent(q.trim()) + '">View all results for &ldquo;' + esc(q) + '&rdquo; &rarr;</a>';
+  drop.innerHTML = html;
+  drop.hidden = false;
+}
+function renderGsDrop(keepOpen) {
+  const drop = document.getElementById('gsearch-drop');
+  drop.querySelectorAll('.gs-row').forEach((el, i) => el.classList.toggle('active', i === GS.active));
+  if (keepOpen) drop.hidden = false;
+}
+
+/* ============================================================ router */
+
+function parseHash() {
+  const h = location.hash.replace(/^#\/?/, '');
+  const qi = h.indexOf('?');
+  const path = qi === -1 ? h : h.slice(0, qi);
+  const query = {};
+  if (qi !== -1) h.slice(qi + 1).split('&').forEach(p => {
+    const kv = p.split('='); if (kv[0]) query[decodeURIComponent(kv[0])] = decodeURIComponent(kv[1] || '');
+  });
+  const seg = path.split('/').filter(Boolean);
+  return { seg, query };
+}
+
 function route() {
-  const h = location.hash.slice(1) || '/';
-  const parts = h.split('/').filter(Boolean);
+  const { seg, query } = parseHash();
   const app = document.getElementById('app');
+  document.title = 'ROUAA Institutional Intelligence — Repository Production Snapshot (LSE-V4)';
   window.scrollTo(0, 0);
-  setActiveNav(parts[0] || '');
-  if (parts.length === 0) return viewHome(app);
-  if (parts[0] === 'intelligence' && parts[1]) return viewIntelligence(app, parts[1]);
-  if (parts[0] === 'document' && parts[1]) return viewDocument(app, parts[1]);
-  if (parts[0] === 'source' && parts[1]) return viewSource(app, parts[1]);
-  if (parts[0] === 'production') return viewProduction(app);
-  if (parts[0] === 'documents') return viewDocuments(app);
-  if (parts[0] === 'sources') return viewSources(app);
-  return viewHome(app);
+  closeGs();
+
+  if (!seg.length) { setNav('overview'); return viewOverview(app); }
+  switch (seg[0]) {
+    case 'intelligence':
+      if (seg[1]) { setNav('intelligence'); return viewIoDetail(app, seg[1]); }
+      setNav('intelligence'); return viewIntelligence(app, query);
+    case 'evidence':
+      setNav('intelligence'); return viewEvidence(app, seg[1], seg[2]);
+    case 'trace':
+      setNav('intelligence'); return viewTrace(app, seg[1]);
+    case 'documents':
+      if (seg[1]) { setNav('documents'); return viewDocDetail(app, seg[1]); }
+      setNav('documents'); return viewDocuments(app);
+    case 'facts':
+      setNav('facts'); return viewFacts(app, query);
+    case 'sources':
+      if (seg[1]) { setNav('sources'); return viewSourceDetail(app, seg[1]); }
+      setNav('sources'); return viewSources(app);
+    case 'production':
+      setNav('production'); return viewProduction(app);
+    case 'search':
+      setNav(''); return viewSearch(app, query.q || '');
+    default:
+      setNav('overview'); return viewOverview(app);
+  }
 }
-function setActiveNav(key) {
-  document.querySelectorAll('.topnav a').forEach(a => {
-    a.classList.toggle('active', a.getAttribute('data-key') === key);
-  });
-}
 
-/* =========================================================================
-   HOME — EXECUTIVE BRIEF
-   ========================================================================= */
-const FILTER = { q: '', fresh: '', sector: '', juris: '', etype: '' };
+/* ============================================================ OVERVIEW */
 
-function viewHome(app) {
-  const m = D.meta;
-  const fresh = D.intelligence.filter(i => i.date_status === 'FRESH' && i.is_new).length;
-  const hist = D.intelligence.filter(i => i.date_status === 'HISTORICAL' && i.is_new).length;
-  const und = D.intelligence.filter(i => i.date_status === 'UNDATED' && i.is_new).length;
-
-  // real sectors with counts
+function viewOverview(app) {
+  const ios = D.intelligence;
+  const fresh = ios.filter(x => x.date_status === 'FRESH');
+  const hist = ios.filter(x => x.date_status === 'HISTORICAL');
+  const undat = ios.filter(x => x.date_status === 'UNDATED');
+  const chainFacts = FACTS.length;
+  const productive = D.sources.filter(s => (s.unique_vio || 0) > 0).length;
   const sectors = {};
-  D.intelligence.forEach(i => { if (i.sector_label) sectors[i.sector_label] = (sectors[i.sector_label] || 0) + 1; });
-  const sectorKeys = Object.keys(sectors).sort((a, b) => sectors[b] - sectors[a]);
+  ios.forEach(x => { sectors[x.sector_label] = (sectors[x.sector_label] || 0) + 1; });
+  const topSector = Object.keys(sectors).sort((a, b) => sectors[b] - sectors[a])[0];
+  const latest = fresh.slice().sort((a, b) => ioSortDate(b).localeCompare(ioSortDate(a)))[0];
 
-  const jurisdictions = {};
-  D.intelligence.forEach(i => { if (i.jurisdiction) jurisdictions[i.jurisdiction] = (jurisdictions[i.jurisdiction] || 0) + 1; });
-  const jurisKeys = Object.keys(jurisdictions).sort();
+  let html = '' +
+    '<div class="view-head">' +
+      '<div class="view-title">OVERVIEW</div>' +
+      '<div class="view-count">' + D.meta.counts.intelligence_objects + ' intelligence objects · ' + D.meta.counts.documents + ' documents · ' +
+        D.meta.counts.facts.toLocaleString('en-GB') + ' facts · ' + D.meta.counts.sources + ' registered sources</div>' +
+    '</div>' +
 
-  app.innerHTML = `
-  <div class="page-head">
-    <div class="kicker">Executive Brief · ${esc(m.snapshot_date)}</div>
-    <h1 class="page-title">What should I know?</h1>
-    <div class="page-sub">Official-source intelligence produced by ROUAA Core in the latest production wave.
-    Every object below is traceable: intelligence → facts → documents → official source.
-    ${fresh} objects are recent (published inside the ${esc(m.fresh_window.start)} → ${esc(m.fresh_window.end)} window);
-    ${hist} are dated but historical; ${und} carry no attributed publication date — Core never guesses dates.</div>
-  </div>
+    '<div class="ov-answers">' +
+      '<div class="ov-answer"><div class="ov-q">WHAT HAPPENED</div><div class="ov-a">' +
+        '<b>' + fresh.length + ' intelligence objects</b> carry a publication date inside the fresh window (' +
+        esc(D.meta.fresh_window.start) + ' &rarr; ' + esc(D.meta.fresh_window.end) + ').' +
+        (latest ? ' Most recent: <span class="lnk" data-go="#/intelligence/' + latest.io_id + '">' + esc(latest.institution_name) +
+        '</span> · ' + fmtDate(ioDateKey(latest)) + '.' : '') +
+      '</div></div>' +
+      '<div class="ov-answer"><div class="ov-q">WHAT IS IMPORTANT</div><div class="ov-a">' +
+        'Production concentrates in <b>' + esc(topSector) + '</b> (' + sectors[topSector] + ' objects). ' +
+        '<b>' + productive + ' of ' + D.sources.length + '</b> registered sources produced verified intelligence this wave; ' +
+        'the remainder are registered but not yet productive.' +
+      '</div></div>' +
+      '<div class="ov-answer"><div class="ov-q">WHAT CAN I VERIFY</div><div class="ov-a">' +
+        'Every one of the <b>' + ios.length + '</b> intelligence objects resolves to an official source through ' +
+        '<b>' + chainFacts.toLocaleString('en-GB') + ' evidence-linked facts</b> and ' + D.meta.counts.documents + ' acquired documents. ' +
+        '<span class="lnk" data-go="#/intelligence">Open intelligence &rarr;</span>' +
+      '</div></div>' +
+    '</div>' +
 
-  <div class="brief-strip">
-    <div class="brief-cell"><div class="v">${fresh}</div><div class="k">Recent intelligence</div><div class="note">published in fresh window</div></div>
-    <div class="brief-cell"><div class="v">${hist}</div><div class="k">Historical (dated)</div><div class="note">outside fresh window</div></div>
-    <div class="brief-cell"><div class="v">${und}</div><div class="k">Undated</div><div class="note">no date attributed — shown, not hidden</div></div>
-    <div class="brief-cell"><div class="v">${m.counts.net_new_vio}</div><div class="k">Net-new VIO this wave</div><div class="note">+${m.counts.rediscovered} re-discoveries of known VIOs</div></div>
-    <div class="brief-cell"><div class="v">${m.counts.sources}</div><div class="k">Sources in wave</div><div class="note">of 10,383 registered universe</div></div>
-    <div class="brief-cell"><div class="v">${m.counts.documents}</div><div class="k">Documents acquired</div><div class="note">${m.counts.facts.toLocaleString()} facts extracted</div></div>
-  </div>
+    '<div class="view-head"><div class="view-title">INTELLIGENCE FEED</div>' +
+      '<div class="view-count">ordered FRESH &rarr; HISTORICAL &rarr; UNDATED — nothing hidden</div>' +
+      '<div class="view-actions"><a class="btn" href="#/intelligence">TABLE VIEW &rarr;</a></div>' +
+    '</div>';
 
-  <div class="section-label"><span>Latest Intelligence</span><span class="count">${D.intelligence.length} objects · recent first</span></div>
+  const group = (name, cls, def, arr) => {
+    if (!arr.length) return;
+    html += '<div class="feed-group"><div class="feed-ghead"><span class="gname ' + cls + '">' + name + '</span>' +
+      '<span class="view-count">' + arr.length + ' object' + (arr.length > 1 ? 's' : '') + '</span>' +
+      '<span class="gdef">' + esc(def) + '</span></div>';
+    arr.forEach(io => { html += feedRow(io); });
+    html += '</div>';
+  };
+  const byDateDesc = (a, b) => ioSortDate(b).localeCompare(ioSortDate(a));
+  group('FRESH', 'c-fresh', FRESH_DEF, fresh.slice().sort(byDateDesc));
+  group('HISTORICAL', 'c-historical', HIST_DEF, hist.slice().sort(byDateDesc));
+  group('UNDATED', 'c-undated', UNDAT_DEF, undat.slice().sort((a, b) => a.institution_name.localeCompare(b.institution_name)));
 
-  <div class="filter-bar">
-    <div class="search">🔍 <input id="fq" placeholder="Search headline, institution, fact value…" value="${esc(FILTER.q)}"></div>
-    <select id="f-fresh">
-      <option value="">Freshness: all</option>
-      <option value="FRESH"${FILTER.fresh === 'FRESH' ? ' selected' : ''}>Recent only</option>
-      <option value="HISTORICAL"${FILTER.fresh === 'HISTORICAL' ? ' selected' : ''}>Historical only</option>
-      <option value="UNDATED"${FILTER.fresh === 'UNDATED' ? ' selected' : ''}>Undated only</option>
-    </select>
-    <select id="f-sector">
-      <option value="">Sector: all</option>
-      ${sectorKeys.map(s => `<option value="${esc(s)}"${FILTER.sector === s ? ' selected' : ''}>${esc(s)} (${sectors[s]})</option>`).join('')}
-    </select>
-    <select id="f-juris">
-      <option value="">Jurisdiction: all</option>
-      ${jurisKeys.map(j => `<option value="${esc(j)}"${FILTER.juris === j ? ' selected' : ''}>${esc(j)} (${jurisdictions[j]})</option>`).join('')}
-    </select>
-    <select id="f-etype">
-      <option value="">Type: all</option>
-      <option value="regulatory_enforcement"${FILTER.etype === 'regulatory_enforcement' ? ' selected' : ''}>Regulatory enforcement (12)</option>
-      <option value="monetary_policy_decision"${FILTER.etype === 'monetary_policy_decision' ? ' selected' : ''}>Monetary policy decision (1)</option>
-      <option value="statistical_release"${FILTER.etype === 'statistical_release' ? ' selected' : ''}>Statistical release (132)</option>
-      <option value="market_statistic_release"${FILTER.etype === 'market_statistic_release' ? ' selected' : ''}>Market statistic (2)</option>
-    </select>
-    <button class="reset" id="f-reset">Reset</button>
-  </div>
+  app.innerHTML = html;
+  bindGo(app);
+}
 
-  <div class="intel-list" id="intel-list"></div>
+function feedRow(io) {
+  const d = io.date_status === 'UNDATED' ? '' : ioDateKey(io);
+  return '<div class="feed-row" data-go="#/intelligence/' + io.io_id + '">' +
+    bStatus(io.date_status) +
+    '<span class="f-inst ellip">' + esc(io.institution_name) + '</span>' +
+    '<span class="f-type">' + esc(io.event_type_label) + '</span>' +
+    '<span class="f-meta">' + esc(io.jurisdiction) + ' · ' + esc(io.sector_label) +
+      ' · <span class="num">' + io.n_facts + '</span> fact' + (io.n_facts === 1 ? '' : 's') + '</span>' +
+    (d ? '<span class="f-date">' + fmtDate(d) + '</span>' : '<span class="f-date dim">no date</span>') +
+    '<span class="f-open">OPEN &rarr;</span>' +
+    '</div>';
+}
 
-  <div class="section-label"><span>Institutional Coverage</span><span class="count">producing intelligence this wave</span></div>
-  <div id="coverage" class="panel"></div>
-  `;
-  renderIntelList();
-  renderCoverage();
-
-  const q = document.getElementById('fq');
-  q.addEventListener('input', () => { FILTER.q = q.value; renderIntelList(); });
-  ['fresh', 'sector', 'juris', 'etype'].forEach(k => {
-    document.getElementById('f-' + k).addEventListener('change', e => { FILTER[k] = e.target.value; renderIntelList(); });
-  });
-  document.getElementById('f-reset').addEventListener('click', () => {
-    FILTER.q = ''; FILTER.fresh = ''; FILTER.sector = ''; FILTER.juris = ''; FILTER.etype = '';
-    viewHome(app);
+/* generic delegated navigation for data-go elements */
+function bindGo(root) {
+  root.querySelectorAll('[data-go]').forEach(el => {
+    el.addEventListener('click', () => { location.hash = el.dataset.go; });
   });
 }
 
-function filteredIntel() {
-  const q = FILTER.q.trim().toLowerCase();
+/* ============================================================ INTELLIGENCE (list) */
+
+function intelFiltered() {
+  const f = LS.intel;
+  const q = lower(f.q.trim());
   return D.intelligence.filter(io => {
-    if (FILTER.fresh && io.date_status !== FILTER.fresh) return false;
-    if (FILTER.sector && io.sector_label !== FILTER.sector) return false;
-    if (FILTER.juris && io.jurisdiction !== FILTER.juris) return false;
-    if (FILTER.etype && io.event_type !== FILTER.etype) return false;
+    if (f.fresh && io.date_status !== f.fresh) return false;
+    if (f.jur && io.jurisdiction !== f.jur) return false;
+    if (f.sector && io.sector_label !== f.sector) return false;
+    if (f.type && io.event_type_label !== f.type) return false;
+    if (f.lang && io.language !== f.lang) return false;
+    if (f.inst.trim() && lower(io.institution_name).indexOf(lower(f.inst.trim())) === -1) return false;
+    if (q && lower(io.institution_name + ' ' + io.event_type_label + ' ' + io.jurisdiction + ' ' + io.sector_label + ' ' + io.headline + ' ' + io.io_id).indexOf(q) === -1) return false;
+    return true;
+  });
+}
+function intelSort(arr) {
+  const f = LS.intel;
+  const dir = f.dir === 'asc' ? 1 : -1;
+  const by = {
+    rank: (a, b) => (statusRank(a.date_status) - statusRank(b.date_status)) || ioSortDate(b).localeCompare(ioSortDate(a)),
+    inst: (a, b) => a.institution_name.localeCompare(b.institution_name) * dir,
+    type: (a, b) => a.event_type_label.localeCompare(b.event_type_label) * dir,
+    date: (a, b) => ioSortDate(a).localeCompare(ioSortDate(b)) * dir,
+    facts: (a, b) => ((a.n_facts || 0) - (b.n_facts || 0)) * dir,
+    evi: (a, b) => ((a.chain || []).length - (b.chain || []).length) * dir,
+    doc: (a, b) => String((a.chain[0] || {}).document_id || '').localeCompare(String((b.chain[0] || {}).document_id || '')) * dir,
+  }[f.sort] || null;
+  return by ? arr.slice().sort(by) : arr.slice();
+}
+
+function viewIntelligence(app, query) {
+  /* deep links are deterministic: reset list filters, then apply the query param */
+  if (query.inst || query.src) {
+    Object.assign(LS.intel, { q: '', fresh: null, jur: null, sector: null, type: null, lang: null, inst: '', page: 1 });
+    if (query.inst) LS.intel.inst = query.inst;
+    if (query.src) { const s = IX.srcs[query.src]; if (s) LS.intel.inst = s.institution_name; }
+  }
+  LS.intel.page = 1;
+  renderIntelligence(app);
+}
+
+function renderIntelligence(app) {
+  const f = LS.intel;
+  const all = intelFiltered();
+  const sorted = intelSort(all);
+
+  const jurisdictions = uniq(D.intelligence.map(x => x.jurisdiction));
+  const sectors = uniq(D.intelligence.map(x => x.sector_label));
+  const types = uniq(D.intelligence.map(x => x.event_type_label));
+  const langs = uniq(D.intelligence.map(x => x.language));
+
+  let html = '' +
+    '<div class="view-head">' +
+      '<div class="view-title">INTELLIGENCE</div>' +
+      '<div class="view-count">' + all.length + ' of ' + D.intelligence.length + ' intelligence objects</div>' +
+      '<div class="view-actions">' +
+        '<button class="btn' + (f.mode === 'feed' ? ' on' : '') + '" id="m-feed">FEED</button>' +
+        '<button class="btn' + (f.mode === 'table' ? ' on' : '') + '" id="m-table">TABLE</button>' +
+      '</div>' +
+    '</div>' +
+    '<div class="cols"><div class="col-main" id="intel-main"></div>' +
+    '<div class="col-side"><div class="panel filter-panel"><div class="panel-head"><span class="panel-label">FILTERS</span>' +
+    '<span class="panel-meta">' + D.intelligence.length + ' total</span></div><div class="panel-body" id="intel-filters"></div></div></div></div>';
+
+  app.innerHTML = html;
+  renderIntelFilters();
+  renderIntelMain(sorted);
+  document.getElementById('m-feed').onclick = () => { f.mode = 'feed'; renderIntelligence(app); };
+  document.getElementById('m-table').onclick = () => { f.mode = 'table'; renderIntelligence(app); };
+}
+
+function renderIntelFilters() {
+  const f = LS.intel;
+  const el = document.getElementById('intel-filters');
+  const jurisdictions = uniq(D.intelligence.map(x => x.jurisdiction));
+  const sectors = uniq(D.intelligence.map(x => x.sector_label));
+  const types = uniq(D.intelligence.map(x => x.event_type_label));
+  const langs = uniq(D.intelligence.map(x => x.language));
+
+  const opts = (items, cur, set) => items.map(v =>
+    '<span class="fopt' + (cur === v ? ' on' : '') + '" data-f="' + esc(v) + '">' + esc(v) + '</span>').join('');
+
+  el.innerHTML =
+    fg('Search', '<input type="text" id="fi-q" placeholder="institution, type, id..." value="' + esc(f.q) + '">') +
+    fg('Institution', '<input type="text" id="fi-inst" placeholder="contains..." value="' + esc(f.inst) + '">') +
+    fg('Freshness', opts(['FRESH', 'HISTORICAL', 'UNDATED'], f.fresh, 'fresh')) +
+    fg('Jurisdiction', opts(jurisdictions, f.jur, 'jur')) +
+    fg('Sector', opts(sectors, f.sector, 'sector')) +
+    fg('Type', opts(types, f.type, 'type')) +
+    fg('Language', opts(langs, f.lang, 'lang')) +
+    '<div class="fgroup"><button class="btn sm" id="fi-clear">CLEAR ALL FILTERS</button></div>';
+
+  const qEl = document.getElementById('fi-q');
+  qEl.oninput = () => { f.q = qEl.value; f.page = 1; refreshIntel(); };
+  const iEl = document.getElementById('fi-inst');
+  iEl.oninput = () => { f.inst = iEl.value; f.page = 1; refreshIntel(); };
+  el.querySelectorAll('.fopt').forEach(o => o.onclick = () => {
+    const v = o.dataset.f;
+    f.page = 1;
+    if (['FRESH', 'HISTORICAL', 'UNDATED'].includes(v)) f.fresh = (f.fresh === v ? null : v);
+    else if (jurisdictions.includes(v)) f.jur = (f.jur === v ? null : v);
+    else if (sectors.includes(v)) f.sector = (f.sector === v ? null : v);
+    else if (types.includes(v)) f.type = (f.type === v ? null : v);
+    else if (langs.includes(v)) f.lang = (f.lang === v ? null : v);
+    renderIntelFilters(); refreshIntel();
+  });
+  document.getElementById('fi-clear').onclick = () => {
+    Object.assign(LS.intel, { q: '', fresh: null, jur: null, sector: null, type: null, lang: null, inst: '', page: 1 });
+    renderIntelligence(document.getElementById('app'));
+  };
+}
+function fg(k, body) { return '<div class="fgroup"><div class="fgroup-k">' + k + '</div>' + body + '</div>'; }
+function uniq(arr) { return Array.from(new Set(arr.filter(v => v != null && v !== ''))).sort(); }
+
+function refreshIntel() {
+  const all = intelFiltered();
+  const sorted = intelSort(all);
+  renderIntelMain(sorted);
+  const c = document.querySelector('.view-count');
+  if (c) c.textContent = all.length + ' of ' + D.intelligence.length + ' intelligence objects';
+}
+
+function renderIntelMain(sorted) {
+  const f = LS.intel;
+  const main = document.getElementById('intel-main');
+  const per = f.mode === 'table' ? f.per : 50;
+  const pages = Math.max(1, Math.ceil(sorted.length / per));
+  if (f.page > pages) f.page = pages;
+  const slice = sorted.slice((f.page - 1) * per, f.page * per);
+
+  let html = '';
+  if (f.mode === 'feed') {
+    html += '<div class="note" style="margin-bottom:12px"><b>Identity note.</b> Core does not yet produce semantic titles. ' +
+      'Each object below is identified by its real committed metadata: institution and event type. ' +
+      'FRESH &rarr; HISTORICAL &rarr; UNDATED; no temporal class is hidden.</div>';
+    const groups = [['FRESH', 'c-fresh', FRESH_DEF], ['HISTORICAL', 'c-historical', HIST_DEF], ['UNDATED', 'c-undated', UNDAT_DEF]];
+    groups.forEach(([name, cls, def]) => {
+      const arr = slice.filter(x => x.date_status === name);
+      if (!arr.length) return;
+      html += '<div class="feed-group"><div class="feed-ghead"><span class="gname ' + cls + '">' + name + '</span>' +
+        '<span class="view-count">' + arr.length + ' shown</span><span class="gdef">' + esc(def) + '</span></div>';
+      arr.forEach(io => { html += feedRow(io); });
+      html += '</div>';
+    });
+    html += pager(sorted.length, f.page, per, pages, 'intel');
+  } else {
+    const th = (key, label, cls) =>
+      '<th class="sortable ' + (cls || '') + '" data-sk="' + key + '">' + label +
+      (f.sort === key ? '<span class="arr">' + (f.dir === 'asc' ? '&#9650;' : '&#9660;') + '</span>' : '') + '</th>';
+    html += '<div class="tbl-wrap"><table class="tbl"><thead><tr>' +
+      th('rank', 'STATUS') + th('inst', 'INSTITUTION') + th('type', 'TYPE') + th('date', 'DATE') +
+      th('facts', 'FACTS') + th('evi', 'EVIDENCE') + th('doc', 'DOCUMENT') +
+      '</tr></thead><tbody>';
+    slice.forEach(io => {
+      const doc = (io.chain[0] || {}).document_id;
+      html += '<tr class="rowlink" data-go="#/intelligence/' + io.io_id + '">' +
+        '<td>' + bStatus(io.date_status) + '</td>' +
+        '<td class="t-strong ellip" title="' + esc(io.institution_name) + '">' + esc(io.institution_name) + '</td>' +
+        '<td>' + esc(io.event_type_label) + '</td>' +
+        '<td class="mono">' + (io.date_status === 'UNDATED' ? '<span class="dim">—</span>' : esc(ioSortDate(io))) + '</td>' +
+        '<td><span class="num' + (io.n_facts >= 20 ? ' hot' : '') + '">' + io.n_facts + '</span></td>' +
+        '<td><span class="num">' + (io.chain || []).length + '</span></td>' +
+        '<td class="mono dim">' + (doc ? esc(doc.slice(0, 14)) + '…' : '<span class="dim">—</span>') + '</td>' +
+        '</tr>';
+    });
+    html += '</tbody></table></div>';
+    html += '<div class="note" style="margin-top:10px"><b>Sorting.</b> Click a column header to sort. Default order: temporal class, then most recent date. ' +
+      'Undated objects sort last under DATE.</div>';
+    html += pager(sorted.length, f.page, per, pages, 'intel');
+  }
+  main.innerHTML = html;
+  bindGo(main);
+  wirePager('intel', () => refreshIntel());
+  main.querySelectorAll('th.sortable').forEach(t => t.onclick = () => {
+    const k = t.dataset.sk;
+    if (LS.intel.sort === k) LS.intel.dir = (LS.intel.dir === 'asc' ? 'desc' : 'asc');
+    else { LS.intel.sort = k; LS.intel.dir = (k === 'rank' || k === 'inst' || k === 'type' || k === 'doc') ? 'asc' : 'desc'; }
+    refreshIntel();
+  });
+}
+
+function pager(total, page, per, pages, key) {
+  let btns = '';
+  const win = [];
+  for (let p = 1; p <= pages; p++) {
+    if (p === 1 || p === pages || Math.abs(p - page) <= 2) win.push(p);
+    else if (win[win.length - 1] !== '…') win.push('…');
+  }
+  win.forEach(p => {
+    if (p === '…') btns += '<button disabled>…</button>';
+    else btns += '<button class="' + (p === page ? 'cur' : '') + '" data-pg="' + p + '">' + p + '</button>';
+  });
+  return '<div class="pager" data-pager="' + key + '">' +
+    '<span>' + total.toLocaleString('en-GB') + ' rows</span>' +
+    '<select data-persel>' + PER_PAGE_OPTS.map(o => '<option value="' + o + '"' + (o === per ? ' selected' : '') + '>' + o + ' / page</option>').join('') + '</select>' +
+    '<div class="pg-btns"><button data-pg="prev" ' + (page <= 1 ? 'disabled' : '') + '>&#9664; PREV</button>' + btns +
+    '<button data-pg="next" ' + (page >= pages ? 'disabled' : '') + '>NEXT &#9654;</button></div>' +
+    '<span class="pg-info">page ' + page + ' / ' + pages + '</span></div>';
+}
+function wirePager(key, refresh) {
+  document.querySelectorAll('[data-pager="' + key + '"]').forEach(p => {
+    p.querySelectorAll('[data-pg]').forEach(b => b.onclick = () => {
+      const v = b.dataset.pg;
+      const st = LS[key];
+      if (v === 'prev') st.page = Math.max(1, st.page - 1);
+      else if (v === 'next') st.page = st.page + 1;
+      else st.page = parseInt(v, 10);
+      refresh();
+    });
+    const sel = p.querySelector('[data-persel]');
+    if (sel) sel.onchange = () => { LS[key].per = parseInt(sel.value, 10); LS[key].page = 1; refresh(); };
+  });
+}
+
+/* ============================================================ INTELLIGENCE DETAIL */
+
+function viewIoDetail(app, ioId) {
+  const io = IX.ios[ioId];
+  if (!io) { app.innerHTML = notFound('Intelligence object', ioId, '#/intelligence'); return; }
+  const src = IX.srcs[io.source_id] || null;
+  const chain = io.chain || [];
+  const doc = chain.length ? IX.docs[chain[0].document_id] : null;
+  const traceOk = ioTraceable(io);
+
+  let html = '' +
+    '<div class="crumb"><a href="#/">OVERVIEW</a><span class="sep">/</span><a href="#/intelligence">INTELLIGENCE</a><span class="sep">/</span><span class="mono">' + esc(io.io_id) + '</span></div>' +
+
+    /* --- identity block (metadata, not a synthesized title) --- */
+    '<div class="io-head">' +
+      '<div class="io-kind">INTELLIGENCE OBJECT</div>' +
+      '<div class="io-inst">' + esc(io.institution_name) + '</div>' +
+      '<div class="io-sub"><span class="io-type">' + esc(io.event_type_label) + '</span>' + bStatus(io.date_status) + '</div>' +
+      '<div class="io-tags">' + bOfficial(src) + bEvidence(chain.length) + bTraceable(traceOk) +
+        '<span class="badge b-accent" title="Acquisition cohort ' + esc(src ? src.cohort : '') + ' · ' + esc(io.language) + '">' + esc(io.language.toUpperCase()) + '</span></div>' +
+      '<div class="io-actions">' +
+        '<a class="btn primary" href="#/trace/' + io.io_id + '">TRACE EVIDENCE</a>' +
+        (chain[0] && chain[0].canonical_url ? '<a class="btn" href="' + esc(chain[0].canonical_url) + '" target="_blank" rel="noopener">OPEN ORIGINAL DOCUMENT</a>' : '') +
+        (doc ? '<a class="btn" href="#/documents/' + esc(doc.document_id) + '">DOCUMENT RECORD</a>' : '') +
+        (src ? '<a class="btn" href="#/sources/' + esc(src.source_id) + '">SOURCE PROFILE</a>' : '') +
+      '</div>' +
+      '<div class="io-ids">' +
+        'institution <b>' + esc(io.institution_name) + '</b> &nbsp;·&nbsp; jurisdiction <b>' + esc(io.jurisdiction) + '</b> (' + esc(io.region) + ')' +
+        ' &nbsp;·&nbsp; sector <b>' + esc(io.sector_label) + '</b><br>' +
+        'date <b>' + ioDateLine(io) + '</b><br>' +
+        'object <b>' + esc(io.io_id) + '</b> v' + num(io.version) + ' &nbsp;·&nbsp; event <b>' + esc(io.event_id) + '</b> v' + num(io.event_version) +
+        ' &nbsp;·&nbsp; ' + (io.is_new ? '<b>net-new this wave</b>' : 'rediscovered from earlier wave') +
+      '</div>' +
+    '</div>' +
+
+    /* --- CONTEXT (honest: Core supplies no interpretation) --- */
+    '<div class="section"><div class="section-title">CONTEXT <span class="sub">why this object may be relevant</span></div>' +
+      '<div class="context-block"><span class="cb-k">CONTEXT</span><span class="cb-v">No interpretation supplied by Core. ' +
+      'This interface does not generate analytical narratives. Relevance must be assessed from the committed facts and evidence below.</span></div>' +
+    '</div>' +
+
+    /* --- WHAT HAPPENED (structured facts, information first) --- */
+    '<div class="section"><div class="section-title">WHAT HAPPENED <span class="sub">' + chain.length +
+      ' structured fact' + (chain.length === 1 ? '' : 's') + ' bound to this object — displayed verbatim</span></div>';
+
+  if (chain.length) {
+    html += '<div class="wh-facts">';
+    chain.slice(0, 12).forEach(c => {
+      html += '<div class="wh-fact"><span class="wf-v">' + esc(c.value) + '</span><span class="wf-r">' + na(c.raw_value) + '</span></div>';
+    });
+    if (chain.length > 12) {
+      html += '<div class="wh-fact"><span class="wf-v dim">+' + (chain.length - 12) + '</span><span class="wf-r dim">further facts listed below in KEY FACTS</span></div>';
+    }
+    html += '</div>';
+  } else {
+    html += '<div class="note">No facts bound to this object in the snapshot.</div>';
+  }
+  html += '</div>';
+
+  /* --- KEY FACTS --- */
+  html += '<div class="section"><div class="section-title">KEY FACTS <span class="sub">fact ' +
+    (chain.length === 1 ? 'record' : 'records') + ' — click a row to open its evidence</span></div><div class="kf-list">';
+  chain.forEach((c, i) => {
+    html += '<div class="kf-row" data-kf="' + i + '">' +
+      '<div class="kf-head">' +
+        '<span class="kf-no">FACT ' + String(i + 1).padStart(2, '0') + '</span>' +
+        '<span class="kf-metric">' + esc(c.metric) + '</span>' +
+        '<span class="kf-value">' + esc(c.value) + '</span>' +
+        '<span class="kf-raw ellip">' + esc(String(c.raw_value || '')) + '</span>' +
+        '<span class="kf-actions"><a class="btn sm" href="#/evidence/' + io.io_id + '/' + esc(c.fact_id) + '">VIEW EVIDENCE</a></span>' +
+      '</div>' +
+      '<div class="kf-body">' +
+        '<div class="ev-block">' +
+          '<div class="ev-loc">EVIDENCE EXCERPT — verbatim from stored document <span class="mono">' + esc(c.document_id) + '</span></div>' +
+          '<div class="ev-excerpt">' + esc(c.excerpt) + '</div>' +
+          '<div class="ev-loc">Technical location: <span class="mono">' + esc(c.evidence_location) + '</span>' +
+            ' &nbsp;·&nbsp; evidence object <span class="mono">' + esc(c.evidence_id) + '</span></div>' +
+          '<div class="ev-links">' +
+            '<a class="btn sm" href="#/documents/' + esc(c.document_id) + '">DOCUMENT RECORD</a>' +
+            '<a class="btn sm" href="#/sources/' + esc(c.source_id) + '">SOURCE PROFILE</a>' +
+            (c.canonical_url ? '<a class="btn sm" href="' + esc(c.canonical_url) + '" target="_blank" rel="noopener">OPEN ORIGINAL</a>' : '') +
+          '</div>' +
+        '</div>' +
+      '</div></div>';
+  });
+  html += '</div></div>';
+
+  /* --- PRIMARY DOCUMENT --- */
+  html += '<div class="section"><div class="section-title">PRIMARY DOCUMENT</div>';
+  if (doc) {
+    html += '<div class="meta-grid">' +
+      mcell('Document', '<span class="mono">' + esc(doc.document_id) + '</span>') +
+      mcell('Official URL', doc.canonical_url ? '<a href="' + esc(doc.canonical_url) + '" target="_blank" rel="noopener">' + esc(cleanUrl(doc.canonical_url)) + '</a>' : na(null)) +
+      mcell('Document date', doc.best_iso ? fmtDate(doc.best_iso) : na(null)) +
+      mcell('Temporal status (document)', bStatus(doc.fresh_status === 'DATE_UNKNOWN' ? 'UNDATED' : doc.fresh_status)) +
+      mcell('Text layer', esc(doc.text_layer) + ' · ' + (doc.text_chars ? Number(doc.text_chars).toLocaleString('en-GB') + ' chars' : '—')) +
+      mcell('Facts extracted / IOs', num(doc.n_facts) + ' / ' + num(doc.n_intelligence)) +
+      mcell('Acquired', doc.new_document === 'True' ? 'First claim this wave' : 'Known from earlier wave') +
+      mcell('Usable (stored)', doc.usable === 'True' ? 'Yes' : 'No') +
+    '</div>' +
+    '<div style="margin-top:10px"><a class="btn" href="' + esc(doc.canonical_url) + '" target="_blank" rel="noopener">OPEN ORIGINAL DOCUMENT</a> ' +
+    '<a class="btn" href="#/documents/' + esc(doc.document_id) + '">DOCUMENT RECORD &rarr;</a></div>';
+  } else {
+    html += '<div class="note">No document record available for this object.</div>';
+  }
+  html += '</div>';
+
+  /* --- SOURCE --- */
+  html += '<div class="section"><div class="section-title">SOURCE</div>';
+  if (src) {
+    html += '<div class="meta-grid">' +
+      mcell('Institution', esc(src.institution_name)) +
+      mcell('Authority', esc(src.authority_type) + ' · ' + esc(src.authority_level)) +
+      mcell('Jurisdiction', esc(src.jurisdiction) + ' (' + esc(src.region) + ')') +
+      mcell('Source', '<a href="' + esc(src.canonical_source_url || src.endpoint) + '" target="_blank" rel="noopener">' + esc(src.official_domain) + '</a>') +
+      mcell('Access status', esc(src.access_status) + ' · ' + esc(src.failure_class)) +
+      mcell('Production status', esc(src.production_status)) +
+    '</div>' +
+    '<div style="margin-top:10px"><a class="btn" href="#/sources/' + esc(src.source_id) + '">SOURCE PROFILE &rarr;</a></div>';
+  } else {
+    html += '<div class="note">Source record not available.</div>';
+  }
+  html += '</div>';
+
+  /* --- TECHNICAL PROVENANCE (bottom) --- */
+  html += '<div class="section"><div class="section-title">TECHNICAL PROVENANCE</div>' +
+    '<div class="meta-grid">' +
+      mcell('Core template headline', esc(io.headline) + ' <span class="dim">(generated by Core from institution + event type; not a semantic title)</span>') +
+      mcell('Publication basis', esc(io.publication_basis || '—')) +
+      mcell('Publication provenance', esc(io.publication_provenance || '—')) +
+      mcell('Raw date field', esc(io.publication_time_raw || '—')) +
+      mcell('Event type (raw)', '<span class="mono">' + esc(io.event_type) + '</span>') +
+      (chain[0] ? mcell('Document content hash', '<span class="mono">' + esc(chain[0].content_sha256) + '</span>') : '') +
+    '</div></div>';
+
+  app.innerHTML = html;
+
+  /* key fact accordion */
+  app.querySelectorAll('.kf-head').forEach(h => h.onclick = () => {
+    h.parentElement.classList.toggle('open');
+  });
+}
+
+function mcell(k, v) { return '<div class="meta-cell"><div class="meta-k">' + k + '</div><div class="meta-v">' + v + '</div></div>'; }
+
+function notFound(what, id, back) {
+  return '<div class="note"><b>' + esc(what) + ' not found in this snapshot.</b> ' +
+    '<span class="mono">' + esc(id || '') + '</span> <a href="' + back + '">Go back &rarr;</a></div>';
+}
+
+/* ============================================================ EVIDENCE VIEW (per fact) */
+
+function viewEvidence(app, ioId, factId) {
+  const io = IX.ios[ioId];
+  if (!io) { app.innerHTML = notFound('Intelligence object', ioId, '#/intelligence'); return; }
+  const c = (io.chain || []).find(x => x.fact_id === factId);
+  if (!c) { app.innerHTML = notFound('Fact', factId, '#/intelligence/' + ioId); return; }
+  const doc = IX.docs[c.document_id] || null;
+  const src = IX.srcs[c.source_id] || null;
+
+  let html = '' +
+    '<div class="crumb"><a href="#/intelligence">INTELLIGENCE</a><span class="sep">/</span>' +
+    '<a href="#/intelligence/' + io.io_id + '">' + esc(io.institution_name) + '</a><span class="sep">/</span><span class="mono">EVIDENCE</span></div>' +
+
+    '<div class="view-head"><div class="view-title">EVIDENCE VIEW</div>' +
+    '<div class="view-count">FACT &rarr; EVIDENCE &rarr; DOCUMENT &rarr; SOURCE — every level resolves</div></div>' +
+
+    '<div class="trace-flow">' +
+      traceNode('FACT', esc(c.metric) + ' = <b style="color:var(--accent)">' + esc(c.value) + '</b>',
+        'fact ' + esc(c.fact_id) + ' · description: ' + esc(c.raw_value || '—'), '#/intelligence/' + io.io_id, true) +
+      arrow() +
+      traceNode('EVIDENCE EXCERPT', '<span style="font-family:var(--mono);font-size:11.5px">' + esc(c.excerpt) + '</span>',
+        'technical location: ' + esc(c.evidence_location) + ' · evidence object ' + esc(c.evidence_id), null, false) +
+      arrow() +
+      traceNode('DOCUMENT', esc(cleanUrl(c.canonical_url)),
+        esc(c.document_id) + (doc && doc.best_iso ? ' · dated ' + esc(doc.best_iso) : ' · no date attributed') +
+        (doc ? ' · ' + esc(doc.text_layer) : ''),
+        '#/documents/' + c.document_id, true) +
+      arrow() +
+      traceNode('SOURCE', esc(src ? src.institution_name : c.source_id),
+        (src ? esc(src.authority_type) + ' · ' + esc(src.jurisdiction) + ' · ' + esc(src.official_domain) : esc(c.source_id)),
+        '#/sources/' + c.source_id, true) +
+    '</div>' +
+
+    '<div class="section"><div class="section-title">FULL FACT RECORD</div>' +
+    '<div class="meta-grid">' +
+      mcell('Metric', '<span class="mono">' + esc(c.metric) + '</span>') +
+      mcell('Value', '<span class="mono">' + esc(c.value) + '</span>') +
+      mcell('Unit', nDash()) +
+      mcell('Period', nDash()) +
+      mcell('Description (raw value)', esc(c.raw_value || '—')) +
+      mcell('Bound intelligence object', '<a href="#/intelligence/' + io.io_id + '">' + esc(io.institution_name) + ' · ' + esc(io.event_type_label) + '</a>') +
+      mcell('Evidence object', '<span class="mono">' + esc(c.evidence_id) + '</span>') +
+      mcell('Technical location', '<span class="mono">' + esc(c.evidence_location) + '</span>') +
+    '</div>' +
+    '<div class="note" style="margin-top:10px"><b>Unit / Period.</b> Not yet produced by ROUAA Core for this fact. ' +
+    'The interface reserves the fields rather than inventing values.</div></div>' +
+
+    '<div class="section"><div class="section-title">ACTIONS</div><div style="display:flex;gap:8px;flex-wrap:wrap">' +
+      '<a class="btn primary" href="#/trace/' + io.io_id + '">TRACE EVIDENCE (full chain)</a>' +
+      '<a class="btn" href="#/intelligence/' + io.io_id + '">BACK TO INTELLIGENCE OBJECT</a>' +
+      '<a class="btn" href="' + esc(c.canonical_url) + '" target="_blank" rel="noopener">OPEN ORIGINAL DOCUMENT</a>' +
+    '</div></div>';
+
+  app.innerHTML = html;
+  bindGo(app);
+}
+
+function traceNode(k, v, sub, href, clickable) {
+  const inner = '<span class="tn-k">' + k + '</span><span class="tn-v">' + v +
+    (sub ? '<span class="sub">' + sub + '</span>' : '') + '</span>';
+  if (href && clickable) {
+    return '<a class="trace-node" href="' + href + '">' + inner + '<span class="f-open" style="opacity:.7">OPEN &rarr;</span></a>';
+  }
+  return '<div class="trace-node static">' + inner + '</div>';
+}
+function arrow() { return '<div class="trace-arrow">&#9660;</div>'; }
+
+/* ============================================================ TRACE (per IO) */
+
+function viewTrace(app, ioId) {
+  const io = IX.ios[ioId];
+  if (!io) { app.innerHTML = notFound('Intelligence object', ioId, '#/intelligence'); return; }
+  const chain = io.chain || [];
+  const doc = chain.length ? IX.docs[chain[0].document_id] : null;
+  const src = IX.srcs[io.source_id] || null;
+  const traceOk = ioTraceable(io);
+
+  let html = '' +
+    '<div class="crumb"><a href="#/intelligence">INTELLIGENCE</a><span class="sep">/</span>' +
+    '<a href="#/intelligence/' + io.io_id + '">' + esc(io.institution_name) + '</a><span class="sep">/</span><span class="mono">TRACE</span></div>' +
+
+    '<div class="view-head"><div class="view-title">TRACE EVIDENCE</div>' +
+    '<div class="view-count">SOURCE &rarr; DOCUMENT &rarr; EVIDENCE &rarr; FACT &rarr; INTELLIGENCE OBJECT</div></div>';
+
+  if (!traceOk) {
+    html += '<div class="note" style="margin-bottom:14px"><b>Trace incomplete.</b> One or more chain levels do not resolve inside this snapshot.</div>';
+  }
+
+  html += '<div class="trace-flow">' +
+    traceNode('SOURCE', esc(src ? src.institution_name : io.source_id),
+      (src ? esc(src.authority_type) + ' · ' + esc(src.authority_level) + ' · ' + esc(src.jurisdiction) + ' · ' + esc(src.official_domain) : io.source_id),
+      src ? '#/sources/' + src.source_id : null, !!src) +
+    arrow() +
+    traceNode('DOCUMENT', esc(doc ? cleanUrl(doc.canonical_url) : 'not resolved'),
+      (doc ? esc(doc.document_id) + (doc.best_iso ? ' · dated ' + esc(doc.best_iso) : ' · no date attributed') + ' · ' + esc(doc.text_layer) : '—'),
+      doc ? '#/documents/' + doc.document_id : null, !!doc) +
+    arrow() +
+    traceNode('EVIDENCE', chain.length + ' evidence object' + (chain.length === 1 ? '' : 's') + ' — verbatim excerpts bound to facts',
+      'all excerpts stored in this snapshot · representation + content hash verified by Core', null, false) +
+    arrow() +
+    traceNode('FACT', chain.length + ' fact record' + (chain.length === 1 ? '' : 's'),
+      'metrics: ' + esc(uniq(chain.map(c => c.metric)).join(', ')), '#/intelligence/' + io.io_id, true) +
+    arrow() +
+    traceNode('INTELLIGENCE OBJECT', esc(io.institution_name) + ' — ' + esc(io.event_type_label),
+      esc(io.io_id) + ' · ' + bStatus(io.date_status), '#/intelligence/' + io.io_id, true) +
+    '</div>' +
+
+    '<div class="section"><div class="section-title">PER-FACT EVIDENCE CHAIN <span class="sub">every fact, its excerpt and its technical location</span></div>' +
+    '<div class="kf-list">';
+
+  chain.forEach((c, i) => {
+    html += '<div class="kf-row"><div class="kf-head">' +
+      '<span class="kf-no">FACT ' + String(i + 1).padStart(2, '0') + '</span>' +
+      '<span class="kf-metric">' + esc(c.metric) + '</span>' +
+      '<span class="kf-value">' + esc(c.value) + '</span>' +
+      '<span class="kf-raw ellip">' + esc(String(c.raw_value || '')) + '</span>' +
+      '<span class="kf-actions"><a class="btn sm" href="#/evidence/' + io.io_id + '/' + esc(c.fact_id) + '">EVIDENCE VIEW</a></span>' +
+      '</div><div class="kf-body"><div class="ev-block">' +
+      '<div class="ev-loc">EXCERPT — ' + esc(c.document_id) + '</div>' +
+      '<div class="ev-excerpt">' + esc(c.excerpt) + '</div>' +
+      '<div class="ev-loc">Technical location: <span class="mono">' + esc(c.evidence_location) + '</span></div>' +
+      '</div></div></div>';
+  });
+  html += '</div></div>';
+
+  html += '<div class="section"><div class="section-title">ACTIONS</div><div style="display:flex;gap:8px;flex-wrap:wrap">' +
+    '<a class="btn primary" href="#/intelligence/' + io.io_id + '">BACK TO INTELLIGENCE OBJECT</a>' +
+    (src ? '<a class="btn" href="#/sources/' + esc(src.source_id) + '">SOURCE PROFILE</a>' : '') +
+    (doc ? '<a class="btn" href="#/documents/' + esc(doc.document_id) + '">DOCUMENT RECORD</a>' : '') +
+    '</div></div>';
+
+  app.innerHTML = html;
+  app.querySelectorAll('.kf-head').forEach(h => h.onclick = () => h.parentElement.classList.toggle('open'));
+  bindGo(app);
+}
+
+/* ============================================================ DOCUMENTS (list) */
+
+function docFiltered() {
+  const f = LS.docs;
+  const q = lower(f.q.trim());
+  return D.documents.filter(d => {
+    const src = IX.srcs[d.source_id] || {};
+    if (f.fresh && d.fresh_status !== f.fresh) return false;
+    if (f.jur && src.jurisdiction !== f.jur) return false;
+    if (f.layer && d.text_layer !== f.layer) return false;
+    if (f.prod === 'yes' && !(d.n_intelligence > 0)) return false;
+    if (f.prod === 'no' && (d.n_intelligence > 0)) return false;
     if (q) {
-      const hay = (io.headline + ' ' + io.institution_name + ' ' + io.jurisdiction + ' ' + io.sector_label + ' ' +
-        io.chain.map(l => l.value + ' ' + l.metric + ' ' + l.excerpt).join(' ')).toLowerCase();
-      if (!hay.includes(q)) return false;
+      const hay = lower([d.canonical_url, d.document_id, src.institution_name, d.source_id,
+        src.jurisdiction, d.text_layer, d.best_iso].join(' '));
+      if (hay.indexOf(q) === -1) return false;
     }
     return true;
   });
 }
-
-function renderIntelList() {
-  const list = document.getElementById('intel-list');
-  const rows = filteredIntel();
-  if (!rows.length) {
-    list.innerHTML = '<div class="empty">No intelligence objects match the current filters in this production snapshot.</div>';
-    return;
-  }
-  list.innerHTML = rows.map(io => `
-  <article class="intel-card ${io.date_status.toLowerCase()}">
-    <div class="row1">
-      <span class="etype">${esc(io.event_type_label)}${io.event_type === 'regulatory_enforcement' ? ' <span class="badge risk">Enforcement</span>' : ''}</span>
-      <span class="datebox">${dateBadge(io)} ${esc(dateLine(io))}</span>
-    </div>
-    <h3><a href="#/intelligence/${esc(io.io_id)}">${esc(io.headline)}</a></h3>
-    <div class="byline"><b>${esc(io.institution_name)}</b> · ${esc(io.jurisdiction)} · ${esc(io.sector_label)} · language: ${esc(io.language)}${io.is_new ? '' : ' · <span class="badge neutral" title="Already known before this wave (excluded from net-new accounting)">Re-discovered VIO</span>'}</div>
-    <div class="evidence-line">
-      <span>Evidence: <b>${io.n_facts}</b> verified fact${io.n_facts === 1 ? '' : 's'} · <b>${io.n_documents}</b> official document${io.n_documents === 1 ? '' : 's'}</span>
-      <span>Identity chain: <b>verified by Core</b></span>
-      <span class="actions">
-        <a class="btn solid" href="#/intelligence/${esc(io.io_id)}">Read Intelligence</a>
-        <a class="btn ghost" href="#/intelligence/${esc(io.io_id)}#/evidence" onclick="setTimeout(()=>document.getElementById('evidence-section')?.scrollIntoView({behavior:'smooth'}),80)">View Evidence</a>
-      </span>
-    </div>
-  </article>`).join('');
+function docSort(arr) {
+  const f = LS.docs;
+  const dir = f.dir === 'asc' ? 1 : -1;
+  const dateKey = d => d.best_iso || '0000-00-00';
+  const by = {
+    date: (a, b) => dateKey(a).localeCompare(dateKey(b)) * dir,
+    inst: (a, b) => ((IX.srcs[a.source_id] || {}).institution_name || '').localeCompare((IX.srcs[b.source_id] || {}).institution_name || '') * dir,
+    facts: (a, b) => ((a.n_facts || 0) - (b.n_facts || 0)) * dir,
+    ios: (a, b) => ((a.n_intelligence || 0) - (b.n_intelligence || 0)) * dir,
+    src: (a, b) => String(a.source_id).localeCompare(String(b.source_id)) * dir,
+    fresh: (a, b) => String(a.fresh_status).localeCompare(String(b.fresh_status)) * dir,
+    layer: (a, b) => String(a.text_layer).localeCompare(String(b.text_layer)) * dir,
+  }[f.sort] || null;
+  return by ? arr.slice().sort(by) : arr.slice();
 }
 
-function renderCoverage() {
-  const byInst = {};
-  D.intelligence.forEach(io => {
-    const k = io.source_id;
-    if (!byInst[k]) byInst[k] = { name: io.institution_name, juris: io.jurisdiction, sector: io.sector_label, n: 0, fresh: 0 };
-    byInst[k].n++;
-    if (io.date_status === 'FRESH') byInst[k].fresh++;
-  });
-  const rows = Object.entries(byInst).sort((a, b) => b[1].n - a[1].n);
-  document.getElementById('coverage').innerHTML = `
-  <table class="data">
-    <thead><tr><th>Institution</th><th>Jurisdiction</th><th>Sector</th><th class="right">Intelligence objects</th><th class="right">Recent</th><th></th></tr></thead>
-    <tbody>${rows.map(([sid, v]) => `
-      <tr>
-        <td><b>${esc(v.name)}</b></td>
-        <td>${esc(v.juris)}</td>
-        <td>${esc(v.sector)}</td>
-        <td class="num right">${v.n}</td>
-        <td class="num right">${v.fresh || '—'}</td>
-        <td class="right"><a class="btn ghost" href="#/source/${esc(sid)}">Source profile</a></td>
-      </tr>`).join('')}
-    </tbody>
-  </table>
-  <div class="mini-note">${rows.length} sources produced intelligence in this wave (of 357 wave sources, of 10,383 registered universe). Production metrics are deliberately secondary — see <a href="#/production">Core Production</a>.</div>`;
-}
-
-/* =========================================================================
-   INTELLIGENCE OBJECT VIEW
-   ========================================================================= */
-function viewIntelligence(app, ioId) {
-  const io = D.intelligence.find(x => x.io_id === ioId);
-  if (!io) { app.innerHTML = '<div class="empty">Intelligence object not found in this snapshot: ' + esc(ioId) + '</div>'; return; }
-
-  const docs = [...new Set(io.chain.map(l => l.document_id))].map(did => docIndex[did]).filter(Boolean);
-  const src = srcIndex[io.source_id];
-  const metricCounts = {};
-  io.chain.forEach(l => { metricCounts[l.metric] = (metricCounts[l.metric] || 0) + 1; });
-  const metricLine = Object.entries(metricCounts).map(([k, v]) => v + ' × ' + k.replace(/_/g, ' ')).join(', ');
-
-  app.innerHTML = `
-  <div class="crumbs"><a href="#/">Intelligence</a> › <a href="#/">${esc(io.sector_label)}</a> › <span class="mono">${esc(io.io_id)}</span></div>
-
-  <div class="detail-head">
-    <div class="row1 flex" style="justify-content:space-between">
-      <span class="etype" style="font-size:11px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--accent)">${esc(io.event_type_label)}</span>
-      <span>${dateBadge(io)} ${io.is_new ? '' : '<span class="badge neutral">Re-discovered VIO</span>'}</span>
-    </div>
-    <h1>${esc(io.headline)}</h1>
-    <div class="meta-line">
-      <span>Institution: <b><a href="#/source/${esc(io.source_id)}">${esc(io.institution_name)}</a></b></span>
-      <span>Jurisdiction: <b>${esc(io.jurisdiction)}</b></span>
-      <span>Sector: <b>${esc(io.sector_label)}</b></span>
-      <span>Language: <b>${esc(io.language)}</b></span>
-    </div>
-    <div class="meta-line mt">
-      <span>Publication: <b>${esc(dateLine(io))}</b></span>
-      <span>Object identity: <span class="mono" style="font-family:var(--mono);font-size:11.5px">${esc(io.io_id)} · v${io.version}</span></span>
-      <span>Event: <span style="font-family:var(--mono);font-size:11.5px">${esc(io.event_id)} · v${io.event_version}</span></span>
-    </div>
-  </div>
-
-  <div class="panel">
-    <div class="panel-label">Intelligence</div>
-    <p style="font-size:15px;line-height:1.6">
-      This intelligence object aggregates <b>${io.n_facts}</b> verified fact${io.n_facts === 1 ? '' : 's'}
-      (${esc(metricLine)}) extracted from <b>${io.n_documents}</b> official document${io.n_documents === 1 ? '' : 's'}
-      published by <b>${esc(io.institution_name)}</b>${io.jurisdiction ? ' (' + esc(io.jurisdiction) + ')' : ''}.
-      Every fact is bound to its source excerpt, document and institution below — nothing in this object is inferred beyond what the documents state.
-    </p>
-    <div class="mini-note">Object type as produced by ROUAA Core: <b>${esc(io.event_type_label)}</b>. Headline is template-generated by Core from event type + institution.</div>
-  </div>
-
-  <div class="panel">
-    <div class="panel-label">What Happened</div>
-    ${io.chain.slice(0, 6).map((l, i) => `
-      <div style="margin-bottom:14px">
-        <div class="flex" style="justify-content:space-between;align-items:baseline">
-          <span><span class="fact-value">${esc(l.value)}</span> <span class="fact-metric">${esc(l.metric.replace(/_/g, ' '))}${l.raw_value ? ' · raw: ' + esc(l.raw_value) : ''}</span></span>
-          <span style="font-size:12px;color:var(--muted)"><a href="#/document/${esc(l.document_id)}">document ${esc(l.document_id.slice(0, 12))}…</a></span>
-        </div>
-        <div class="excerpt">“${esc(l.excerpt)}”</div>
-      </div>`).join('')}
-    ${io.chain.length > 6 ? `<div class="mini-note">Showing first 6 of ${io.chain.length} facts — full list in Key Facts below.</div>` : ''}
-  </div>
-
-  <div class="panel">
-    <div class="panel-label">Why It Matters</div>
-    <div class="note-box pending">
-      Evidence-backed facts available. Executive interpretation layer not yet attached to this object.
-    </div>
-    <div class="mini-note">ROUAA Core V1 produces evidence-backed intelligence objects; an institutional interpretation layer
-    ("why it matters" analysis) is a planned Core capability and does not exist in the current output schema.
-    This prototype never fabricates interpretations.</div>
-  </div>
-
-  <div class="panel" id="evidence-section">
-    <div class="panel-label">Evidence Chain</div>
-    <div class="chain-visual">
-      <div class="chain-node">
-        <div class="chain-rail"><div class="chain-dot"></div><div class="chain-line"></div></div>
-        <div class="chain-body">
-          <div class="chain-title">Intelligence Object · ${esc(io.event_type_label)}</div>
-          <div class="chain-desc"><span class="idref">${esc(io.io_id)}</span> — identity chain verified by Core (fact → document → source, 4-leg verification).</div>
-        </div>
-      </div>
-      <div class="chain-node">
-        <div class="chain-rail"><div class="chain-dot fact"></div><div class="chain-line"></div></div>
-        <div class="chain-body">
-          <div class="chain-title">Supported by ${io.n_facts} verified fact${io.n_facts === 1 ? '' : 's'}</div>
-          <div class="chain-desc">${io.chain.slice(0, 3).map(l => `<span class="idref">${esc(l.fact_id)}</span>`).join(' · ')}${io.chain.length > 3 ? ' · …' : ''} — each with a source excerpt (see Key Facts).</div>
-        </div>
-      </div>
-      <div class="chain-node">
-        <div class="chain-rail"><div class="chain-dot doc"></div><div class="chain-line"></div></div>
-        <div class="chain-body">
-          <div class="chain-title">Extracted from ${io.n_documents} official document${io.n_documents === 1 ? '' : 's'}</div>
-          <div class="chain-desc">${docs.slice(0, 3).map(d => `<a href="#/document/${esc(d.document_id)}"><span class="idref">${esc(d.document_id)}</span></a>`).join(' · ')}${docs.length > 3 ? ' · …' : ''} — content-addressed (SHA-256), acquisition-audited.</div>
-        </div>
-      </div>
-      <div class="chain-node">
-        <div class="chain-rail"><div class="chain-dot src"></div></div>
-        <div class="chain-body">
-          <div class="chain-title">Published by an official institution</div>
-          <div class="chain-desc"><a href="#/source/${esc(io.source_id)}"><b>${esc(io.institution_name)}</b></a>${src && src.official_domain ? ' · ' + esc(src.official_domain) : ''} — official-source registry, verified domain.</div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="panel">
-    <div class="panel-label">Key Facts <span style="float:right;font-weight:500;letter-spacing:0.3px;text-transform:none;color:var(--muted);font-size:12px">${io.chain.length} facts · verbatim from Core store</span></div>
-    <div style="overflow-x:auto">
-    <table class="data">
-      <thead><tr><th>Value</th><th>Metric</th><th>Source excerpt (verbatim)</th><th>Document</th><th>Provenance</th></tr></thead>
-      <tbody>
-      ${io.chain.map(l => `
-        <tr>
-          <td class="num"><span class="fact-value">${esc(l.value)}</span></td>
-          <td><span class="fact-metric">${esc(l.metric.replace(/_/g, ' '))}</span><br><span class="mono">${esc(l.fact_id)}</span></td>
-          <td style="max-width:420px"><div class="excerpt" style="margin-top:0">“${esc(l.excerpt)}”</div></td>
-          <td><a href="#/document/${esc(l.document_id)}">${esc(l.document_id.slice(0, 18))}…</a><br><span class="mono">${esc(l.evidence_location || '')}</span></td>
-          <td><span class="mono" style="font-size:10.5px">sha:${esc(l.content_sha256 ? l.content_sha256.slice(0, 12) : '')}…</span><br><span class="mono" style="font-size:10.5px">${esc(l.evidence_id)}</span></td>
-        </tr>`).join('')}
-      </tbody>
-    </table>
-    </div>
-  </div>
-
-  <div class="panel">
-    <div class="panel-label">Primary Documents</div>
-    ${docs.map(d => `
-      <div class="doc-card">
-        <div class="url"><a href="${esc(d.canonical_url)}" target="_blank" rel="noopener">${esc(d.canonical_url)}</a></div>
-        <div class="props">
-          <span>${d.best_iso ? 'Dated: <b>' + esc(fmtDate(d.best_iso)) + '</b>' : 'No attributed date'}</span>
-          <span>Layer: <b>${esc(d.text_layer || '—')}</b></span>
-          <span>Text: <b>${(d.text_chars || 0).toLocaleString()}</b> chars</span>
-          <span>Facts: <b>${d.n_facts}</b></span>
-          <span>${d.fresh_status === 'FRESH' ? '<span class="badge fresh">Recent</span>' : d.fresh_status === 'HISTORICAL' ? '<span class="badge historical">Historical</span>' : '<span class="badge undated">Undated</span>'}</span>
-        </div>
-        <div class="mt"><a class="btn" href="${esc(d.canonical_url)}" target="_blank" rel="noopener">Open Original Document ↗</a>
-        <a class="btn ghost" href="#/document/${esc(d.document_id)}">Document detail</a></div>
-      </div>`).join('')}
-    <div class="mini-note">Links point to the canonical URLs recorded at acquisition time. ROUAA does not mirror or rehost third-party content.</div>
-  </div>
-
-  <div class="panel">
-    <div class="panel-label">Source</div>
-    ${src ? `
-    <div class="kv-grid">
-      <div class="k">Institution</div><div class="v"><b>${esc(src.institution_name)}</b> — <a href="#/source/${esc(src.source_id)}">full source profile ↗</a></div>
-      <div class="k">Official domain</div><div class="v mono">${esc(src.official_domain || '—')}</div>
-      <div class="k">Jurisdiction / region</div><div class="v">${esc(src.jurisdiction)} · ${esc(src.region)}</div>
-      <div class="k">Authority</div><div class="v">${esc(src.authority_type)} (${esc(src.authority_level || '—')})</div>
-      <div class="k">Registry identity</div><div class="v mono">${esc(src.source_id)}</div>
-      <div class="k">Provenance</div><div class="v">Registered via ${esc(src.discovery_method)} · wave cohort ${esc(src.cohort)}${src.selection_reasons && src.selection_reasons.length ? ' · selection: ' + esc(src.selection_reasons.join(', ')) : ''}</div>
-    </div>` : '<div class="empty">Source registry entry not present in wave population file.</div>'}
-  </div>`;
-}
-
-/* =========================================================================
-   DOCUMENT VIEW
-   ========================================================================= */
-function viewDocument(app, docId) {
-  const d = docIndex[docId];
-  if (!d) { app.innerHTML = '<div class="empty">Document not found in this snapshot: ' + esc(docId) + '</div>'; return; }
-  const src = srcIndex[d.source_id];
-  const ios = D.intelligence.filter(io => io.chain.some(l => l.document_id === docId));
-
-  app.innerHTML = `
-  <div class="crumbs"><a href="#/documents">Documents</a> › <span style="font-family:var(--mono);font-size:11.5px">${esc(docId)}</span></div>
-  <div class="detail-head">
-    <span class="badge outline">Official document</span>
-    ${d.fresh_status === 'FRESH' ? '<span class="badge fresh">Recent</span>' : d.fresh_status === 'HISTORICAL' ? '<span class="badge historical">Historical</span>' : '<span class="badge undated">Undated</span>'}
-    <h1 style="font-size:19px;font-family:var(--mono);font-weight:400;word-break:break-all">${esc(d.canonical_url)}</h1>
-    <div class="meta-line">
-      <span>Institution: <b>${src ? '<a href="#/source/' + esc(d.source_id) + '">' + esc(src.institution_name) + '</a>' : esc(d.source_id)}</b></span>
-      <span>Best attributed date: <b>${d.best_iso ? esc(fmtDate(d.best_iso)) : 'none'}</b></span>
-    </div>
-    <div class="mt"><a class="btn solid" href="${esc(d.canonical_url)}" target="_blank" rel="noopener">Open Original Document ↗</a></div>
-  </div>
-
-  <div class="panel">
-    <div class="panel-label">Document Metadata (verbatim from Core)</div>
-    <div class="kv-grid">
-      <div class="k">Document identity</div><div class="v mono">${esc(d.document_id)}</div>
-      <div class="k">Canonical URL</div><div class="v mono" style="word-break:break-all">${esc(d.canonical_url)}</div>
-      <div class="k">Status</div><div class="v">${esc(d.status)}</div>
-      <div class="k">Freshness classification</div><div class="v">${esc(d.fresh_status)}${d.best_iso ? ' (best date ' + esc(d.best_iso) + ')' : ''}</div>
-      <div class="k">Text layer</div><div class="v">${esc(d.text_layer || '—')} · ${(d.text_chars || 0).toLocaleString()} characters</div>
-      <div class="k">Usable for extraction</div><div class="v">${esc(d.usable)}</div>
-      <div class="k">First claim (new this wave)</div><div class="v">${esc(d.new_document)}</div>
-      <div class="k">Extracted facts</div><div class="v">${d.n_facts}</div>
-      <div class="k">Supporting intelligence</div><div class="v">${ios.length}</div>
-    </div>
-  </div>
-
-  <div class="panel">
-    <div class="panel-label">Associated Intelligence</div>
-    ${ios.length ? ios.map(io => `
-      <div style="border-bottom:1px solid var(--hairline-2);padding:10px 0">
-        <a href="#/intelligence/${esc(io.io_id)}"><b>${esc(io.headline)}</b></a>
-        <span style="font-size:12.5px;color:var(--muted)"> · ${esc(io.event_type_label)} · ${dateBadge(io)}</span>
-      </div>`).join('') : '<div class="empty">This document produced facts but no intelligence object in this wave.</div>'}
-  </div>`;
-}
-
-/* =========================================================================
-   SOURCE VIEW
-   ========================================================================= */
-function viewSource(app, srcId) {
-  const s = srcIndex[srcId];
-  if (!s) { app.innerHTML = '<div class="empty">Source not found in this snapshot: ' + esc(srcId) + '</div>'; return; }
-  const ios = D.intelligence.filter(io => io.source_id === srcId);
-  const docs = D.documents.filter(d => d.source_id === srcId);
-  const nDocsAcq = docs.length;
-
-  app.innerHTML = `
-  <div class="crumbs"><a href="#/sources">Sources</a> › ${esc(s.institution_name)}</div>
-  <div class="detail-head">
-    <span class="badge outline">Official source profile</span>
-    ${s.access_status === 'ACCESS_OK' ? '<span class="badge fresh">Access verified</span>' : '<span class="badge undated">' + esc(s.access_status) + '</span>'}
-    <h1>${esc(s.institution_name)}</h1>
-    <div class="meta-line">
-      <span>Jurisdiction: <b>${esc(s.jurisdiction)}</b></span>
-      <span>Authority: <b>${esc(s.authority_type)}</b></span>
-      <span>Sector: <b>${esc(s.sector_label)}</b></span>
-      <span>Language: <b>${esc(s.language)}</b></span>
-    </div>
-    <div class="mt"><a class="btn" href="${esc(s.canonical_source_url || s.endpoint)}" target="_blank" rel="noopener">Official endpoint ↗</a></div>
-  </div>
-
-  <div class="dim-grid">
-    <div class="dim-card">
-      <h4>Host Coverage</h4>
-      <div class="dim-note">Can the official host be reached and discovered at all?</div>
-      <div class="dim-row"><span>Access status</span><span class="val">${esc(s.access_status)}</span></div>
-      <div class="dim-row"><span>Discovery status</span><span class="val">${esc(s.discovery_status || '—')}</span></div>
-      <div class="dim-row"><span>Endpoint kind</span><span class="val">${esc(s.endpoint_kind || '—')}</span></div>
-      <div class="dim-row"><span>Failure class</span><span class="val">${esc(s.failure_class || 'none')}</span></div>
-      <div class="dim-row"><span>Official domain</span><span class="val mono" style="font-size:11px">${esc(s.official_domain || '—')}</span></div>
-    </div>
-    <div class="dim-card">
-      <h4>Source Depth</h4>
-      <div class="dim-note">How much official content does the source actually yield?</div>
-      <div class="dim-row"><span>Documents discovered</span><span class="val">${s.documents_discovered}</span></div>
-      <div class="dim-row"><span>Documents acquired</span><span class="val">${s.documents_acquired}</span></div>
-      <div class="dim-row"><span>Documents usable</span><span class="val">${s.documents_usable}</span></div>
-      <div class="dim-row"><span>Facts extracted</span><span class="val">${s.facts.toLocaleString()}</span></div>
-      <div class="dim-row"><span>Latest attributed date</span><span class="val">${s.latest_publication_date ? esc(s.latest_publication_date) : 'none'}</span></div>
-    </div>
-    <div class="dim-card">
-      <h4>Intelligence Production</h4>
-      <div class="dim-note">Does the content convert into intelligence objects?</div>
-      <div class="dim-row"><span>Candidate IO</span><span class="val">${s.candidate_io}</span></div>
-      <div class="dim-row"><span>Unique VIO (attributed)</span><span class="val">${s.unique_vio}</span></div>
-      <div class="dim-row"><span>Recent VIO</span><span class="val">${s.fresh_vio}</span></div>
-      <div class="dim-row"><span>Historical VIO</span><span class="val">${s.historical_vio}</span></div>
-      <div class="dim-row"><span>Production status</span><span class="val">${esc(s.production_status)}</span></div>
-    </div>
-  </div>
-
-  <div class="panel mt">
-    <div class="panel-label">Registry Record (verbatim from Core)</div>
-    <div class="kv-grid">
-      <div class="k">Registry identity</div><div class="v mono">${esc(s.source_id)}</div>
-      <div class="k">Endpoint</div><div class="v mono" style="word-break:break-all">${esc(s.endpoint)}</div>
-      <div class="k">Discovery method</div><div class="v">${esc(s.discovery_method)}</div>
-      <div class="k">Wave cohort</div><div class="v">${esc(s.cohort)}${s.selection_reasons && s.selection_reasons.length ? ' — ' + esc(s.selection_reasons.join(', ')) : ''}</div>
-      <div class="k">Pattern set / event focus</div><div class="v">${esc(s.pattern_set || '—')}</div>
-      <div class="k">Region</div><div class="v">${esc(s.region)}</div>
-    </div>
-  </div>
-
-  <div class="panel">
-    <div class="panel-label">Associated Intelligence (${ios.length})</div>
-    ${ios.length ? `
-    <div style="overflow-x:auto"><table class="data">
-      <thead><tr><th>Intelligence object</th><th>Type</th><th>Date status</th><th>Facts</th><th></th></tr></thead>
-      <tbody>${ios.map(io => `
-        <tr>
-          <td style="max-width:420px"><a href="#/intelligence/${esc(io.io_id)}"><b>${esc(io.headline)}</b></a></td>
-          <td>${esc(io.event_type_label)}</td>
-          <td>${dateBadge(io)} ${io.best_document_date ? esc(fmtDate(io.best_document_date)) : ''}</td>
-          <td class="num">${io.n_facts}</td>
-          <td class="right"><a class="btn ghost" href="#/intelligence/${esc(io.io_id)}">Open</a></td>
-        </tr>`).join('')}
-      </tbody></table></div>` :
-    '<div class="empty">This source produced documents/facts but no intelligence object in this wave.</div>'}
-  </div>
-
-  <div class="panel">
-    <div class="panel-label">Documents (${docs.length} in wave ledger)</div>
-    ${docs.length ? `
-    <div style="overflow-x:auto;max-height:420px;overflow-y:auto"><table class="data">
-      <thead><tr><th>Document</th><th>Date status</th><th>Best date</th><th>Layer</th><th>Facts</th></tr></thead>
-      <tbody>${docs.map(d => `
-        <tr>
-          <td style="max-width:380px"><a href="#/document/${esc(d.document_id)}" style="font-family:var(--mono);font-size:11px">${esc(d.canonical_url.slice(0, 72))}${d.canonical_url.length > 72 ? '…' : ''}</a></td>
-          <td>${d.fresh_status === 'FRESH' ? '<span class="badge fresh">Recent</span>' : d.fresh_status === 'HISTORICAL' ? '<span class="badge historical">Historical</span>' : '<span class="badge undated">Undated</span>'}</td>
-          <td>${d.best_iso ? esc(fmtDate(d.best_iso)) : '—'}</td>
-          <td>${esc(d.text_layer || '—')}</td>
-          <td class="num">${d.n_facts}</td>
-        </tr>`).join('')}
-      </tbody></table></div>` :
-    '<div class="empty">No documents acquired from this source in this wave.</div>'}
-  </div>`;
-}
-
-/* =========================================================================
-   DOCUMENTS BROWSE (secondary)
-   ========================================================================= */
 function viewDocuments(app) {
-  const docs = D.documents.slice().sort((a, b) => (b.n_intelligence - a.n_intelligence) || ((b.best_iso || '') < (a.best_iso || '') ? -1 : 1));
-  app.innerHTML = `
-  <div class="page-head">
-    <div class="kicker">Document Ledger</div>
-    <h1 class="page-title">Official Documents Acquired</h1>
-    <div class="page-sub">${D.documents.length} documents acquired in wave LSE-V4 · ${(D.documents.filter(d => d.fresh_status === 'FRESH').length)} recent · ${(D.documents.filter(d => d.fresh_status === 'HISTORICAL').length)} historical · ${(D.documents.filter(d => d.fresh_status === 'DATE_UNKNOWN').length)} undated. Sorted by intelligence contribution.</div>
-  </div>
-  <div class="panel">
-  <div style="overflow-x:auto;max-height:640px;overflow-y:auto">
-  <table class="data">
-    <thead><tr><th>Canonical URL</th><th>Institution</th><th>Date status</th><th>Best date</th><th class="right">Facts</th><th class="right">Intel</th><th></th></tr></thead>
-    <tbody>${docs.map(d => {
-      const s = srcIndex[d.source_id];
-      return `<tr>
-        <td style="max-width:420px"><a href="#/document/${esc(d.document_id)}" style="font-family:var(--mono);font-size:11px">${esc(d.canonical_url.slice(0, 70))}${d.canonical_url.length > 70 ? '…' : ''}</a></td>
-        <td style="max-width:220px;font-size:12px">${s ? esc(s.institution_name) : esc(d.source_id)}</td>
-        <td>${d.fresh_status === 'FRESH' ? '<span class="badge fresh">Recent</span>' : d.fresh_status === 'HISTORICAL' ? '<span class="badge historical">Historical</span>' : '<span class="badge undated">Undated</span>'}</td>
-        <td>${d.best_iso ? esc(fmtDate(d.best_iso)) : '—'}</td>
-        <td class="num right">${d.n_facts}</td>
-        <td class="num right">${d.n_intelligence}</td>
-        <td class="right"><a class="btn ghost" href="${esc(d.canonical_url)}" target="_blank" rel="noopener">Original ↗</a></td>
-      </tr>`;
-    }).join('')}
-    </tbody></table></div>
-  </div>`;
+  LS.docs.page = 1;
+  renderDocuments(app);
+}
+function renderDocuments(app) {
+  const f = LS.docs;
+  const all = docFiltered();
+  const sorted = docSort(all);
+
+  let html = '' +
+    '<div class="view-head">' +
+      '<div class="view-title">DOCUMENTS</div>' +
+      '<div class="view-count">' + all.length.toLocaleString('en-GB') + ' of ' + D.documents.length + ' documents</div>' +
+    '</div>' +
+    '<div class="cols"><div class="col-main" id="docs-main"></div>' +
+    '<div class="col-side"><div class="panel filter-panel"><div class="panel-head"><span class="panel-label">FILTERS</span>' +
+    '<span class="panel-meta">' + D.documents.length + ' total</span></div><div class="panel-body" id="docs-filters"></div></div></div></div>';
+
+  app.innerHTML = html;
+  renderDocFilters();
+  renderDocMain(sorted);
 }
 
-/* =========================================================================
-   SOURCES BROWSE (secondary)
-   ========================================================================= */
+function renderDocFilters() {
+  const f = LS.docs;
+  const el = document.getElementById('docs-filters');
+  const jur = uniq(D.sources.map(s => s.jurisdiction));
+  const layers = uniq(D.documents.map(d => d.text_layer));
+
+  el.innerHTML =
+    fg('Search', '<input type="text" id="fd-q" placeholder="url, institution, source, date..." value="' + esc(f.q) + '">') +
+    fg('Freshness', ['FRESH', 'HISTORICAL', 'DATE_UNKNOWN', 'POST_WINDOW'].map(v =>
+      '<span class="fopt' + (f.fresh === v ? ' on' : '') + '" data-f="' + v + '">' + (v === 'DATE_UNKNOWN' ? 'DATE UNKNOWN' : v) + '</span>').join('')) +
+    fg('Jurisdiction', jur.map(v => '<span class="fopt' + (f.jur === v ? ' on' : '') + '" data-f="' + esc(v) + '">' + esc(v) + '</span>').join('')) +
+    fg('Text layer', layers.map(v => '<span class="fopt' + (f.layer === v ? ' on' : '') + '" data-f="' + esc(v) + '">' + esc(v) + '</span>').join('')) +
+    fg('Intelligence production', ['yes', 'no'].map(v =>
+      '<span class="fopt' + (f.prod === v ? ' on' : '') + '" data-f="p_' + v + '">' + (v === 'yes' ? 'Producing IOs (147)' : 'Not producing') + '</span>').join('')) +
+    '<div class="fgroup"><button class="btn sm" id="fd-clear">CLEAR ALL FILTERS</button></div>';
+
+  const qEl = document.getElementById('fd-q');
+  qEl.oninput = () => { f.q = qEl.value; f.page = 1; refreshDocs(); };
+  el.querySelectorAll('.fopt').forEach(o => o.onclick = () => {
+    const v = o.dataset.f; f.page = 1;
+    if (v.startsWith('p_')) f.prod = (f.prod === v.slice(2) ? null : v.slice(2));
+    else if (['FRESH', 'HISTORICAL', 'DATE_UNKNOWN', 'POST_WINDOW'].includes(v)) f.fresh = (f.fresh === v ? null : v);
+    else if (jur.includes(v)) f.jur = (f.jur === v ? null : v);
+    else if (layers.includes(v)) f.layer = (f.layer === v ? null : v);
+    renderDocFilters(); refreshDocs();
+  });
+  document.getElementById('fd-clear').onclick = () => {
+    Object.assign(LS.docs, { q: '', fresh: null, jur: null, layer: null, prod: null, page: 1, sort: 'date', dir: 'desc' });
+    renderDocuments(document.getElementById('app'));
+  };
+}
+
+function refreshDocs() {
+  const all = docFiltered();
+  const sorted = docSort(all);
+  renderDocMain(sorted);
+  const c = document.querySelector('.view-count');
+  if (c) c.textContent = all.length.toLocaleString('en-GB') + ' of ' + D.documents.length + ' documents';
+}
+
+function renderDocMain(sorted) {
+  const f = LS.docs;
+  const main = document.getElementById('docs-main');
+  const per = f.per;
+  const pages = Math.max(1, Math.ceil(sorted.length / per));
+  if (f.page > pages) f.page = pages;
+  const slice = sorted.slice((f.page - 1) * per, f.page * per);
+
+  const th = (key, label) =>
+    '<th class="sortable" data-sk="' + key + '">' + label +
+    (f.sort === key ? '<span class="arr">' + (f.dir === 'asc' ? '&#9650;' : '&#9660;') + '</span>' : '') + '</th>';
+
+  let html = '<div class="note" style="margin-bottom:12px"><b>Document identity.</b> Core does not yet extract document titles. ' +
+    'Documents are identified by their canonical URL and document id, exactly as committed. ' +
+    'Search matches URL, institution, source, jurisdiction, text layer and date.</div>';
+  html += '<div class="tbl-wrap"><table class="tbl"><thead><tr>' +
+    th('date', 'DATE') + th('inst', 'INSTITUTION') + th('layer', 'TYPE') +
+    th('fresh', 'TEMPORAL') + th('facts', 'FACTS') + th('ios', 'IOS') + th('src', 'SOURCE') +
+    '</tr></thead><tbody>';
+  slice.forEach(d => {
+    const src = IX.srcs[d.source_id] || {};
+    html += '<tr class="rowlink" data-go="#/documents/' + d.document_id + '">' +
+      '<td class="mono">' + (d.best_iso ? esc(d.best_iso) : '<span class="dim">—</span>') + '</td>' +
+      '<td class="t-strong ellip" title="' + esc(src.institution_name || '') + '">' + esc(src.institution_name || d.source_id) + '</td>' +
+      '<td class="dim">' + esc(d.text_layer) + '</td>' +
+      '<td>' + bStatus(d.fresh_status) + '</td>' +
+      '<td><span class="num' + (d.n_facts > 0 ? ' hot' : '') + '">' + d.n_facts + '</span></td>' +
+      '<td><span class="num' + (d.n_intelligence > 0 ? ' hot' : '') + '">' + d.n_intelligence + '</span></td>' +
+      '<td class="mono dim ellip" title="' + esc(d.source_id) + '">' + esc(d.source_id) + '</td>' +
+      '</tr>';
+  });
+  html += '</tbody></table></div>';
+  html += pager(sorted.length, f.page, per, pages, 'docs');
+  main.innerHTML = html;
+  bindGo(main);
+  wirePager('docs', () => refreshDocs());
+  main.querySelectorAll('th.sortable').forEach(t => t.onclick = () => {
+    const k = t.dataset.sk;
+    if (f.sort === k) f.dir = (f.dir === 'asc' ? 'desc' : 'asc');
+    else { f.sort = k; f.dir = (k === 'facts' || k === 'ios' || k === 'date') ? 'desc' : 'asc'; }
+    refreshDocs();
+  });
+}
+
+/* ============================================================ DOCUMENT DETAIL */
+
+function viewDocDetail(app, docId) {
+  const d = IX.docs[docId];
+  if (!d) { app.innerHTML = notFound('Document', docId, '#/documents'); return; }
+  const src = IX.srcs[d.source_id] || null;
+  const ios = D.intelligence.filter(io => (io.chain || []).some(c => c.document_id === docId));
+  const facts = FACTS.filter(f => f.document_id === docId);
+
+  let html = '' +
+    '<div class="crumb"><a href="#/documents">DOCUMENTS</a><span class="sep">/</span><span class="mono">' + esc(d.document_id) + '</span></div>' +
+
+    '<div class="io-head">' +
+      '<div class="io-kind">DOCUMENT</div>' +
+      '<div class="io-inst" style="font-size:15px;font-family:var(--mono);overflow-wrap:anywhere">' + esc(d.canonical_url || d.document_id) + '</div>' +
+      '<div class="io-sub">' + bStatus(d.fresh_status) + (src ? bOfficial(src) : '') +
+        (d.n_intelligence > 0 ? bEvidence(facts.length) : '') + '</div>' +
+      '<div class="io-actions">' +
+        (d.canonical_url ? '<a class="btn primary" href="' + esc(d.canonical_url) + '" target="_blank" rel="noopener">OPEN ORIGINAL DOCUMENT</a>' : '') +
+        (src ? '<a class="btn" href="#/sources/' + esc(src.source_id) + '">SOURCE PROFILE</a>' : '') +
+        (facts.length ? '<a class="btn" href="#/facts?doc=' + esc(d.document_id) + '">VIEW FACTS (' + facts.length + ')</a>' : '') +
+      '</div>' +
+    '</div>' +
+
+    '<div class="section"><div class="section-title">DOCUMENT METADATA</div>' +
+    '<div class="meta-grid">' +
+      mcell('Document identifier', '<span class="mono">' + esc(d.document_id) + '</span>') +
+      mcell('Institution', esc(src ? src.institution_name : 'Not available')) +
+      mcell('Document type', 'Not available <span class="dim">(Core stores text layer: ' + esc(d.text_layer) + ')</span>') +
+      mcell('Publication date', d.best_iso ? fmtDate(d.best_iso) : na(null)) +
+      mcell('Jurisdiction', esc(src ? src.jurisdiction + ' (' + src.region + ')' : 'Not available')) +
+      mcell('Source', esc(src ? src.institution_name + ' · ' + src.official_domain : d.source_id)) +
+      mcell('Facts extracted', num(d.n_facts)) +
+      mcell('Intelligence objects', num(d.n_intelligence)) +
+      mcell('Status', esc(d.status)) +
+      mcell('Usable (stored)', d.usable === 'True' ? 'Yes' : 'No') +
+      mcell('Text layer', esc(d.text_layer) + (d.text_chars ? ' · ' + Number(d.text_chars).toLocaleString('en-GB') + ' chars' : '')) +
+      mcell('Acquisition', d.new_document === 'True' ? 'First claim this wave' : 'Known from earlier wave') +
+    '</div></div>';
+
+  if (ios.length) {
+    html += '<div class="section"><div class="section-title">INTELLIGENCE OBJECTS FROM THIS DOCUMENT <span class="sub">' +
+      ios.length + ' object' + (ios.length === 1 ? '' : 's') + '</span></div>';
+    ios.forEach(io => {
+      html += '<div class="feed-row" data-go="#/intelligence/' + io.io_id + '">' + bStatus(io.date_status) +
+        '<span class="f-inst ellip">' + esc(io.institution_name) + '</span>' +
+        '<span class="f-type">' + esc(io.event_type_label) + '</span>' +
+        '<span class="f-meta"><span class="num">' + (io.chain || []).length + '</span> linked facts</span>' +
+        '<span class="f-open">OPEN &rarr;</span></div>';
+    });
+    html += '</div>';
+  } else {
+    html += '<div class="section"><div class="section-title">INTELLIGENCE OBJECTS</div>' +
+      '<div class="note">This document produced no intelligence objects in this snapshot. ' +
+      'It is stored and searchable, but extraction yielded no IO-bound facts.</div></div>';
+  }
+
+  html += '<div class="section"><div class="section-title">TECHNICAL PROVENANCE</div>' +
+    '<div class="meta-grid">' +
+      mcell('Canonical URL', d.canonical_url ? '<a href="' + esc(d.canonical_url) + '" target="_blank" rel="noopener">' + esc(d.canonical_url) + '</a>' : na(null)) +
+      mcell('Source identifier', '<span class="mono">' + esc(d.source_id) + '</span>') +
+      mcell('Freshness basis', esc(d.fresh_status)) +
+    '</div></div>';
+
+  app.innerHTML = html;
+  bindGo(app);
+}
+
+/* ============================================================ FACTS EXPLORER */
+
+function factFiltered() {
+  const f = LS.facts;
+  const q = lower(f.q.trim());
+  return FACTS.filter(x => {
+    if (f.metric && x.metric !== f.metric) return false;
+    if (f.tstat && x.date_status !== f.tstat) return false;
+    if (f.sector && x.sector_label !== f.sector) return false;
+    if (f.src && x.source_id !== f.src) return false;
+    if (f.doc && x.document_id !== f.doc) return false;
+    if (f.inst.trim() && lower(x.institution).indexOf(lower(f.inst.trim())) === -1) return false;
+    if (q && x._lc.indexOf(q) === -1) return false;
+    return true;
+  });
+}
+function factSort(arr) {
+  const f = LS.facts;
+  const dir = f.dir === 'asc' ? 1 : -1;
+  const by = {
+    metric: (a, b) => String(a.metric).localeCompare(String(b.metric)) * dir,
+    value: (a, b) => String(a.value).localeCompare(String(b.value)) * dir,
+    inst: (a, b) => a.institution.localeCompare(b.institution) * dir,
+    doc: (a, b) => String(a.document_id).localeCompare(String(b.document_id)) * dir,
+    src: (a, b) => String(a.source_id).localeCompare(String(b.source_id)) * dir,
+    tstat: (a, b) => statusRank(a.date_status) - statusRank(b.date_status),
+  }[f.sort] || null;
+  return by ? arr.slice().sort(by) : arr.slice();
+}
+
+function viewFacts(app, query) {
+  /* deep links are deterministic: reset list filters, then apply the query param */
+  if (query.src || query.doc) {
+    Object.assign(LS.facts, { q: '', metric: null, tstat: null, sector: null, inst: '', src: null, doc: null, page: 1 });
+    if (query.src) LS.facts.src = query.src;
+    if (query.doc) LS.facts.doc = query.doc;
+  }
+  LS.facts.page = 1;
+  renderFacts(app);
+}
+function renderFacts(app) {
+  let html = '' +
+    '<div class="view-head">' +
+      '<div class="view-title">FACTS</div>' +
+      '<div class="view-count" id="facts-count"></div>' +
+    '</div>' +
+    '<div class="cols"><div class="col-main" id="facts-main"></div>' +
+    '<div class="col-side"><div class="panel filter-panel"><div class="panel-head"><span class="panel-label">FILTERS</span>' +
+    '<span class="panel-meta">' + FACTS.length.toLocaleString('en-GB') + ' total</span></div><div class="panel-body" id="facts-filters"></div></div></div></div>';
+  app.innerHTML = html;
+  renderFactFilters();
+  refreshFacts();
+}
+
+function renderFactFilters() {
+  const f = LS.facts;
+  const el = document.getElementById('facts-filters');
+  const metrics = uniq(FACTS.map(x => x.metric));
+  const sectors = uniq(FACTS.map(x => x.sector_label));
+
+  el.innerHTML =
+    fg('Search', '<input type="text" id="ff-q" placeholder="value, description, institution..." value="' + esc(f.q) + '">') +
+    fg('Institution', '<input type="text" id="ff-inst" placeholder="contains..." value="' + esc(f.inst) + '">') +
+    fg('Metric', metrics.map(v => '<span class="fopt' + (f.metric === v ? ' on' : '') + '" data-f="' + esc(v) + '">' + esc(v) + '</span>').join('')) +
+    fg('Temporal status', ['FRESH', 'HISTORICAL', 'UNDATED'].map(v =>
+      '<span class="fopt' + (f.tstat === v ? ' on' : '') + '" data-f="' + v + '">' + v + '</span>').join('')) +
+    fg('Sector', sectors.map(v => '<span class="fopt' + (f.sector === v ? ' on' : '') + '" data-f="' + esc(v) + '">' + esc(v) + '</span>').join('')) +
+    (f.src ? fg('Source (linked)', '<span class="fopt on" data-f="__src__">' + esc(f.src) + '</span>') : '') +
+    (f.doc ? fg('Document (linked)', '<span class="fopt on" data-f="__doc__">' + esc(f.doc) + '</span>') : '') +
+    '<div class="fgroup"><button class="btn sm" id="ff-clear">CLEAR ALL FILTERS</button></div>';
+
+  const qEl = document.getElementById('ff-q');
+  qEl.oninput = () => { f.q = qEl.value; f.page = 1; refreshFacts(); };
+  const iEl = document.getElementById('ff-inst');
+  iEl.oninput = () => { f.inst = iEl.value; f.page = 1; refreshFacts(); };
+  el.querySelectorAll('.fopt').forEach(o => o.onclick = () => {
+    const v = o.dataset.f; f.page = 1;
+    if (v === '__src__') { f.src = null; }
+    else if (v === '__doc__') { f.doc = null; }
+    else if (['FRESH', 'HISTORICAL', 'UNDATED'].includes(v)) f.tstat = (f.tstat === v ? null : v);
+    else if (metrics.includes(v)) f.metric = (f.metric === v ? null : v);
+    else if (sectors.includes(v)) f.sector = (f.sector === v ? null : v);
+    renderFactFilters(); refreshFacts();
+  });
+  document.getElementById('ff-clear').onclick = () => {
+    Object.assign(LS.facts, { q: '', metric: null, tstat: null, sector: null, inst: '', src: null, doc: null, page: 1 });
+    renderFacts(document.getElementById('app'));
+  };
+}
+
+function refreshFacts() {
+  const f = LS.facts;
+  const all = factFiltered();
+  const sorted = factSort(all);
+  const main = document.getElementById('facts-main');
+  const per = f.per;
+  const pages = Math.max(1, Math.ceil(sorted.length / per));
+  if (f.page > pages) f.page = pages;
+  const slice = sorted.slice((f.page - 1) * per, f.page * per);
+
+  const c = document.getElementById('facts-count');
+  if (c) c.textContent = all.length.toLocaleString('en-GB') + ' of ' + FACTS.length.toLocaleString('en-GB') +
+    ' IO-bound facts (snapshot holds ' + D.meta.counts.facts.toLocaleString('en-GB') + ' facts total; ' +
+    (D.meta.counts.facts - FACTS.length).toLocaleString('en-GB') + ' are not bound to an intelligence object)';
+
+  const th = (key, label) =>
+    '<th class="sortable" data-sk="' + key + '">' + label +
+    (f.sort === key ? '<span class="arr">' + (f.dir === 'asc' ? '&#9650;' : '&#9660;') + '</span>' : '') + '</th>';
+
+  let html = '<div class="note" style="margin-bottom:12px"><b>Schema note.</b> UNIT and PERIOD are not yet produced by ROUAA Core. ' +
+    'The columns are reserved (shown as &ldquo;—&rdquo;) and will populate when Core attaches them. ' +
+    'All other values are verbatim from the committed snapshot.</div>';
+  html += '<div class="tbl-wrap"><table class="tbl"><thead><tr>' +
+    th('metric', 'FACT') + '<th>VALUE</th><th>UNIT</th><th>PERIOD</th><th>DESCRIPTION</th>' +
+    th('inst', 'INSTITUTION') + th('doc', 'DOCUMENT') + th('src', 'SOURCE') +
+    th('tstat', 'TEMPORAL') + '<th>EVIDENCE</th>' +
+    '</tr></thead><tbody>';
+  slice.forEach(x => {
+    html += '<tr>' +
+      '<td class="mono">' + esc(x.metric) + '</td>' +
+      '<td class="mono t-strong" style="color:var(--accent)">' + esc(x.value) + '</td>' +
+      '<td>' + nDash() + '</td><td>' + nDash() + '</td>' +
+      '<td class="ellip" title="' + esc(x.raw_value) + '">' + esc(x.raw_value) + '</td>' +
+      '<td class="ellip">' + esc(x.institution) + '</td>' +
+      '<td class="mono dim">' + esc(x.document_id.slice(0, 12)) + '…</td>' +
+      '<td class="mono dim ellip" title="' + esc(x.source_id) + '">' + esc(x.source_id) + '</td>' +
+      '<td>' + bStatus(x.date_status) + '</td>' +
+      '<td><a class="btn sm" href="#/evidence/' + x.io_id + '/' + esc(x.fact_id) + '">VIEW</a></td>' +
+      '</tr>';
+  });
+  html += '</tbody></table></div>';
+  html += pager(sorted.length, f.page, per, pages, 'facts');
+  main.innerHTML = html;
+  wirePager('facts', () => refreshFacts());
+  main.querySelectorAll('th.sortable').forEach(t => t.onclick = () => {
+    const k = t.dataset.sk;
+    if (f.sort === k) f.dir = (f.dir === 'asc' ? 'desc' : 'asc');
+    else { f.sort = k; f.dir = 'asc'; }
+    refreshFacts();
+  });
+}
+
+/* ============================================================ SOURCES (list) */
+
+function srcFiltered() {
+  const f = LS.sources;
+  const q = lower(f.q.trim());
+  return D.sources.filter(s => {
+    if (f.jur && s.jurisdiction !== f.jur) return false;
+    if (f.auth && s.authority_type !== f.auth) return false;
+    if (f.sector && s.sector_label !== f.sector) return false;
+    if (f.prod === 'yes' && !(s.unique_vio > 0)) return false;
+    if (f.prod === 'no' && (s.unique_vio > 0)) return false;
+    if (q && lower(s.institution_name + ' ' + s.official_domain + ' ' + s.jurisdiction + ' ' + s.source_id + ' ' + s.sector_label).indexOf(q) === -1) return false;
+    return true;
+  });
+}
+function srcSort(arr) {
+  const f = LS.sources;
+  const dir = f.dir === 'asc' ? 1 : -1;
+  const by = {
+    inst: (a, b) => a.institution_name.localeCompare(b.institution_name) * dir,
+    jur: (a, b) => String(a.jurisdiction).localeCompare(String(b.jurisdiction)) * dir,
+    auth: (a, b) => String(a.authority_type).localeCompare(String(b.authority_type)) * dir,
+    docs: (a, b) => ((a.documents_acquired || 0) - (b.documents_acquired || 0)) * dir,
+    facts: (a, b) => ((a.facts || 0) - (b.facts || 0)) * dir,
+    ios: (a, b) => ((a.unique_vio || 0) - (b.unique_vio || 0)) * dir,
+    fresh: (a, b) => ((a.fresh_vio || 0) - (b.fresh_vio || 0)) * dir,
+  }[f.sort] || null;
+  return by ? arr.slice().sort(by) : arr.slice();
+}
+
 function viewSources(app) {
-  const srcs = D.sources.slice().sort((a, b) => (b.n_intelligence - a.n_intelligence) || (b.unique_vio - a.unique_vio));
-  app.innerHTML = `
-  <div class="page-head">
-    <div class="kicker">Source Registry — Wave Population</div>
-    <h1 class="page-title">Official Sources</h1>
-    <div class="page-sub">${D.sources.length} sources registered in wave LSE-V4 (universe after wave: 10,383).
-    ${D.sources.filter(s => s.access_status === 'ACCESS_OK').length} accessible · ${D.sources.filter(s => s.n_intelligence > 0).length} produced intelligence.
-    Source quality is never reduced to a single score — coverage, depth and production are shown separately.</div>
-  </div>
-  <div class="panel">
-  <div style="overflow-x:auto;max-height:640px;overflow-y:auto">
-  <table class="data">
-    <thead><tr><th>Institution</th><th>Jurisdiction</th><th>Sector</th><th>Access</th><th class="right">Docs</th><th class="right">Facts</th><th class="right">VIO</th><th class="right">Recent</th><th></th></tr></thead>
-    <tbody>${srcs.map(s => `
-      <tr>
-        <td style="max-width:280px"><a href="#/source/${esc(s.source_id)}"><b>${esc(s.institution_name)}</b></a></td>
-        <td>${esc(s.jurisdiction)}</td>
-        <td style="font-size:12px">${esc(s.sector_label)}</td>
-        <td>${s.access_status === 'ACCESS_OK' ? '<span class="badge fresh">OK</span>' : '<span class="badge undated" title="' + esc(s.failure_class || '') + '">' + esc(s.access_status.replace('ACCESS_', '')) + '</span>'}</td>
-        <td class="num right">${s.documents_acquired}</td>
-        <td class="num right">${s.facts.toLocaleString()}</td>
-        <td class="num right">${s.unique_vio}</td>
-        <td class="num right">${s.fresh_vio}</td>
-        <td class="right"><a class="btn ghost" href="#/source/${esc(s.source_id)}">Profile</a></td>
-      </tr>`).join('')}
-    </tbody></table></div>
-  </div>`;
+  LS.sources.page = 1;
+  renderSources(app);
+}
+function renderSources(app) {
+  let html = '' +
+    '<div class="view-head">' +
+      '<div class="view-title">SOURCES</div>' +
+      '<div class="view-count" id="src-count"></div>' +
+    '</div>' +
+    '<div class="cols"><div class="col-main" id="src-main"></div>' +
+    '<div class="col-side"><div class="panel filter-panel"><div class="panel-head"><span class="panel-label">FILTERS</span>' +
+    '<span class="panel-meta">' + D.sources.length + ' total</span></div><div class="panel-body" id="src-filters"></div></div></div></div>';
+  app.innerHTML = html;
+  renderSrcFilters();
+  refreshSources();
 }
 
-/* =========================================================================
-   PRODUCTION VIEW (secondary, builders' view)
-   ========================================================================= */
+function renderSrcFilters() {
+  const f = LS.sources;
+  const el = document.getElementById('src-filters');
+  const jur = uniq(D.sources.map(s => s.jurisdiction));
+  const auth = uniq(D.sources.map(s => s.authority_type));
+  const sector = uniq(D.sources.map(s => s.sector_label));
+
+  el.innerHTML =
+    fg('Search', '<input type="text" id="fs-q" placeholder="institution, domain..." value="' + esc(f.q) + '">') +
+    fg('Jurisdiction', jur.map(v => '<span class="fopt' + (f.jur === v ? ' on' : '') + '" data-f="' + esc(v) + '">' + esc(v) + '</span>').join('')) +
+    fg('Authority type', auth.map(v => '<span class="fopt' + (f.auth === v ? ' on' : '') + '" data-f="' + esc(v) + '">' + esc(v) + '</span>').join('')) +
+    fg('Sector', sector.map(v => '<span class="fopt' + (f.sector === v ? ' on' : '') + '" data-f="' + esc(v) + '">' + esc(v) + '</span>').join('')) +
+    fg('Intelligence production', ['yes', 'no'].map(v =>
+      '<span class="fopt' + (f.prod === v ? ' on' : '') + '" data-f="p_' + v + '">' +
+      (v === 'yes' ? 'VIO-producing (42)' : 'Registered, not yet productive') + '</span>').join('')) +
+    '<div class="fgroup"><button class="btn sm" id="fs-clear">CLEAR ALL FILTERS</button></div>';
+
+  const qEl = document.getElementById('fs-q');
+  qEl.oninput = () => { f.q = qEl.value; f.page = 1; refreshSources(); };
+  el.querySelectorAll('.fopt').forEach(o => o.onclick = () => {
+    const v = o.dataset.f; f.page = 1;
+    if (v.startsWith('p_')) f.prod = (f.prod === v.slice(2) ? null : v.slice(2));
+    else if (jur.includes(v)) f.jur = (f.jur === v ? null : v);
+    else if (auth.includes(v)) f.auth = (f.auth === v ? null : v);
+    else if (sector.includes(v)) f.sector = (f.sector === v ? null : v);
+    renderSrcFilters(); refreshSources();
+  });
+  document.getElementById('fs-clear').onclick = () => {
+    Object.assign(LS.sources, { q: '', jur: null, auth: null, sector: null, prod: null, page: 1 });
+    renderSources(document.getElementById('app'));
+  };
+}
+
+function refreshSources() {
+  const f = LS.sources;
+  const all = srcFiltered();
+  const sorted = srcSort(all);
+  const main = document.getElementById('src-main');
+  const per = f.per;
+  const pages = Math.max(1, Math.ceil(sorted.length / per));
+  if (f.page > pages) f.page = pages;
+  const slice = sorted.slice((f.page - 1) * per, f.page * per);
+
+  const c = document.getElementById('src-count');
+  if (c) c.textContent = all.length + ' of ' + D.sources.length + ' registered official sources · ' +
+    D.sources.filter(s => s.unique_vio > 0).length + ' produced verified intelligence this wave';
+
+  const th = (key, label) =>
+    '<th class="sortable" data-sk="' + key + '">' + label +
+    (f.sort === key ? '<span class="arr">' + (f.dir === 'asc' ? '&#9650;' : '&#9660;') + '</span>' : '') + '</th>';
+
+  let html = '<div class="tbl-wrap"><table class="tbl"><thead><tr>' +
+    th('inst', 'INSTITUTION') + th('jur', 'JURISDICTION') + th('auth', 'AUTHORITY') +
+    th('docs', 'DOCS') + th('facts', 'FACTS') + th('ios', 'IOS') + th('fresh', 'FRESH IOS') + '<th>ACCESS</th>' +
+    '</tr></thead><tbody>';
+  slice.forEach(s => {
+    html += '<tr class="rowlink" data-go="#/sources/' + esc(s.source_id) + '">' +
+      '<td class="t-strong ellip" title="' + esc(s.institution_name) + '">' + esc(s.institution_name) + '</td>' +
+      '<td class="mono">' + esc(s.jurisdiction) + '</td>' +
+      '<td class="dim">' + esc(s.authority_type) + '</td>' +
+      '<td><span class="num">' + num(s.documents_acquired) + '</span></td>' +
+      '<td><span class="num' + (s.facts > 0 ? ' hot' : '') + '">' + num(s.facts) + '</span></td>' +
+      '<td><span class="num' + (s.unique_vio > 0 ? ' hot' : '') + '">' + num(s.unique_vio) + '</span></td>' +
+      '<td><span class="num">' + num(s.fresh_vio) + '</span></td>' +
+      '<td class="dim mono">' + esc(s.access_status) + '</td>' +
+      '</tr>';
+  });
+  html += '</tbody></table></div>';
+  html += pager(sorted.length, f.page, per, pages, 'sources');
+  main.innerHTML = html;
+  bindGo(main);
+  wirePager('sources', () => refreshSources());
+  main.querySelectorAll('th.sortable').forEach(t => t.onclick = () => {
+    const k = t.dataset.sk;
+    if (f.sort === k) f.dir = (f.dir === 'asc' ? 'desc' : 'asc');
+    else { f.sort = k; f.dir = (k === 'inst' || k === 'jur' || k === 'auth') ? 'asc' : 'desc'; }
+    refreshSources();
+  });
+}
+
+/* ============================================================ SOURCE PROFILE */
+
+function viewSourceDetail(app, srcId) {
+  const s = IX.srcs[srcId];
+  if (!s) { app.innerHTML = notFound('Source', srcId, '#/sources'); return; }
+  const docs = D.documents.filter(d => d.source_id === srcId);
+  const facts = FACTS.filter(f => f.source_id === srcId);
+  const ios = D.intelligence.filter(io => io.source_id === srcId);
+  const st = SRC_STATS[srcId] || {};
+  const undated = ios.filter(io => io.date_status === 'UNDATED').length;
+  const productive = (s.unique_vio || 0) > 0;
+
+  let html = '' +
+    '<div class="crumb"><a href="#/sources">SOURCES</a><span class="sep">/</span><span class="mono">' + esc(s.source_id) + '</span></div>' +
+
+    '<div class="io-head">' +
+      '<div class="io-kind">SOURCE PROFILE</div>' +
+      '<div class="io-inst">' + esc(s.institution_name) + '</div>' +
+      '<div class="io-sub">' + bOfficial(s) +
+        (productive ? '<span class="badge b-accent" title="Produced ' + s.unique_vio + ' verified intelligence object(s) this wave">VIO-PRODUCING</span>' :
+          '<span class="badge b-undated" title="Registered official source — no verified intelligence object produced this wave">REGISTERED · NOT YET PRODUCTIVE</span>') +
+      '</div>' +
+      '<div class="io-actions">' +
+        '<a class="btn primary" href="' + esc(s.canonical_source_url || s.endpoint) + '" target="_blank" rel="noopener">OPEN OFFICIAL SOURCE</a>' +
+        (docs.length ? '<a class="btn" href="#/facts?src=' + esc(s.source_id) + '">VIEW FACTS (' + facts.length + ')</a>' : '') +
+      '</div>' +
+      '<div class="io-ids">' +
+        'jurisdiction <b>' + esc(s.jurisdiction) + '</b> (' + esc(s.region) + ') &nbsp;·&nbsp; sector <b>' + esc(s.sector_label) + '</b>' +
+        ' &nbsp;·&nbsp; language <b>' + esc(s.language) + '</b> &nbsp;·&nbsp; cohort <b>' + esc(s.cohort) + '</b>' +
+        ' &nbsp;·&nbsp; discovered via <b>' + esc(s.discovery_method) + '</b><br>' +
+        'endpoint kind <b>' + esc(s.endpoint_kind) + '</b> &nbsp;·&nbsp; pattern set <b>' + esc(s.pattern_set) + '</b>' +
+        ' &nbsp;·&nbsp; selection reasons <b>' + esc((s.selection_reasons || []).join(', ') || '—') + '</b>' +
+      '</div>' +
+    '</div>' +
+
+    /* --- SOURCE → DOCUMENT → FACT → INTELLIGENCE relationship --- */
+    '<div class="section"><div class="section-title">SOURCE &rarr; DOCUMENT &rarr; FACT &rarr; INTELLIGENCE <span class="sub">the production chain of this source</span></div>' +
+      '<div class="rel-strip">' +
+        '<div class="rel-node" data-go="#/sources/' + esc(s.source_id) + '"><div class="rn-k">SOURCE</div><div class="rn-v">1</div><div class="rn-s">this profile</div></div>' +
+        '<div class="rel-join">&rarr;</div>' +
+        '<div class="rel-node" data-go="#/documents" ><div class="rn-k">DOCUMENTS</div><div class="rn-v' + (docs.length ? ' hot' : '') + '">' + docs.length + '</div><div class="rn-s">acquired &amp; stored</div></div>' +
+        '<div class="rel-join">&rarr;</div>' +
+        '<div class="rel-node" data-go="#/facts?src=' + esc(s.source_id) + '"><div class="rn-k">FACTS</div><div class="rn-v' + (facts.length ? ' hot' : '') + '">' + facts.length + '</div><div class="rn-s">IO-bound, evidence-linked</div></div>' +
+        '<div class="rel-join">&rarr;</div>' +
+        '<div class="rel-node" data-go="#/intelligence?src=' + esc(s.source_id) + '"><div class="rn-k">INTELLIGENCE</div><div class="rn-v' + (ios.length ? ' hot' : '') + '">' + ios.length + '</div><div class="rn-s">verified objects</div></div>' +
+      '</div>' +
+    '</div>' +
+
+    /* --- metadata --- */
+    '<div class="section"><div class="section-title">SOURCE METADATA</div>' +
+    '<div class="meta-grid">' +
+      mcell('Institution', esc(s.institution_name)) +
+      mcell('Jurisdiction', esc(s.jurisdiction) + ' (' + esc(s.region) + ')') +
+      mcell('Source type', esc(s.authority_type) + ' · ' + esc(s.authority_level)) +
+      mcell('Official URL', '<a href="' + esc(s.canonical_source_url || s.endpoint) + '" target="_blank" rel="noopener">' + esc(s.endpoint) + '</a>') +
+      mcell('Official domain', esc(s.official_domain)) +
+      mcell('Sector', esc(s.sector_label)) +
+      mcell('Access status', esc(s.access_status)) +
+      mcell('Failure class', esc(s.failure_class)) +
+      mcell('Production status (S-level)', esc(s.production_status)) +
+      mcell('Latest publication date', s.latest_publication_date ? fmtDate(s.latest_publication_date) : na(null)) +
+    '</div></div>' +
+
+    /* --- production --- */
+    '<div class="section"><div class="section-title">PRODUCTION</div>' +
+    '<div class="meta-grid">' +
+      mcell('Documents discovered', num(s.documents_discovered)) +
+      mcell('Documents acquired', num(s.documents_acquired)) +
+      mcell('Documents usable (stored)', num(s.documents_usable)) +
+      mcell('Facts extracted', num(s.facts)) +
+      mcell('Events', num(s.events)) +
+      mcell('Candidate IOs', num(s.candidate_io)) +
+      mcell('Unique verified IOs', num(s.unique_vio)) +
+    '</div></div>' +
+
+    /* --- freshness --- */
+    '<div class="section"><div class="section-title">FRESHNESS <span class="sub">temporal classes of intelligence produced by this source</span></div>' +
+    '<div class="meta-grid">' +
+      mcell('Fresh IOs', bStatus('FRESH') + ' <span class="num">' + num(s.fresh_vio) + '</span>') +
+      mcell('Historical IOs', bStatus('HISTORICAL') + ' <span class="num">' + num(s.historical_vio) + '</span>') +
+      mcell('Undated IOs', bStatus('UNDATED') + ' <span class="num">' + num(undated) + '</span>') +
+      mcell('Latest publication date', s.latest_publication_date ? esc(s.latest_publication_date) : na(null)) +
+    '</div></div>' +
+
+    /* --- evidence coverage --- */
+    '<div class="section"><div class="section-title">EVIDENCE COVERAGE</div>' +
+    '<div class="meta-grid">' +
+      mcell('Facts bound to IOs', num(st.chain_facts || 0)) +
+      mcell('Facts with evidence excerpt', num(st.evidence_facts || 0)) +
+      mcell('Coverage', num(s.facts > 0 ? st.chain_facts : 0) + ' / ' + num(s.facts) +
+        ' extracted facts are IO-bound with verbatim evidence' + (s.facts > 0 && st.chain_facts < s.facts ? ' — remainder stored but not IO-bound' : '')) +
+    '</div></div>';
+
+  /* --- intelligence objects from this source --- */
+  if (ios.length) {
+    html += '<div class="section"><div class="section-title">INTELLIGENCE OBJECTS <span class="sub">' + ios.length + ' from this source</span></div>';
+    ios.forEach(io => {
+      html += '<div class="feed-row" data-go="#/intelligence/' + io.io_id + '">' + bStatus(io.date_status) +
+        '<span class="f-inst ellip">' + esc(io.institution_name) + '</span>' +
+        '<span class="f-type">' + esc(io.event_type_label) + '</span>' +
+        '<span class="f-meta"><span class="num">' + (io.chain || []).length + '</span> facts</span>' +
+        (ioDateKey(io) ? '<span class="f-date">' + fmtDate(ioDateKey(io)) + '</span>' : '') +
+        '<span class="f-open">OPEN &rarr;</span></div>';
+    });
+    html += '</div>';
+  } else {
+    html += '<div class="section"><div class="section-title">INTELLIGENCE OBJECTS</div>' +
+      '<div class="note">No verified intelligence objects produced by this source in this snapshot. ' +
+      'Documents and extracted facts (if any) are stored and searchable.</div></div>';
+  }
+
+  /* --- documents table (this source) --- */
+  if (docs.length) {
+    html += '<div class="section"><div class="section-title">DOCUMENTS FROM THIS SOURCE <span class="sub">' + docs.length +
+      ' — showing first 100</span></div><div class="tbl-wrap"><table class="tbl"><thead><tr>' +
+      '<th>DATE</th><th>DOCUMENT</th><th>TEMPORAL</th><th>FACTS</th><th>IOS</th></tr></thead><tbody>';
+    docs.slice(0, 100).forEach(d => {
+      html += '<tr class="rowlink" data-go="#/documents/' + d.document_id + '">' +
+        '<td class="mono">' + (d.best_iso ? esc(d.best_iso) : '<span class="dim">—</span>') + '</td>' +
+        '<td class="mono dim ellip" title="' + esc(d.canonical_url) + '">' + esc(cleanUrl(d.canonical_url)) + '</td>' +
+        '<td>' + bStatus(d.fresh_status) + '</td>' +
+        '<td><span class="num">' + d.n_facts + '</span></td>' +
+        '<td><span class="num">' + d.n_intelligence + '</span></td></tr>';
+    });
+    html += '</tbody></table></div>';
+    if (docs.length > 100) html += '<div class="note" style="margin-top:8px">+' + (docs.length - 100) +
+      ' further documents — open the DOCUMENTS section and filter by this source id: <span class="mono">' + esc(s.source_id) + '</span></div>';
+    html += '</div>';
+  }
+
+  html += '<div class="section"><div class="section-title">TECHNICAL PROVENANCE</div>' +
+    '<div class="meta-grid">' +
+      mcell('Source identifier', '<span class="mono">' + esc(s.source_id) + '</span>') +
+      mcell('Discovery status', '<span class="mono">' + esc(s.discovery_status) + '</span>') +
+      mcell('Access status', esc(s.access_status)) +
+      mcell('Production accounting class', esc(s.failure_class) + ' · S-level ' + esc(s.production_status)) +
+    '</div></div>';
+
+  app.innerHTML = html;
+  bindGo(app);
+}
+
+/* ============================================================ PRODUCTION (demoted) */
+
 function viewProduction(app) {
   const p = D.production;
-  const w = p.wave, b = p.before, a = p.after, v = p.verification;
-  const num = x => (x == null ? '—' : Number(x).toLocaleString());
-  const afterUniverse = a.registered_universe != null ? a.registered_universe
-    : (p.accounting_summary && p.accounting_summary.universe_after);
-  const rows = [
-    ['Registered source universe', num(b.registered_universe), num(afterUniverse)],
-    ['Productive sources (≥1 VIO)', num(b.productive_sources), num(a.productive_sources)],
-    ['Facts (global)', num(b.facts), num(a.facts)],
-    ['Events (global)', num(b.events), num(a.events)],
-    ['Intelligence objects (global)', num(b.io), num(a.io)],
-    ['Unique VIO (global)', num(b.unique_vio), num(a.unique_vio)],
-    ['Fresh VIO (global, M2 basis)', num(b.fresh_vio_m2), num(a.fresh_vio_m2)],
-  ];
-  app.innerHTML = `
-  <div class="page-head">
-    <div class="kicker">Secondary View · Builders</div>
-    <h1 class="page-title">ROUAA Core — Production</h1>
-    <div class="page-sub">Production accounting for wave ${esc(p.wave_name)} (run <span style="font-family:var(--mono)">${esc(p.wave_id)}</span>),
-    executed ${esc(p.executed_at)} at commit <span style="font-family:var(--mono)">${esc(D.meta.production_commit.slice(0, 7))}</span>.
-    This view is deliberately secondary: the executive experience is the intelligence itself, not pipeline volume.</div>
-  </div>
+  const a = p.accounting_summary;
+  const sdefs = p.s_levels_definition || {};
 
-  <div class="section-label"><span>Wave Accounting (verbatim from Core scorecard)</span></div>
-  <div class="panel"><div class="kv-grid">
-    <div class="k">Population (new sources registered)</div><div class="v">${w.candidate_sources}</div>
-    <div class="k">Accessible (ACCESS_OK)</div><div class="v">${w.accessible_sources_s1}</div>
-    <div class="k">Sources producing documents</div><div class="v">${w.sources_producing_documents_s3}</div>
-    <div class="k">VIO-producing sources</div><div class="v">${w.productive_sources_vio_basis}</div>
-    <div class="k">Documents acquired</div><div class="v">${w.documents_acquired} (${w.new_unique_documents} first-claim new)</div>
-    <div class="k">Usable documents</div><div class="v">${w.usable_documents} · dated: ${w.dated_documents} (recent ${w.recent_documents} / historical ${w.historical_documents})</div>
-    <div class="k">Facts extracted</div><div class="v">${w.facts.toLocaleString()} (${w.new_unique_facts.toLocaleString()} new unique)</div>
-    <div class="k">Events / IO produced</div><div class="v">${w.events} / ${w.io}</div>
-    <div class="k">Net-new unique VIO</div><div class="v"><b>${w.new_unique_vio}</b> — recent ${w.fresh_new_vio} · historical ${w.historical_new_vio} · undated ${w.undated_new_vio}</div>
-    <div class="k">Fresh window (frozen)</div><div class="v">${esc(D.meta.fresh_window.start)} → ${esc(D.meta.fresh_window.end)} (retrieval time never used as publication)</div>
-  </div></div>
+  const kv = rows => '<div class="kv-list">' + rows.map(([k, v, hot]) =>
+    '<div class="kv"><span class="k">' + k + '</span><span class="v' + (hot ? ' hot' : '') + '">' + v + '</span></div>').join('') + '</div>';
 
-  <div class="section-label"><span>Global Production — Before → After This Wave</span></div>
-  <div class="panel">
-  <table class="data">
-    <thead><tr><th>Measure</th><th class="right">Before</th><th class="right">After</th></tr></thead>
-    <tbody>${rows.map(r => `<tr><td>${r[0]}</td><td class="num right">${r[1]}</td><td class="num right"><b>${r[2]}</b></td></tr>`).join('')}</tbody>
-  </table>
-  </div>
+  let html = '' +
+    '<div class="view-head">' +
+      '<div class="view-title">PRODUCTION</div>' +
+      '<div class="view-count">' + esc(p.wave_name) + ' · executed ' + esc(p.executed_at) + '</div>' +
+    '</div>' +
 
-  <div class="section-label"><span>Verification (4-leg, from quality_verification.json)</span></div>
-  <div class="panel"><div class="kv-grid">
-    <div class="k">V1 — Identity chain</div><div class="v">${v.V1_identity_chain.pass ? '<span class="verdict-PASS">PASS</span>' : 'FAIL'} — ${v.V1_identity_chain.checked}/135 new VIOs checked (fact → document → source)</div>
-    <div class="k">V2 — Temporal basis</div><div class="v">${v.V2_temporal.pass ? '<span class="verdict-PASS">PASS</span>' : 'FAIL'} — ${esc(v.V2_temporal.note || '')}</div>
-    <div class="k">V3 — Deduplication</div><div class="v">${v.V3_dedup.pass ? '<span class="verdict-PASS">PASS</span>' : 'FAIL'} — ${v.V3_dedup.run_ios} run · ${v.V3_dedup.overlaps} re-discoveries excluded · ${v.V3_dedup.new} net-new</div>
-    <div class="k">V4 — Contamination</div><div class="v">${v.V4_contamination.pass ? '<span class="verdict-PASS">PASS</span>' : 'FAIL'} — zero leak (facts/events/IOs)</div>
-  </div></div>
+    '<div class="note" style="margin-bottom:14px"><b>Position of this section.</b> Production accounting exists for transparency about what Core ' +
+    'actually ran and produced. It is deliberately demoted from the front page: institutional users consume intelligence first, ' +
+    'production mechanics last. All figures are committed Core accounting — none are computed by the interface.</div>' +
 
-  <div class="section-label"><span>Snapshot Provenance</span></div>
-  <div class="panel"><div class="kv-grid">
-    <div class="k">Core repository</div><div class="v mono">jsiadyarslan-lab/rouaa-intelligence-core</div>
-    <div class="k">Production branch</div><div class="v mono">${esc(D.meta.production_branch)}</div>
-    <div class="k">Production commit</div><div class="v mono">${esc(D.meta.production_commit)}</div>
-    <div class="k">Artifacts directory</div><div class="v mono">artifacts/large-scale-official-source-expansion-v4/</div>
-    <div class="k">Snapshot date</div><div class="v">${esc(D.meta.snapshot_date)}</div>
-    <div class="k">Adapter</div><div class="v">interface/build_presentation.py — read-only export of committed store JSONL into static presentation JSON. No Core logic touched.</div>
-  </div>
-  <div class="mini-note">Displayed intelligence = 147 IO rows produced by the wave (135 net-new + 12 re-discoveries, per Core dedup accounting).</div>
-  </div>`;
+    '<div class="prod-grid">' +
+      '<div class="panel"><div class="panel-head"><span class="panel-label">WAVE ACCOUNTING</span></div>' +
+        kv([
+          ['Population (registered sources', a.population],
+          ['Access OK', a.access_ok],
+          ['Documents acquired', a.documents_acquired],
+          ['Documents first claim', a.documents_first_claim],
+          ['Documents usable (stored)', a.documents_usable],
+          ['Facts run', a.facts_run.toLocaleString('en-GB')],
+          ['Facts new', a.facts_new.toLocaleString('en-GB'), true],
+          ['VIO candidates', a.vio_candidate],
+          ['VIO verified', a.vio_verified, true],
+          ['VIO unique net-new', a.vio_unique_new],
+          ['VIO fresh', a.vio_fresh],
+          ['VIO historical', a.vio_historical],
+          ['VIO-producing sources', a.productive_sources_vio_basis, true],
+          ['Source universe after wave', a.universe_after.toLocaleString('en-GB')],
+          ['Runtime (s)', a.runtime_seconds],
+        ]) + '</div>' +
+
+      '<div class="panel"><div class="panel-head"><span class="panel-label">FRESHNESS LADDER (VIO)</span></div>' +
+        kv([
+          ['Fresh (in window)', a.vio_fresh + ' <span class="badge b-fresh">FRESH</span>'],
+          ['Historical (dated)', a.vio_historical + ' <span class="badge b-historical">HISTORICAL</span>'],
+          ['Undated', (a.vio_verified - a.vio_fresh - a.vio_historical) + ' <span class="badge b-undated">UNDATED</span>'],
+        ]) +
+        '<div class="panel-body"><div class="dim" style="font-size:11px">Frozen fresh window ' + esc(D.meta.fresh_window.start) +
+        ' &rarr; ' + esc(D.meta.fresh_window.end) + '. Retrieval time is never used as publication time (Core V2 temporal rule).</div></div></div>' +
+
+      '<div class="panel"><div class="panel-head"><span class="panel-label">VERIFICATION</span>' +
+        '<span class="panel-meta">' + (p.verification.V1_identity_chain.pass === p.verification.V1_identity_chain.checked &&
+          p.verification.V2_temporal.pass === true && p.verification.V3_dedup.pass === true && p.verification.V4_contamination.pass === true
+          ? 'ALL PASS' : 'SEE NOTES') + '</span></div>' +
+        kv([
+          ['V1 identity chain', p.verification.V1_identity_chain.pass + ' / ' + p.verification.V1_identity_chain.checked],
+          ['V2 temporal', p.verification.V2_temporal.pass ? 'PASS' : 'FAIL'],
+          ['V3 dedup', p.verification.V3_dedup.pass ? 'PASS' : 'FAIL' + ' · overlaps ' + p.verification.V3_dedup.overlaps],
+          ['V4 contamination', p.verification.V4_contamination.pass ? 'PASS' : 'FAIL'],
+          ['Contamination excluded', 'facts ' + a.contamination_excluded.facts + ' · events ' + a.contamination_excluded.events +
+            ' · IOs ' + a.contamination_excluded.ios],
+        ]) + '</div>' +
+
+      '<div class="panel"><div class="panel-head"><span class="panel-label">SOURCE PIPELINE STAGES (S-LEVELS)</span>' +
+        '<span class="panel-meta">' + a.population + ' sources</span></div>' +
+        kv(Object.entries(sdefs).map(([k, def]) => ['S' === k[0] ? k + ' — ' + def : k, a.s_levels[k] ?? 0])) + '</div>' +
+
+      '<div class="panel"><div class="panel-head"><span class="panel-label">FAILURE / OUTCOME CLASSES (Z)</span></div>' +
+        kv(Object.entries(a.z_classes).map(([k, v]) => [k, v])) + '</div>' +
+
+      '<div class="panel"><div class="panel-head"><span class="panel-label">DEFINITIONS</span></div><div class="panel-body">' +
+        '<div style="font-size:11.5px;color:var(--fg-2);line-height:1.7">' +
+        '<b style="color:var(--fg)">Discovered</b> — documents found by the discovery crawler on an accessible source (documents_discovered).<br>' +
+        '<b style="color:var(--fg)">Acquired</b> — documents fetched and committed to the store (documents_acquired; first claim = never seen in earlier waves).<br>' +
+        '<b style="color:var(--fg)">Stored / usable</b> — acquired documents with a usable text layer for extraction (documents_usable).<br>' +
+        '<b style="color:var(--fg)">Productive</b> — a source that produced at least one verified intelligence object this wave (' +
+        a.productive_sources_vio_basis + ' of ' + a.population + ').<br>' +
+        '<b style="color:var(--fg)">FRESH / HISTORICAL / UNDATED</b> — temporal classes of intelligence objects; ' +
+        'freshness is attributed from committed publication metadata only, never from retrieval time.' +
+        '</div></div></div>' +
+    '</div>';
+
+  app.innerHTML = html;
 }
 
+/* ============================================================ SEARCH PAGE */
+
+function viewSearch(app, q) {
+  const input = document.getElementById('gsearch-input');
+  if (input && !q) { q = input.value; }
+  document.title = q ? 'Search: ' + q + ' — ROUAA' : 'Search — ROUAA';
+
+  let html = '' +
+    '<div class="view-head"><div class="view-title">SEARCH</div>' +
+    '<div class="view-count">query: <span class="mono">' + esc(q) + '</span></div></div>';
+
+  if (!q) {
+    html += '<div class="note">Type a query in the global search bar (top). Search covers intelligence objects, documents, facts and sources.</div>';
+    app.innerHTML = html; return;
+  }
+
+  /* full result sets, not the 4-row preview */
+  const t = lower(q.trim());
+  const has = s => lower(s).indexOf(t) !== -1;
+  const intelAll = D.intelligence.filter(io => has(io.institution_name + ' ' + io.event_type_label + ' ' + io.jurisdiction + ' ' + io.sector_label + ' ' + io.headline + ' ' + io.io_id));
+  const docsAll = D.documents.filter(d => has(d.canonical_url + ' ' + d.document_id + ' ' + ((IX.srcs[d.source_id] || {}).institution_name || '') + ' ' + d.source_id));
+  const factsAll = FACTS.filter(f => f._lc.indexOf(t) !== -1);
+  const srcsAll = D.sources.filter(s => has(s.institution_name + ' ' + s.official_domain + ' ' + s.jurisdiction + ' ' + s.source_id + ' ' + s.sector_label));
+  const total = intelAll.length + docsAll.length + factsAll.length + srcsAll.length;
+
+  html += '<div class="note" style="margin-bottom:16px"><b>' + total.toLocaleString('en-GB') + ' result' + (total === 1 ? '' : 's') +
+    '</b> across this snapshot — INTELLIGENCE ' + intelAll.length + ' · DOCUMENTS ' + docsAll.length +
+    ' · FACTS ' + factsAll.length + ' · SOURCES ' + srcsAll.length + '. Results contain only committed objects; nothing is synthesized.</div>';
+
+  const section = (label, arr, render, cap) => {
+    if (!arr.length) return;
+    html += '<div class="sr-cat"><div class="section-title">' + label + ' <span class="sub">' + arr.length + ' result' + (arr.length === 1 ? '' : 's') + '</span></div>';
+    arr.slice(0, cap || 50).forEach(it => { html += render(it); });
+    if (arr.length > (cap || 50)) html += '<div class="note" style="margin-top:8px">+' + (arr.length - (cap || 50)) + ' more — refine the query or use section filters.</div>';
+    html += '</div>';
+  };
+
+  section('INTELLIGENCE', intelAll, io =>
+    '<div class="sr-row" data-go="#/intelligence/' + io.io_id + '">' + bStatus(io.date_status) +
+    '<span class="sr-t ellip">' + esc(io.institution_name) + ' — ' + esc(io.event_type_label) + '</span>' +
+    '<span class="sr-m">' + esc(io.jurisdiction) + ' · ' + io.n_facts + ' facts</span></div>');
+  section('DOCUMENTS', docsAll, d =>
+    '<div class="sr-row" data-go="#/documents/' + d.document_id + '">' +
+    '<span class="sr-t ellip mono" style="font-size:11px">' + esc(cleanUrl(d.canonical_url)) + '</span>' +
+    '<span class="sr-m">' + esc((IX.srcs[d.source_id] || {}).institution_name || d.source_id) + '</span></div>');
+  section('FACTS', factsAll, f =>
+    '<div class="sr-row" data-go="#/evidence/' + f.io_id + '/' + f.fact_id + '">' +
+    '<span class="sr-t ellip"><span class="mono" style="color:var(--accent)">' + esc(f.value) + '</span> — ' + esc(String(f.raw_value).slice(0, 90)) + '</span>' +
+    '<span class="sr-m">' + esc(f.metric) + ' · ' + esc(f.institution) + '</span></div>', 50);
+  section('SOURCES', srcsAll, s =>
+    '<div class="sr-row" data-go="#/sources/' + s.source_id + '">' +
+    '<span class="sr-t ellip">' + esc(s.institution_name) + '</span>' +
+    '<span class="sr-m">' + esc(s.jurisdiction) + ' · ' + (s.unique_vio || 0) + ' IOs</span></div>');
+
+  if (!total) html += '<div class="note">No committed object matches this query. The interface does not synthesize or approximate results.</div>';
+
+  app.innerHTML = html;
+  bindGo(app);
+}
+
+/* ============================================================ start */
+
 boot();
+
