@@ -1,5 +1,5 @@
 /* ==========================================================================
-   ROUAA INSTITUTIONAL INTELLIGENCE — INTERFACE V3.0-A (presentation layer only)
+   ROUAA INSTITUTIONAL INTELLIGENCE — INTERFACE V3.1 (presentation layer only)
    Black Institutional Terminal · Repository Production Snapshot · NOT LIVE
    ---------------------------------------------------------------------------
    V2 MANDATE: better consumption of existing truth — not creation of new truth.
@@ -8,6 +8,10 @@
    - Semantic titles do not exist in Core -> identity = INSTITUTION + TYPE metadata.
    - No interpretation layer exists in Core -> CONTEXT states so explicitly.
    - Fact UNIT / PERIOD are not produced by Core -> columns reserved, marked "—".
+   V3.1 (design-authority round): reader as intelligence brief, one provenance
+   spine language (reader PROVENANCE / EVIDENCE view / TRACE view), serif
+   quotation voice for verbatim evidence + reader title, honest empty states,
+   document-grade reader ending. Data expressions unchanged and verbatim.
    ========================================================================== */
 
 'use strict';
@@ -192,7 +196,7 @@ function renderSysline() {
     ' &nbsp;·&nbsp; Core commit <b>' + esc(m.production_commit.slice(0, 10)) + '</b> on ' + esc(m.production_branch) +
     ' &nbsp;·&nbsp; fresh window ' + esc(m.fresh_window.start) + ' &rarr; ' + esc(m.fresh_window.end) +
     ' &nbsp;·&nbsp; snapshot ' + esc(fmtDate(m.snapshot_date)) +
-    ' &nbsp;·&nbsp; interface V3.0-A.2 · presentation layer only';
+    ' &nbsp;·&nbsp; interface V3.1 · presentation layer only';
   document.getElementById('snapshot-chip').innerHTML = 'SNAPSHOT · ' + esc(m.wave) + ' · ' + esc(m.snapshot_date);
 }
 
@@ -499,8 +503,10 @@ function renderIntelFilters() {
   const types = uniq(D.intelligence.map(x => x.event_type_label));
   const langs = uniq(D.intelligence.map(x => x.language));
 
-  const opts = (items, cur, set) => items.map(v =>
-    '<span class="fopt' + (cur === v ? ' on' : '') + '" data-f="' + esc(v) + '">' + esc(v) + '</span>').join('');
+  /* V3.1 fix: chips are wrapped in .opts (flex-wrap) — the CSS expected it;
+     bare inline chips formed one unbreakable line that overflowed the rail */
+  const opts = (items, cur, set) => '<div class="opts">' + items.map(v =>
+    '<span class="fopt' + (cur === v ? ' on' : '') + '" data-f="' + esc(v) + '">' + esc(v) + '</span>').join('') + '</div>';
 
   el.innerHTML =
     fg('Search', '<input type="text" id="fi-q" placeholder="institution, type, id..." value="' + esc(f.q) + '">') +
@@ -564,6 +570,7 @@ function renderIntelMain(sorted) {
       arr.forEach(io => { html += feedRow(io); });
       html += '</div>';
     });
+    if (!slice.length) html += emptyRegistry('intelligence object');
     html += pager(sorted.length, f.page, per, pages, 'intel');
   } else {
     const th = (key, label, cls) =>
@@ -586,6 +593,7 @@ function renderIntelMain(sorted) {
         '</tr>';
     });
     html += '</tbody></table></div>';
+    if (!slice.length) html += emptyRegistry('intelligence object');
     html += '<div class="note" style="margin-top:10px"><b>Sorting.</b> Click a column header to sort. Default order: temporal class, then most recent date. ' +
       'Undated objects sort last under DATE.</div>';
     html += pager(sorted.length, f.page, per, pages, 'intel');
@@ -744,7 +752,7 @@ function viewIoDetail(app, ioId) {
     '<div class="rd-actions">' +
       (chain[0] && chain[0].canonical_url
         ? '<a class="btn ghost" href="' + esc(chain[0].canonical_url) + '" target="_blank" rel="noopener">OPEN ORIGINAL DOCUMENT &#8599;</a>' : '') +
-      '<a class="rd-link" href="#/trace/' + io.io_id + '">EVIDENCE CHAIN &rarr;</a>' +
+      '<a class="btn" href="#/trace/' + io.io_id + '">EVIDENCE CHAIN &rarr;</a>' +
     '</div>';
 
   /* ---------- WHAT HAPPENED (narrative from committed fields only) ---------- */
@@ -808,6 +816,8 @@ function viewIoDetail(app, ioId) {
         '<div class="rd-quote" style="margin-bottom:0">' +
           '<div class="rq-meta">EVIDENCE EXCERPT — VERBATIM FROM THE STORED DOCUMENT</div>' +
           '<blockquote>' + hlExcerpt(c) + '</blockquote>' +
+          (c.evidence_location || c.evidence_id ? '<div class="rq-loc">TECHNICAL LOCATION — <b>' + esc(c.evidence_location || '—') +
+            '</b>' + (c.evidence_id ? ' · EVIDENCE OBJECT <b>' + esc(c.evidence_id) + '</b>' : '') + '</div>' : '') +
           '<div class="rq-actions">' +
             '<a class="btn sm" href="#/evidence/' + io.io_id + '/' + esc(c.fact_id) + '">VIEW EVIDENCE</a>' +
             (c.canonical_url ? '<a class="btn sm" href="' + esc(c.canonical_url) + '" target="_blank" rel="noopener">OPEN ORIGINAL &#8599;</a>' : '') +
@@ -833,6 +843,8 @@ function viewIoDetail(app, ioId) {
         '<div class="rq-meta">FACT ' + String(i + 1).padStart(2, '0') + ' · <b>' + esc(metricLabel(c.metric)) +
           ' = ' + esc(fd.disp) + '</b></div>' +
         '<blockquote>' + hlExcerpt(c) + '</blockquote>' +
+        (c.evidence_location || c.evidence_id ? '<div class="rq-loc">TECHNICAL LOCATION — <b>' + esc(c.evidence_location || '—') +
+          '</b>' + (c.evidence_id ? ' · EVIDENCE OBJECT <b>' + esc(c.evidence_id) + '</b>' : '') + '</div>' : '') +
         '<div class="rq-actions">' +
           '<a class="btn sm" href="#/evidence/' + io.io_id + '/' + esc(c.fact_id) + '">VIEW EVIDENCE</a>' +
           (c.canonical_url ? '<a class="btn sm" href="' + esc(c.canonical_url) + '" target="_blank" rel="noopener">OPEN ORIGINAL &#8599;</a>' : '') +
@@ -873,25 +885,34 @@ function viewIoDetail(app, ioId) {
   }
   html += '</div>';
 
-  /* ---------- PROVENANCE ---------- */
+  /* ---------- PROVENANCE (V3.1 spine: one chain language with the
+     evidence/trace views — authority -> document -> fact -> evidence ->
+     intelligence; the EVIDENCE stage alone carries the gold marker) ---------- */
   html += '<div class="rd-section">' +
     rdH('PROVENANCE', traceOk ? 'every level resolves in this snapshot' : 'trace incomplete in this snapshot') +
-    '<div class="prov-chain">' +
-      '<div class="prov-step link" data-go="' + (src ? '#/sources/' + esc(src.source_id) : '#/intelligence/' + io.io_id) + '">' +
-        '<div class="ps-k">Official authority</div><div class="ps-v">' + esc(src ? src.institution_name : io.institution_name) + '</div>' +
-        '<div class="ps-s">' + esc(src ? src.authority_type + ' · ' + src.jurisdiction : io.source_id) + '</div></div>' +
-      '<div class="prov-step link" data-go="' + (doc ? '#/documents/' + esc(doc.document_id) : '#/intelligence/' + io.io_id) + '">' +
-        '<div class="ps-k">Official document</div><div class="ps-v">' + esc(doc ? cleanUrl(doc.canonical_url) : 'not resolved') + '</div>' +
-        '<div class="ps-s">' + (doc ? (doc.best_iso ? 'dated ' + fmtDate(doc.best_iso) : 'no date attributed') : '—') + '</div></div>' +
-      '<div class="prov-step link" data-go="#/intelligence/' + io.io_id + '">' +
-        '<div class="ps-k">Extracted fact</div><div class="ps-v">' + chain.length + ' fact record' + (chain.length === 1 ? '' : 's') + '</div>' +
-        '<div class="ps-s">' + (metrics.length ? esc(metrics.map(metricLabel).join(', ')) : '—') + '</div></div>' +
-      '<div class="prov-step static" style="cursor:default">' +
-        '<div class="ps-k">Evidence</div><div class="ps-v">' + chain.length + ' verbatim excerpt' + (chain.length === 1 ? '' : 's') + '</div>' +
-        '<div class="ps-s">stored in this snapshot · content-verified by Core</div></div>' +
-      '<div class="prov-step link" data-go="#/intelligence/' + io.io_id + '">' +
-        '<div class="ps-k">Intelligence</div><div class="ps-v">This object</div>' +
-        '<div class="ps-s">' + esc(io.institution_name) + ' · ' + esc(io.event_type_label) + '</div></div>' +
+    '<div class="chain">' +
+      chainNode('01', 'Official authority',
+        esc(src ? src.institution_name : io.institution_name),
+        (src ? 'authority type <b>' + esc(src.authority_type) + '</b> · jurisdiction <b>' + esc(src.jurisdiction) + '</b>'
+             : 'source id <b>' + esc(io.source_id) + '</b>'),
+        src ? '#/sources/' + esc(src.source_id) : null) +
+      chainNode('02', 'Official document',
+        esc(doc ? cleanUrl(doc.canonical_url) : 'not resolved'),
+        (doc ? 'document <b>' + esc(doc.document_id) + '</b>' + (doc.best_iso ? ' · dated <b>' + esc(fmtDate(doc.best_iso)) + '</b>' : ' · no date attributed')
+             : 'no document record resolves in this snapshot'),
+        doc ? '#/documents/' + esc(doc.document_id) : null) +
+      chainNode('03', 'Extracted fact',
+        chain.length + ' fact record' + (chain.length === 1 ? '' : 's') + ' bound to this object',
+        (metrics.length ? 'metrics <b>' + esc(metrics.map(metricLabel).join(', ')) + '</b>' : '—'),
+        doc ? '#/facts?doc=' + esc(doc.document_id) : '#/intelligence/' + io.io_id) +
+      chainNode('04', 'Evidence',
+        chain.length + ' verbatim excerpt' + (chain.length === 1 ? '' : 's') + ' stored in this snapshot',
+        'content-verified by Core · full per-fact chain in <b>TRACE EVIDENCE</b>',
+        '#/trace/' + io.io_id, { evidence: true }) +
+      chainNode('05', 'Intelligence',
+        'This object — ' + esc(io.institution_name),
+        'object <b>' + esc(io.io_id) + '</b> · ' + esc(io.event_type_label) + ' · you are reading it',
+        null) +
     '</div>' +
     (traceOk ? '' : '<div class="rd-note" style="margin-top:16px"><b>Trace incomplete.</b> One or more chain levels do not resolve inside this snapshot — see technical provenance below.</div>');
 
@@ -936,17 +957,27 @@ function viewIoDetail(app, ioId) {
     html += '</div>';
   }
 
-  /* ---------- footer navigation ---------- */
+  /* ---------- footer navigation (V3.1: the document ends like a document —
+     registry back-link, real previous/next identities, end-of-record line) --- */
   const order = feedOrderIo();
   const idx = order.findIndex(x => x.io_id === io.io_id);
   const prev = idx > 0 ? order[idx - 1] : null;
   const next = idx >= 0 && idx < order.length - 1 ? order[idx + 1] : null;
+  const neighborWhen = x => x.date_status === 'UNDATED' ? 'no date attributed' : esc(fmtDate(ioDateKey(x)));
   html += '<div class="rd-footer">' +
     '<a class="rf-back" href="#/intelligence">&larr; ALL INTELLIGENCE</a>' +
-    '<div class="rf-nav">' +
-      (prev ? '<a class="btn sm" href="#/intelligence/' + prev.io_id + '" title="' + esc(prev.institution_name) + '">&larr; PREVIOUS</a>' : '') +
-      (next ? '<a class="btn sm" href="#/intelligence/' + next.io_id + '" title="' + esc(next.institution_name) + '">NEXT &rarr;</a>' : '') +
-    '</div></div>';
+    '<div class="rd-nav">' +
+      (prev ? '<a href="#/intelligence/' + prev.io_id + '"><span class="rn-k">&larr; PREVIOUS OBJECT</span>' +
+        '<span class="rn-v">' + esc(prev.institution_name) + '</span>' +
+        '<span class="rn-s">' + bStatus(prev.date_status) + ' · ' + neighborWhen(prev) + '</span></a>'
+        : '<span></span>') +
+      (next ? '<a class="next" href="#/intelligence/' + next.io_id + '"><span class="rn-k">NEXT OBJECT &rarr;</span>' +
+        '<span class="rn-v">' + esc(next.institution_name) + '</span>' +
+        '<span class="rn-s">' + bStatus(next.date_status) + ' · ' + neighborWhen(next) + '</span></a>'
+        : '<span></span>') +
+    '</div></div>' +
+    '<div class="rd-end">END OF RECORD · <b>' + esc(io.io_id) + '</b> · ' + esc(D.meta.wave) +
+      ' SNAPSHOT ' + esc(D.meta.snapshot_date) + ' · NOT A LIVE FEED</div>';
 
   html += '</div>'; /* .reader */
   app.innerHTML = html;
@@ -970,6 +1001,13 @@ function viewIoDetail(app, ioId) {
 
 function mcell(k, v) { return '<div class="meta-cell"><div class="meta-k">' + k + '</div><div class="meta-v">' + v + '</div></div>'; }
 
+/* V3.1 honest empty state — used by every registry surface when filters or
+   search match nothing; states plainly that nothing is synthesized */
+function emptyRegistry(what) {
+  return '<div class="empty">NO ' + String(what).toUpperCase() + ' IN THIS SNAPSHOT MATCHES THE CURRENT FILTERS OR SEARCH.<br>' +
+    'Nothing is hidden and nothing is synthesized — clear a filter or search term to return to the full registry.</div>';
+}
+
 function notFound(what, id, back) {
   return '<div class="note"><b>' + esc(what) + ' not found in this snapshot.</b> ' +
     '<span class="mono">' + esc(id || '') + '</span> <a href="' + back + '">Go back &rarr;</a></div>';
@@ -992,21 +1030,26 @@ function viewEvidence(app, ioId, factId) {
     '<div class="view-head"><div class="view-title">EVIDENCE VIEW</div>' +
     '<div class="view-count">FACT &rarr; EVIDENCE &rarr; DOCUMENT &rarr; SOURCE — every level resolves</div></div>' +
 
-    '<div class="trace-flow">' +
-      traceNode('FACT', esc(c.metric) + ' = <b style="color:var(--accent)">' + esc(c.value) + '</b>',
-        'fact ' + esc(c.fact_id) + ' · description: ' + esc(c.raw_value || '—'), '#/intelligence/' + io.io_id, true) +
-      arrow() +
-      traceNode('EVIDENCE EXCERPT', '<span style="font-family:var(--mono);font-size:13px;line-height:1.7">' + esc(c.excerpt) + '</span>',
-        'technical location: ' + esc(c.evidence_location) + ' · evidence object ' + esc(c.evidence_id), null, false) +
-      arrow() +
-      traceNode('DOCUMENT', esc(cleanUrl(c.canonical_url)),
-        esc(c.document_id) + (doc && doc.best_iso ? ' · dated ' + esc(doc.best_iso) : ' · no date attributed') +
-        (doc ? ' · ' + esc(doc.text_layer) : ''),
-        '#/documents/' + c.document_id, true) +
-      arrow() +
-      traceNode('SOURCE', esc(src ? src.institution_name : c.source_id),
-        (src ? esc(src.authority_type) + ' · ' + esc(src.jurisdiction) + ' · ' + esc(src.official_domain) : esc(c.source_id)),
-        '#/sources/' + c.source_id, true) +
+    '<div class="chain">' +
+      chainNode('01', 'Fact',
+        esc(metricLabel(c.metric)) + ' = <span class="hl">' + esc(c.value) + '</span>',
+        'fact <b>' + esc(c.fact_id) + '</b> · description <b>' + esc(c.raw_value || '—') + '</b>',
+        '#/intelligence/' + io.io_id) +
+      chainNode('02', 'Evidence excerpt — verbatim',
+        '<div class="cn-quote">' + hlExcerpt(c) + '</div>',
+        'technical location <b>' + esc(c.evidence_location) + '</b> · evidence object <b>' + esc(c.evidence_id) + '</b> · content-verified by Core',
+        null, { evidence: true }) +
+      chainNode('03', 'Document',
+        esc(cleanUrl(c.canonical_url)),
+        'document <b>' + esc(c.document_id) + '</b>' +
+          (doc && doc.best_iso ? ' · dated <b>' + esc(fmtDate(doc.best_iso)) + '</b>' : ' · no date attributed') +
+          (doc ? ' · text layer <b>' + esc(doc.text_layer) + '</b>' : ''),
+        '#/documents/' + c.document_id) +
+      chainNode('04', 'Official source',
+        esc(src ? src.institution_name : c.source_id),
+        (src ? 'authority type <b>' + esc(src.authority_type) + '</b> · jurisdiction <b>' + esc(src.jurisdiction) +
+          '</b> · domain <b>' + esc(src.official_domain) + '</b>' : 'source <b>' + esc(c.source_id) + '</b>'),
+        src ? '#/sources/' + c.source_id : null) +
     '</div>' +
 
     '<div class="section"><div class="section-title">FULL FACT RECORD</div>' +
@@ -1033,15 +1076,22 @@ function viewEvidence(app, ioId, factId) {
   bindGo(app);
 }
 
-function traceNode(k, v, sub, href, clickable) {
-  const inner = '<span class="tn-k">' + k + '</span><span class="tn-v">' + v +
-    (sub ? '<span class="sub">' + sub + '</span>' : '') + '</span>';
-  if (href && clickable) {
-    return '<a class="trace-node" href="' + href + '">' + inner + '<span class="f-open" style="opacity:.7">OPEN &rarr;</span></a>';
+/* V3.1 provenance spine node — the one chain language shared by the reader
+   PROVENANCE strip, the EVIDENCE view and the TRACE view (see style.css).
+   no = stage number, k = stage label, v = exhibit value (HTML), sub =
+   provenance sub-line (HTML, technical ids in <b>), href = drill-down link
+   (null = static stage), opts.evidence = gold stage marker (evidence only). */
+function chainNode(no, k, v, sub, href, opts) {
+  const ev = opts && opts.evidence;
+  const cls = 'chain-node' + (href ? ' link' : '') + (ev ? ' stg-evidence' : '');
+  const inner = '<div class="cn-k"><span class="cn-no">' + no + '</span>' + k + '</div>' +
+    '<div class="cn-v">' + v + '</div>' +
+    (sub ? '<div class="cn-s">' + sub + '</div>' : '');
+  if (href) {
+    return '<a class="' + cls + '" href="' + href + '">' + inner + '<span class="cn-open">OPEN &rarr;</span></a>';
   }
-  return '<div class="trace-node static">' + inner + '</div>';
+  return '<div class="' + cls + '">' + inner + '</div>';
 }
-function arrow() { return '<div class="trace-arrow">&#9660;</div>'; }
 
 /* ============================================================ TRACE (per IO) */
 
@@ -1064,23 +1114,31 @@ function viewTrace(app, ioId) {
     html += '<div class="note" style="margin-bottom:14px"><b>Trace incomplete.</b> One or more chain levels do not resolve inside this snapshot.</div>';
   }
 
-  html += '<div class="trace-flow">' +
-    traceNode('SOURCE', esc(src ? src.institution_name : io.source_id),
-      (src ? esc(src.authority_type) + ' · ' + esc(src.authority_level) + ' · ' + esc(src.jurisdiction) + ' · ' + esc(src.official_domain) : io.source_id),
-      src ? '#/sources/' + src.source_id : null, !!src) +
-    arrow() +
-    traceNode('DOCUMENT', esc(doc ? cleanUrl(doc.canonical_url) : 'not resolved'),
-      (doc ? esc(doc.document_id) + (doc.best_iso ? ' · dated ' + esc(doc.best_iso) : ' · no date attributed') + ' · ' + esc(doc.text_layer) : '—'),
-      doc ? '#/documents/' + doc.document_id : null, !!doc) +
-    arrow() +
-    traceNode('EVIDENCE', chain.length + ' evidence object' + (chain.length === 1 ? '' : 's') + ' — verbatim excerpts bound to facts',
-      'all excerpts stored in this snapshot · representation + content hash verified by Core', null, false) +
-    arrow() +
-    traceNode('FACT', chain.length + ' fact record' + (chain.length === 1 ? '' : 's'),
-      'metrics: ' + esc(uniq(chain.map(c => c.metric)).join(', ')), '#/intelligence/' + io.io_id, true) +
-    arrow() +
-    traceNode('INTELLIGENCE OBJECT', esc(io.institution_name) + ' — ' + esc(io.event_type_label),
-      esc(io.io_id) + ' · ' + bStatus(io.date_status), '#/intelligence/' + io.io_id, true) +
+  html += '<div class="chain">' +
+    chainNode('01', 'Official source',
+      esc(src ? src.institution_name : io.source_id),
+      (src ? 'authority type <b>' + esc(src.authority_type) + '</b> · level <b>' + esc(src.authority_level) +
+        '</b> · jurisdiction <b>' + esc(src.jurisdiction) + '</b> · domain <b>' + esc(src.official_domain) + '</b>'
+        : 'source <b>' + esc(io.source_id) + '</b>'),
+      src ? '#/sources/' + src.source_id : null) +
+    chainNode('02', 'Official document',
+      esc(doc ? cleanUrl(doc.canonical_url) : 'not resolved'),
+      (doc ? 'document <b>' + esc(doc.document_id) + '</b>' +
+        (doc.best_iso ? ' · dated <b>' + esc(fmtDate(doc.best_iso)) + '</b>' : ' · no date attributed') +
+        ' · text layer <b>' + esc(doc.text_layer) + '</b>' : 'no document record resolves in this snapshot'),
+      doc ? '#/documents/' + doc.document_id : null) +
+    chainNode('03', 'Evidence',
+      chain.length + ' evidence object' + (chain.length === 1 ? '' : 's') + ' — verbatim excerpts bound to facts',
+      'representation + content hash verified by Core · per-fact excerpts below',
+      null, { evidence: true }) +
+    chainNode('04', 'Fact',
+      chain.length + ' fact record' + (chain.length === 1 ? '' : 's'),
+      'metrics <b>' + esc(uniq(chain.map(c => c.metric)).join(', ')) + '</b>',
+      '#/intelligence/' + io.io_id) +
+    chainNode('05', 'Intelligence object',
+      esc(io.institution_name) + ' — ' + esc(io.event_type_label),
+      'object <b>' + esc(io.io_id) + '</b> · ' + bStatus(io.date_status),
+      '#/intelligence/' + io.io_id) +
     '</div>' +
 
     '<div class="section"><div class="section-title">PER-FACT EVIDENCE CHAIN <span class="sub">every fact, its excerpt and its technical location</span></div>' +
@@ -1089,14 +1147,15 @@ function viewTrace(app, ioId) {
   chain.forEach((c, i) => {
     html += '<div class="kf-row"><div class="kf-head">' +
       '<span class="kf-no">FACT ' + String(i + 1).padStart(2, '0') + '</span>' +
-      '<span class="kf-metric">' + esc(c.metric) + '</span>' +
+      '<span class="kf-metric">' + esc(metricLabel(c.metric)) + '</span>' +
       '<span class="kf-value">' + esc(c.value) + '</span>' +
       '<span class="kf-raw ellip">' + esc(String(c.raw_value || '')) + '</span>' +
+      '<span class="kf-aff">EXCERPT &#9662;</span>' +
       '<span class="kf-actions"><a class="btn sm" href="#/evidence/' + io.io_id + '/' + esc(c.fact_id) + '">EVIDENCE VIEW</a></span>' +
       '</div><div class="kf-body"><div class="ev-block">' +
-      '<div class="ev-loc">EXCERPT — ' + esc(c.document_id) + '</div>' +
-      '<div class="ev-excerpt">' + esc(c.excerpt) + '</div>' +
-      '<div class="ev-loc">Technical location: <span class="mono">' + esc(c.evidence_location) + '</span></div>' +
+      '<div class="ev-loc">EXCERPT — VERBATIM FROM <b>' + esc(c.document_id) + '</b></div>' +
+      '<div class="ev-excerpt">' + hlExcerpt(c) + '</div>' +
+      '<div class="ev-loc">TECHNICAL LOCATION — <b>' + esc(c.evidence_location) + '</b> · EVIDENCE OBJECT <b>' + esc(c.evidence_id) + '</b></div>' +
       '</div></div></div>';
   });
   html += '</div></div>';
@@ -1179,12 +1238,12 @@ function renderDocFilters() {
 
   el.innerHTML =
     fg('Search', '<input type="text" id="fd-q" placeholder="url, institution, source, date..." value="' + esc(f.q) + '">') +
-    fg('Freshness', ['FRESH', 'HISTORICAL', 'DATE_UNKNOWN', 'POST_WINDOW'].map(v =>
-      '<span class="fopt' + (f.fresh === v ? ' on' : '') + '" data-f="' + v + '">' + (v === 'DATE_UNKNOWN' ? 'DATE UNKNOWN' : v) + '</span>').join('')) +
-    fg('Jurisdiction', jur.map(v => '<span class="fopt' + (f.jur === v ? ' on' : '') + '" data-f="' + esc(v) + '">' + esc(v) + '</span>').join('')) +
-    fg('Text layer', layers.map(v => '<span class="fopt' + (f.layer === v ? ' on' : '') + '" data-f="' + esc(v) + '">' + esc(v) + '</span>').join('')) +
-    fg('Intelligence production', ['yes', 'no'].map(v =>
-      '<span class="fopt' + (f.prod === v ? ' on' : '') + '" data-f="p_' + v + '">' + (v === 'yes' ? 'Producing IOs (147)' : 'Not producing') + '</span>').join('')) +
+    fg('Freshness', '<div class="opts">' + ['FRESH', 'HISTORICAL', 'DATE_UNKNOWN', 'POST_WINDOW'].map(v =>
+      '<span class="fopt' + (f.fresh === v ? ' on' : '') + '" data-f="' + v + '">' + (v === 'DATE_UNKNOWN' ? 'DATE UNKNOWN' : v) + '</span>').join('') + '</div>') +
+    fg('Jurisdiction', '<div class="opts">' + jur.map(v => '<span class="fopt' + (f.jur === v ? ' on' : '') + '" data-f="' + esc(v) + '">' + esc(v) + '</span>').join('') + '</div>') +
+    fg('Text layer', '<div class="opts">' + layers.map(v => '<span class="fopt' + (f.layer === v ? ' on' : '') + '" data-f="' + esc(v) + '">' + esc(v) + '</span>').join('') + '</div>') +
+    fg('Intelligence production', '<div class="opts">' + ['yes', 'no'].map(v =>
+      '<span class="fopt' + (f.prod === v ? ' on' : '') + '" data-f="p_' + v + '">' + (v === 'yes' ? 'Producing IOs (147)' : 'Not producing') + '</span>').join('') + '</div>') +
     '<div class="fgroup"><button class="btn sm" id="fd-clear">CLEAR ALL FILTERS</button></div>';
 
   const qEl = document.getElementById('fd-q');
@@ -1243,6 +1302,7 @@ function renderDocMain(sorted) {
       '</tr>';
   });
   html += '</tbody></table></div>';
+  if (!slice.length) html += emptyRegistry('document');
   html += pager(sorted.length, f.page, per, pages, 'docs');
   main.innerHTML = html;
   bindGo(main);
@@ -1386,12 +1446,12 @@ function renderFactFilters() {
   el.innerHTML =
     fg('Search', '<input type="text" id="ff-q" placeholder="value, description, institution..." value="' + esc(f.q) + '">') +
     fg('Institution', '<input type="text" id="ff-inst" placeholder="contains..." value="' + esc(f.inst) + '">') +
-    fg('Metric', metrics.map(v => '<span class="fopt' + (f.metric === v ? ' on' : '') + '" data-f="' + esc(v) + '">' + esc(v) + '</span>').join('')) +
-    fg('Temporal status', ['FRESH', 'HISTORICAL', 'UNDATED'].map(v =>
-      '<span class="fopt' + (f.tstat === v ? ' on' : '') + '" data-f="' + v + '">' + v + '</span>').join('')) +
-    fg('Sector', sectors.map(v => '<span class="fopt' + (f.sector === v ? ' on' : '') + '" data-f="' + esc(v) + '">' + esc(v) + '</span>').join('')) +
-    (f.src ? fg('Source (linked)', '<span class="fopt on" data-f="__src__">' + esc(f.src) + '</span>') : '') +
-    (f.doc ? fg('Document (linked)', '<span class="fopt on" data-f="__doc__">' + esc(f.doc) + '</span>') : '') +
+    fg('Metric', '<div class="opts">' + metrics.map(v => '<span class="fopt' + (f.metric === v ? ' on' : '') + '" data-f="' + esc(v) + '">' + esc(v) + '</span>').join('') + '</div>') +
+    fg('Temporal status', '<div class="opts">' + ['FRESH', 'HISTORICAL', 'UNDATED'].map(v =>
+      '<span class="fopt' + (f.tstat === v ? ' on' : '') + '" data-f="' + v + '">' + v + '</span>').join('') + '</div>') +
+    fg('Sector', '<div class="opts">' + sectors.map(v => '<span class="fopt' + (f.sector === v ? ' on' : '') + '" data-f="' + esc(v) + '">' + esc(v) + '</span>').join('') + '</div>') +
+    (f.src ? fg('Source (linked)', '<div class="opts"><span class="fopt on" data-f="__src__">' + esc(f.src) + '</span></div>') : '') +
+    (f.doc ? fg('Document (linked)', '<div class="opts"><span class="fopt on" data-f="__doc__">' + esc(f.doc) + '</span></div>') : '') +
     '<div class="fgroup"><button class="btn sm" id="ff-clear">CLEAR ALL FILTERS</button></div>';
 
   const qEl = document.getElementById('ff-q');
@@ -1454,6 +1514,7 @@ function refreshFacts() {
       '</tr>';
   });
   html += '</tbody></table></div>';
+  if (!slice.length) html += emptyRegistry('fact');
   html += pager(sorted.length, f.page, per, pages, 'facts');
   main.innerHTML = html;
   wirePager('facts', () => refreshFacts());
@@ -1522,12 +1583,12 @@ function renderSrcFilters() {
 
   el.innerHTML =
     fg('Search', '<input type="text" id="fs-q" placeholder="institution, domain..." value="' + esc(f.q) + '">') +
-    fg('Jurisdiction', jur.map(v => '<span class="fopt' + (f.jur === v ? ' on' : '') + '" data-f="' + esc(v) + '">' + esc(v) + '</span>').join('')) +
-    fg('Authority type', auth.map(v => '<span class="fopt' + (f.auth === v ? ' on' : '') + '" data-f="' + esc(v) + '">' + esc(v) + '</span>').join('')) +
-    fg('Sector', sector.map(v => '<span class="fopt' + (f.sector === v ? ' on' : '') + '" data-f="' + esc(v) + '">' + esc(v) + '</span>').join('')) +
-    fg('Intelligence production', ['yes', 'no'].map(v =>
+    fg('Jurisdiction', '<div class="opts">' + jur.map(v => '<span class="fopt' + (f.jur === v ? ' on' : '') + '" data-f="' + esc(v) + '">' + esc(v) + '</span>').join('') + '</div>') +
+    fg('Authority type', '<div class="opts">' + auth.map(v => '<span class="fopt' + (f.auth === v ? ' on' : '') + '" data-f="' + esc(v) + '">' + esc(v) + '</span>').join('') + '</div>') +
+    fg('Sector', '<div class="opts">' + sector.map(v => '<span class="fopt' + (f.sector === v ? ' on' : '') + '" data-f="' + esc(v) + '">' + esc(v) + '</span>').join('') + '</div>') +
+    fg('Intelligence production', '<div class="opts">' + ['yes', 'no'].map(v =>
       '<span class="fopt' + (f.prod === v ? ' on' : '') + '" data-f="p_' + v + '">' +
-      (v === 'yes' ? 'VIO-producing (42)' : 'Registered, not yet productive') + '</span>').join('')) +
+      (v === 'yes' ? 'VIO-producing (42)' : 'Registered, not yet productive') + '</span>').join('') + '</div>') +
     '<div class="fgroup"><button class="btn sm" id="fs-clear">CLEAR ALL FILTERS</button></div>';
 
   const qEl = document.getElementById('fs-q');
@@ -1581,6 +1642,7 @@ function refreshSources() {
       '</tr>';
   });
   html += '</tbody></table></div>';
+  if (!slice.length) html += emptyRegistry('source');
   html += pager(sorted.length, f.page, per, pages, 'sources');
   main.innerHTML = html;
   bindGo(main);

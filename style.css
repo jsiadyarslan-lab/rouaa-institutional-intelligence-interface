@@ -1,7 +1,9 @@
 /* ==========================================================================
-   ROUAA INSTITUTIONAL INTELLIGENCE — V3.0-A.2 · LEGIBILITY FLOOR & ROW TRACKING
-   (user review pass over V3.0-A.1 — data text floors, bold registry titles,
-   clearer hairlines, perceptible hover; A.1 identity reset retained)
+   ROUAA INSTITUTIONAL INTELLIGENCE — V3.1 · INSTITUTIONAL READER & VISUAL COMPLETION
+   (design-authority round: V3.0-A identity reset + A.2 legibility floors
+   retained; IO reader rebuilt as an intelligence brief; one provenance
+   spine language across reader / evidence / trace; corpus views completed;
+   serif decision made and documented below)
    Repository Production Snapshot · read-only · NOT A LIVE FEED
    --------------------------------------------------------------------------
    Art direction: an institutional intelligence environment, not a polished
@@ -25,6 +27,28 @@
      green #5FBE85 — FRESH status + fact counts
      amber #C98F2E / warm gray #8F8A7C — historical / undated status
      warning colors reserved — none currently warranted by committed data
+
+   SERIF VERDICT (V3.1, P4 experiment — KEPT, scoped):
+     A system serif stack (Georgia / Iowan Old Style / Palatino Linotype /
+     Times New Roman) is used ONLY where the interface speaks with the
+     document's own voice: (1) verbatim evidence excerpts (.rd-quote
+     blockquote, .cn-quote, .ev-excerpt) — serif distinguishes cited
+     primary-source text from ROUAA's sans wrapper, the legal-brief / court-
+     exhibit convention; (2) the reader institution title (.rd-title) —
+     archival gazette authority at display size. The masthead brand, rail,
+     feed, tables and all data instruments stay mono/sans: the terminal
+     identity is NOT broken — serif is a quotation voice, not a theme.
+     (Tested on masthead brand and rejected: tracked-caps serif reads as a
+     law-firm logotype and fights the mono descriptor + sysline lockup.)
+
+   PROVENANCE SPINE (V3.1, one language, three surfaces):
+     .chain — a continuous 2px vertical rail (strong-rule color) with square
+     stage markers; gold marker ONLY on the EVIDENCE stage (gold = evidence).
+     Node anatomy: stage number + tracked-caps stage label (structural
+     kicker) / exhibit value (sans) / provenance sub-line (mono, technical
+     ids quietly legible at the 11.5px floor). Applied to the reader
+     PROVENANCE section, the EVIDENCE view and the TRACE view.
+
    Feed registry rows: borderless on the page, separated by hairlines and
    space; hover is a quiet but perceptible ivory wash (V3.0-A.2: 0.07 —
    functional row tracking across wide screens). Data-bearing text floors
@@ -32,7 +56,10 @@
    provenance/trace data 11-11.5px; titles >= 14px at weight 600.
    Structural tracked-caps kickers keep their typographic scale (labels,
    not data). No gradients, no glow, no neon.
-   IO Reader: 940px measure · 15-17px institutional reading scale (V2.2).
+   IO Reader: 940px measure · 15-18px institutional reading scale (V2.2 +
+   V3.1 fact-value dominance). Empty registries state honestly that no
+   committed object matches (never fabricated). Reader prints as a document
+   (@media print).
    ========================================================================== */
 
 :root {
@@ -59,6 +86,7 @@
   --postwindow: #9A9486;
   --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, "Liberation Mono", monospace;
   --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --serif: Georgia, "Iowan Old Style", "Palatino Linotype", "Times New Roman", serif;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -287,8 +315,13 @@ main { max-width: 1440px; margin: 0 auto; padding: 46px 24px 70px; min-height: 6
 .btn:hover { color: var(--fg); border-color: var(--fg-3); }
 .btn.primary { color: #000; background: var(--accent); border-color: var(--accent); }
 .btn.primary:hover { background: #D8B876; color: #000; }
-.btn.ghost { color: var(--accent); background: transparent; border-color: var(--accent-dim); }
-.btn.ghost:hover { color: #D8B876; border-color: var(--accent); background: rgba(201,169,97,0.07); }
+/* V3.1: hero actions must be discoverable but restrained — the gold ghost
+   carries a quiet 0.08 tint at rest so it reads as available, not disabled. */
+.btn.ghost {
+  color: var(--accent); background: rgba(201,169,97,0.08); border-color: var(--accent-dim);
+  font-size: 12px; padding: 8px 16px;
+}
+.btn.ghost:hover { color: #D8B876; border-color: var(--accent); background: rgba(201,169,97,0.14); }
 .btn.sm { padding: 4px 9px; font-size: 10.5px; }
 .btn.on { color: var(--accent); border-color: var(--accent-dim); background: rgba(201,169,97,0.08); }
 
@@ -479,51 +512,90 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; font-vari
 .wh-fact .wf-v { font-family: var(--mono); font-size: 13px; color: var(--accent); white-space: nowrap; min-width: 60px; }
 .wh-fact .wf-r { color: var(--fg-2); font-size: 12px; flex: 1; min-width: 0; }
 
-/* key facts */
-.kf-list { display: flex; flex-direction: column; }
-.kf-row { border: 1px solid var(--border); background: var(--bg-2); margin-bottom: -1px; }
+/* key facts (trace view per-fact chain) — V3.1: same fact-row language as
+   the reader KEY FACTS (hairline registry rows, value dominant, quiet
+   metric), so the forensic surface reads with the reader's voice */
+.kf-list { display: flex; flex-direction: column; border-top: 1px solid var(--border-2); }
+.kf-row { border-bottom: 1px solid var(--border); }
 .kf-head {
-  display: flex; align-items: baseline; gap: 12px; padding: 8px 14px; cursor: pointer;
+  display: flex; align-items: baseline; gap: 16px; padding: 13px 2px; cursor: pointer;
 }
-.kf-row:hover .kf-head { background: var(--bg-3); }
-.kf-no { font-family: var(--mono); font-size: 11px; color: var(--fg-3); white-space: nowrap; }
-.kf-metric { font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; color: var(--fg-2); white-space: nowrap; }
-.kf-value { font-family: var(--mono); font-size: 12.5px; color: var(--fg); white-space: nowrap; }
-.kf-raw { color: var(--fg-3); font-size: 11.5px; flex: 1; min-width: 0; }
+.kf-row:hover .kf-head { background: var(--bg-1); }
+.kf-no { font-family: var(--mono); font-size: 11px; color: var(--fg-3); white-space: nowrap; letter-spacing: 0.08em; }
+.kf-metric { font-family: var(--mono); font-size: 11px; font-weight: 500; letter-spacing: 0.08em; color: var(--fg-3); white-space: nowrap; text-transform: uppercase; }
+.kf-value { font-size: 15.5px; font-weight: 600; color: var(--fg); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.kf-raw { color: var(--fg-3); font-size: 12px; flex: 1; min-width: 0; }
 .kf-actions { margin-left: auto; display: flex; gap: 8px; white-space: nowrap; }
-.kf-body { border-top: 1px solid var(--border); padding: 10px 14px; background: var(--bg-1); display: none; }
+/* expand affordance (V3.1) — same quiet gold language as the reader's
+   EVIDENCE affordance: visible at rest, full on row hover */
+.kf-aff {
+  font-family: var(--mono); font-size: 11px; font-weight: 600; letter-spacing: 0.1em;
+  color: var(--accent); opacity: 0.6; white-space: nowrap;
+}
+.kf-row:hover .kf-aff, .kf-row.open .kf-aff { opacity: 1; }
+.kf-body { border-top: 1px solid var(--border); padding: 12px 2px 16px; display: none; }
 .kf-row.open .kf-body { display: block; }
 
-/* evidence block */
-.ev-block { border: 1px solid var(--border); background: var(--bg-1); padding: 12px 14px; }
+/* evidence block (trace / evidence views) — V3.1: excerpt in the serif
+   quotation voice; technical location quietly legible (fg-2, never dead) */
+.ev-block { border: 1px solid var(--border); background: var(--bg-1); padding: 14px 16px; }
 .ev-excerpt {
-  font-family: var(--mono); font-size: 13px; line-height: 1.75; color: var(--fg-2);
-  background: var(--bg); border: 1px solid var(--border); border-left: 2px solid var(--accent-dim);
-  padding: 12px 14px; margin: 8px 0; overflow-wrap: anywhere;
+  font-family: var(--serif); font-size: 15.5px; line-height: 1.8; color: var(--fg);
+  background: var(--bg); border: 1px solid var(--border); border-left: 2px solid var(--accent);
+  padding: 12px 16px; margin: 8px 0; overflow-wrap: anywhere;
 }
-.ev-excerpt b { color: var(--accent); font-weight: 400; }
+.ev-excerpt b { color: var(--accent); font-weight: 600; }
 .ev-loc { font-family: var(--mono); font-size: 11.5px; color: var(--fg-3); }
+.ev-loc b { color: var(--fg-2); font-weight: 400; }
 .ev-links { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
 
-/* trace view */
-.trace-flow { display: flex; flex-direction: column; gap: 0; max-width: 860px; }
-.trace-node {
-  border: 1px solid var(--border-2); background: var(--bg-2); border-radius: 6px;
-  padding: 12px 16px; display: flex; gap: 14px; align-items: baseline; cursor: pointer;
+/* =========================================================== PROVENANCE SPINE (V3.1)
+   ONE chain language for the three forensic surfaces (reader PROVENANCE,
+   EVIDENCE view, TRACE view): a continuous 2px vertical rail with square
+   stage markers — an institutional audit trail, not developer tooling.
+   The rail is the strong-rule color; the EVIDENCE stage alone carries a
+   gold marker (gold = evidence). Nodes: stage number + tracked-caps label
+   / exhibit value / provenance sub-line (mono, technical ids legible). */
+
+.chain { position: relative; max-width: 880px; }
+.chain::before {
+  content: ''; position: absolute; left: 4px; top: 10px; bottom: 12px;
+  width: 2px; background: var(--border-2);
 }
-.trace-node:hover { border-color: var(--accent-dim); }
-.trace-node .tn-k {
+.chain-node { position: relative; display: block; padding: 0 10px 30px 38px; }
+.chain-node:last-child { padding-bottom: 2px; }
+.chain-node::before {
+  content: ''; position: absolute; left: 0; top: 2px; width: 8px; height: 8px;
+  background: var(--bg); border: 2px solid var(--fg-3);
+}
+.chain-node.stg-evidence::before { border-color: var(--accent); }
+.chain-node.link { cursor: pointer; }
+.chain-node.link:hover::before { border-color: var(--fg); }
+.chain-node.link:hover .cn-k { color: var(--fg-2); }
+.cn-k {
   font-family: var(--mono); font-size: 10.5px; font-weight: 700; letter-spacing: 0.18em;
-  color: var(--fg-3); width: 118px; flex: 0 0 118px;
+  color: var(--fg-3); text-transform: uppercase; margin-bottom: 7px;
 }
-.trace-node .tn-v { font-size: 13.5px; color: var(--fg); min-width: 0; flex: 1; }
-.trace-node .tn-v .sub { display: block; color: var(--fg-3); font-size: 11.5px; margin-top: 2px; font-family: var(--mono); }
-.trace-node.static { cursor: default; }
-.trace-node.static:hover { border-color: var(--border-2); }
-.trace-arrow {
-  align-self: flex-start; margin-left: 58px; padding: 3px 0;
-  color: var(--accent-dim); font-family: var(--mono); font-size: 12px; line-height: 1;
+.cn-k .cn-no { color: var(--fg-3); margin-right: 9px; }
+.cn-v { font-size: 15.5px; color: var(--fg); line-height: 1.55; overflow-wrap: anywhere; min-width: 0; }
+.cn-v .hl { color: var(--accent); }
+.cn-quote {
+  font-family: var(--serif); font-size: 16px; line-height: 1.8; color: var(--fg);
+  border-left: 2px solid var(--accent); background: var(--bg-1);
+  padding: 14px 18px; margin-top: 10px; overflow-wrap: anywhere;
 }
+.cn-quote b { color: var(--accent); font-weight: 600; }
+.cn-s {
+  font-family: var(--mono); font-size: 11.5px; color: var(--fg-3); margin-top: 6px;
+  overflow-wrap: anywhere; line-height: 1.7;
+}
+.cn-s b { color: var(--fg-2); font-weight: 400; }
+.cn-open {
+  position: absolute; top: 3px; right: 12px;
+  font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.1em; color: var(--link);
+  opacity: 0; white-space: nowrap;
+}
+.chain-node.link:hover .cn-open, .chain-node.link:focus-visible .cn-open { opacity: 1; }
 
 /* source relationship strip */
 .rel-strip { display: flex; align-items: stretch; gap: 0; flex-wrap: wrap; }
@@ -570,6 +642,15 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; font-vari
 .note b { color: var(--fg-2); font-weight: 600; }
 .pending-note { color: var(--fg-3); font-size: 13.5px; }
 
+/* empty registry state — honest, never fabricated: states that no committed
+   object matches, always offers the way back to the full registry (V3.1) */
+.empty {
+  padding: 38px 2px 34px; border-bottom: 1px solid var(--border);
+  color: var(--fg-3); font-family: var(--mono); font-size: 12px;
+  letter-spacing: 0.04em; line-height: 1.9;
+}
+.empty b { color: var(--fg-2); font-weight: 400; }
+
 /* footer */
 .footer { border-top: 1px solid var(--border); background: var(--bg-1); margin-top: 30px; }
 .footer-inner { max-width: 1440px; margin: 0 auto; padding: 22px 20px 30px; }
@@ -602,9 +683,13 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; font-vari
 .rd-kicker a { color: var(--link); border-bottom: 1px dotted transparent; }
 .rd-kicker a:hover { color: var(--link-hover); border-bottom-color: rgba(111,179,227,0.5); }
 
-/* the institution is the first real visual element on the page */
+/* the institution is the first real visual element on the page.
+   V3.1 serif verdict (P4): KEPT — Georgia-class serif at display size gives
+   the reader the authority of an archival gazette / official register;
+   the shell stays mono/sans so the terminal identity is unbroken. */
 .rd-title {
-  font-size: 34px; font-weight: 650; line-height: 1.18; letter-spacing: -0.012em;
+  font-family: var(--serif);
+  font-size: 37px; font-weight: 600; line-height: 1.16; letter-spacing: -0.005em;
   color: var(--fg); overflow-wrap: anywhere;
 }
 
@@ -623,7 +708,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; font-vari
 }
 .rd-summary b { color: var(--fg); font-weight: 600; }
 
-.rd-actions { display: flex; gap: 12px; margin-top: 28px; flex-wrap: wrap; }
+.rd-actions { display: flex; gap: 12px; margin-top: 30px; flex-wrap: wrap; align-items: center; }
 
 /* --- sections ------------------------------------------------------------ */
 
@@ -676,30 +761,33 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; font-vari
 .rd-why .wv { font-size: 15px; color: var(--fg); line-height: 1.5; overflow-wrap: anywhere; }
 .rd-why .wsub { font-size: 12.5px; color: var(--fg-3); }
 
-/* --- KEY FACTS — fact reading rows (V2.2 §11: value is the clearest
-     element in the row; metric is a small label; evidence affordance right) -- */
+/* --- KEY FACTS — fact reading rows (V2.2 §11 + V3.1 brief rebuild: the
+     value is the clearest element in the row regardless of length; the
+     metric is a quiet signpost, never a shout; the number is an index;
+     the evidence affordance sits at the row's end; long values wrap on a
+     hanging indent so every line starts where the value starts) ---------- */
 
 .kf2 { border-top: 1px solid var(--border-2); }
 .kf2-row { border-bottom: 1px solid var(--border); }
 .kf2-line {
-  display: grid; grid-template-columns: 40px 215px 1fr auto; gap: 18px;
-  padding: 17px 2px; align-items: baseline; cursor: pointer;
+  display: grid; grid-template-columns: 34px 200px 1fr auto; gap: 20px;
+  padding: 16px 2px; align-items: baseline; cursor: pointer;
 }
 .kf2-row:hover .kf2-line { background: var(--bg-1); }
 .kf2-no {
   font-family: var(--mono); font-size: 11.5px; color: var(--fg-3); letter-spacing: 0.08em;
 }
 .kf2-metric {
-  font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.1em;
+  font-family: var(--mono); font-size: 11.5px; font-weight: 500; letter-spacing: 0.08em;
   color: var(--fg-3); text-transform: uppercase; overflow-wrap: anywhere; align-self: baseline;
 }
 .kf2-value {
-  font-size: 17.5px; font-weight: 600; color: var(--fg); line-height: 1.45;
-  overflow-wrap: anywhere; min-width: 0;
+  font-size: 18px; font-weight: 600; color: var(--fg); line-height: 1.5;
+  overflow-wrap: anywhere; min-width: 0; font-variant-numeric: tabular-nums;
 }
-.kf2-value.vlong { font-size: 16px; font-weight: 600; line-height: 1.55; }
+.kf2-value.vlong { font-size: 16px; font-weight: 600; line-height: 1.62; }
 .kf2-norm {
-  font-family: var(--mono); font-size: 11.5px; font-weight: 400;
+  font-family: var(--mono); font-size: 12px; font-weight: 400;
   color: var(--fg-3); white-space: nowrap;
 }
 .kf2-evid {
@@ -707,27 +795,37 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; font-vari
   color: var(--accent); opacity: 0.6; white-space: nowrap;
 }
 .kf2-row:hover .kf2-evid { opacity: 1; }
-.kf2-body { display: none; padding: 2px 2px 22px 291px; }
+.kf2-body { display: none; padding: 2px 2px 22px 274px; }
 .kf2-row.open .kf2-body { display: block; }
 .kf2-more { padding: 16px 2px; }
 
-/* --- EVIDENCE — reading quotes: the committed value anchored in gold ------- */
+/* --- EVIDENCE — reading quotes: the committed value anchored in gold.
+   V3.1: the excerpt is set in the serif quotation voice (cited primary
+   source, not chat bubble); each quote closes with a bibliographic
+   footer line — technical location + evidence object — so the citation
+   is complete and quietly legible (never dead gray). ---------------------- */
 
 .rd-quote {
   border-left: 2px solid var(--accent); background: var(--bg-1);
-  padding: 22px 26px; margin-bottom: 24px;
+  padding: 20px 26px 18px; margin-bottom: 26px;
 }
 .rd-quote .rq-meta {
-  font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.1em; color: var(--fg-3);
-  margin-bottom: 12px;
+  font-family: var(--mono); font-size: 11.5px; font-weight: 600; letter-spacing: 0.14em;
+  color: var(--fg-3); margin-bottom: 12px; text-transform: uppercase;
 }
-.rd-quote .rq-meta b { color: var(--accent); font-weight: 400; }
+.rd-quote .rq-meta b { color: var(--accent); font-weight: 600; }
 .rd-quote blockquote {
-  font-size: 16px; line-height: 1.82; color: var(--fg);
+  font-family: var(--serif);
+  font-size: 16.5px; line-height: 1.85; color: var(--fg);
   overflow-wrap: anywhere;
 }
 .rd-quote blockquote b { color: var(--accent); font-weight: 600; }
 .rd-quote .rq-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; align-items: baseline; }
+.rd-quote .rq-loc {
+  margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--border);
+  font-family: var(--mono); font-size: 11px; letter-spacing: 0.03em; color: var(--fg-3);
+}
+.rd-quote .rq-loc b { color: var(--fg-2); font-weight: 400; }
 
 /* --- SOURCE DOCUMENT / definition rows ------------------------------------ */
 
@@ -746,32 +844,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; font-vari
 .def-row .dv .sub { display: block; color: var(--fg-3); font-size: 12px; margin-top: 3px; }
 .def-doc-title { font-size: 16px; }
 
-/* --- PROVENANCE — chain of custody ----------------------------------------- */
-
-/* human-readable chain: authority → document → fact → evidence → intelligence
-   Light audit-trail strip — no box, quiet values, arrows between steps */
-.prov-chain {
-  display: flex; align-items: stretch; gap: 0; flex-wrap: wrap;
-  border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
-}
-.prov-step {
-  flex: 1 1 150px; min-width: 150px; padding: 14px 18px 14px 0; position: relative;
-}
-.prov-step:not(:last-child)::after {
-  content: '\2192'; position: absolute; right: 4px; top: 17px;
-  color: var(--accent-dim); font-family: var(--mono); font-size: 12px;
-}
-.prov-step .ps-k {
-  font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.16em;
-  color: var(--fg-3); text-transform: uppercase; margin-bottom: 6px;
-}
-.prov-step .ps-v { font-size: 13.5px; color: var(--fg-2); line-height: 1.45; overflow-wrap: anywhere; }
-.prov-step .ps-s {
-  font-family: var(--mono); font-size: 11.5px; color: var(--fg-3); margin-top: 4px;
-  overflow-wrap: anywhere;
-}
-.prov-step.link { cursor: pointer; }
-.prov-step.link:hover .ps-v { color: var(--fg); }
+/* --- PROVENANCE — chain of custody (V3.1 spine; markup via .chain) -------- */
 
 /* technical details accordion */
 details.rd-tech {
@@ -809,14 +882,40 @@ details.rd-tech .rd-tech-body { padding: 4px 16px 14px; }
 }
 .rel-row:hover .rr-open { opacity: 1; }
 
-/* --- reader footer navigation ---------------------------------------------- */
+/* --- reader footer navigation — the document ends like a document (V3.1):
+   back to the registry, then previous/next object as quiet hairline
+   columns carrying the real neighbor identities, then an end-of-record
+   line. No dead ends, no abrupt stop. --------------------------------------- */
 
-.rd-footer {
-  margin-top: 72px; padding-top: 20px; border-top: 1px solid var(--border-2);
-  display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+.rd-footer { margin-top: 76px; }
+.rd-footer .rf-back {
+  font-family: var(--mono); font-size: 11px; font-weight: 600; letter-spacing: 0.12em;
+  color: var(--fg-2);
 }
-.rd-footer .rf-back { font-family: var(--mono); font-size: 11px; letter-spacing: 0.12em; }
-.rd-footer .rf-nav { margin-left: auto; display: flex; gap: 8px; }
+.rd-footer .rf-back:hover { color: var(--accent); }
+.rd-nav {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 0 40px;
+  margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--border-2);
+}
+.rd-nav a { display: block; padding: 2px 2px 4px; min-width: 0; }
+.rd-nav a + a { border-left: 1px solid var(--border); padding-left: 40px; }
+.rd-nav a.next { text-align: right; }
+.rd-nav .rn-k {
+  font-family: var(--mono); font-size: 10.5px; font-weight: 700; letter-spacing: 0.16em;
+  color: var(--fg-3);
+}
+.rd-nav .rn-v {
+  font-size: 15px; font-weight: 600; color: var(--fg); margin-top: 6px;
+  overflow-wrap: anywhere;
+}
+.rd-nav a:hover .rn-v { color: var(--link-hover); }
+.rd-nav .rn-s { font-family: var(--mono); font-size: 11.5px; color: var(--fg-3); margin-top: 4px; }
+.rd-end {
+  margin-top: 30px; padding-top: 16px; border-top: 1px solid var(--border);
+  font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.14em;
+  color: var(--fg-3); text-align: center; text-transform: uppercase;
+}
+.rd-end b { color: var(--fg-2); font-weight: 400; }
 
 /* =========================================================== responsive */
 
@@ -831,6 +930,9 @@ details.rd-tech .rd-tech-body { padding: 4px 16px 14px; }
 }
 @media (max-width: 960px) {
   .cols { flex-direction: column; }
+  /* V3.1 fix: explicit width so wide tables scroll inside .tbl-wrap instead
+     of stretching the main column past the viewport (no h-overflow at 834) */
+  .col-main { width: 100%; }
   /* feed rows stack into reading lines: identity line, then data line */
   .feed-row { grid-template-columns: 1fr; row-gap: 4px; padding: 12px 2px; }
   .feed-row .f-right { justify-self: start; flex-wrap: wrap; gap: 10px 14px; }
@@ -862,10 +964,9 @@ details.rd-tech .rd-tech-body { padding: 4px 16px 14px; }
   .kf2-evid { display: block; margin-top: 9px; }
   .kf2-body { padding-left: 0; }
   .def-row { grid-template-columns: 1fr; gap: 4px; }
-  .prov-chain { flex-direction: column; }
-  .prov-step { border-bottom: 1px solid var(--border); }
-  .prov-step:last-child { border-bottom: 0; }
-  .prov-step:not(:last-child)::after { content: '\2193'; top: auto; bottom: -4px; right: auto; }
+  /* provenance spine narrows with the measure (rail + markers stay) */
+  .chain { max-width: none; }
+  .cn-v { font-size: 15px; }
 }
 @media (max-width: 640px) {
   main { padding: 30px 12px 40px; }
@@ -875,13 +976,49 @@ details.rd-tech .rd-tech-body { padding: 4px 16px 14px; }
   .mast-desc { font-size: 10px; letter-spacing: 0.26em; }
   .arrive-title { font-size: 16.5px; }
   .arrive-sub { display: block; margin-top: 5px; font-size: 13px; }
-  .trace-node .tn-k { width: auto; flex-basis: auto; }
-  .trace-arrow { margin-left: 24px; }
-  .rd-title { font-size: 24px; }
+  .rd-title { font-size: 25px; }
   .rd-summary { font-size: 15.5px; }
   .rd-body { font-size: 15.5px; }
   .rd-body.hero-body { font-size: 16px; }
   .rd-quote blockquote { font-size: 15px; }
+  .rd-quote { padding: 16px 16px 14px; }
   .rd-section { margin-top: 48px; }
   .rel-row .rr-meta { display: none; }
+  /* reader ending stacks: prev above next, no vertical hairline */
+  .rd-nav { grid-template-columns: 1fr; }
+  .rd-nav a + a { border-left: 0; padding-left: 2px; border-top: 1px solid var(--border); margin-top: 12px; padding-top: 14px; }
+  .rd-nav a.next { text-align: left; }
+}
+
+/* =========================================================== print (V3.1)
+   The reader prints as a document: white paper, ink text, evidence quotes
+   and provenance spine intact; interactive chrome (rail, search, actions,
+   prev/next) is suppressed. Other views print as plain ruled tables. */
+
+@media print {
+  html { background: #fff; }
+  body { background: #fff; color: #141210; }
+  .rail, .footer, .gsearch, .snapshot-chip, .crumb,
+  .rd-actions, .rd-nav, .rd-end, .rd-tech, .kf2-evid, .f-open, .cn-open,
+  .rd-footer, .pager, .filter-panel, .view-actions, .btn { display: none !important; }
+  /* the masthead stays: the standing provenance line belongs on paper too */
+  .mast-inner { padding: 0 0 14px; }
+  .mast-brand { color: #141210; }
+  .mast-desc { color: #4a443a; }
+  .sysline { color: #4a443a; max-width: none; }
+  main { max-width: none; padding: 0; }
+  .reader { max-width: none; }
+  .rd-title, .rd-when, .rd-summary, .rd-body, .kf2-value, .cn-v, .wv { color: #141210; }
+  .rd-title { font-size: 26pt; }
+  .rd-quote, .ev-excerpt, .cn-quote { background: #fff; border-left-color: #8a6d2f; }
+  .rd-quote blockquote, .ev-excerpt, .cn-quote { color: #141210; }
+  .rd-quote blockquote b, .ev-excerpt b, .cn-quote b, .cn-v .hl { color: #6b5320; }
+  .rd-h .rh-t, .cn-k, .kf2-metric, .kf2-no, .rq-meta, .rq-loc, .cn-s, .rd-note { color: #4a443a; }
+  .kf2-row, .kf-row, .feed-row, .def-row, .rd-quote, .chain::before, .chain-node::before { border-color: #b9b2a4; }
+  .chain-node::before { background: #fff; border-color: #4a443a; }
+  .chain-node.stg-evidence::before { border-color: #8a6d2f; }
+  .si { color: #4a443a; }
+  .si::before { display: none; }
+  .tbl th, .tbl td { color: #141210; border-color: #b9b2a4; }
+  a { color: #141210; }
 }
