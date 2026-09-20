@@ -1,5 +1,5 @@
 /* ==========================================================================
-   ROUAA INSTITUTIONAL INTELLIGENCE — INTERFACE V2 (presentation layer only)
+   ROUAA INSTITUTIONAL INTELLIGENCE — INTERFACE V2.2 (presentation layer only)
    Black Institutional Terminal · Repository Production Snapshot · NOT LIVE
    ---------------------------------------------------------------------------
    V2 MANDATE: better consumption of existing truth — not creation of new truth.
@@ -71,13 +71,18 @@ function ioDateKey(io) {
 }
 function statusRank(s) { return s === 'FRESH' ? 0 : (s === 'HISTORICAL' ? 1 : 2); }
 
-/* badges ------------------------------------------------------------- */
+/* status — quiet institutional indicator: colored dot + label, no pill,
+   no glow, no border (V2.2 order §8) ------------------------------------ */
 function bStatus(st) {
-  if (st === 'FRESH') return '<span class="badge b-fresh" title="' + esc(FRESH_DEF) + '">FRESH</span>';
-  if (st === 'HISTORICAL') return '<span class="badge b-historical" title="' + esc(HIST_DEF) + '">HISTORICAL</span>';
-  if (st === 'POST_WINDOW') return '<span class="badge b-postwindow" title="Document dated after the frozen fresh window">POST-WINDOW</span>';
-  if (st === 'DATE_UNKNOWN') return '<span class="badge b-dateunknown" title="No date attributed by Core">DATE&nbsp;UNKNOWN</span>';
-  return '<span class="badge b-undated" title="' + esc(UNDAT_DEF) + '">UNDATED</span>';
+  const map = {
+    FRESH: ['si-fresh', 'FRESH', FRESH_DEF],
+    HISTORICAL: ['si-historical', 'HISTORICAL', HIST_DEF],
+    POST_WINDOW: ['si-postwindow', 'POST-WINDOW', 'Document dated after the frozen fresh window'],
+    DATE_UNKNOWN: ['si-dateunknown', 'DATE UNKNOWN', 'No date attributed by Core'],
+    UNDATED: ['si-undated', 'UNDATED', UNDAT_DEF]
+  };
+  const m = map[st] || map.UNDATED;
+  return '<span class="si ' + m[0] + '" title="' + esc(m[2]) + '">' + m[1] + '</span>';
 }
 function bOfficial(src) {
   if (!src) return '';
@@ -187,7 +192,7 @@ function renderSysline() {
     ' &nbsp;·&nbsp; Core commit <b>' + esc(m.production_commit.slice(0, 10)) + '</b> on ' + esc(m.production_branch) +
     ' &nbsp;·&nbsp; fresh window ' + esc(m.fresh_window.start) + ' &rarr; ' + esc(m.fresh_window.end) +
     ' &nbsp;·&nbsp; snapshot ' + esc(fmtDate(m.snapshot_date)) +
-    ' &nbsp;·&nbsp; interface V2.1 · presentation layer only';
+    ' &nbsp;·&nbsp; interface V2.2 · presentation layer only';
   document.getElementById('snapshot-chip').innerHTML = 'SNAPSHOT · ' + esc(m.wave) + ' · ' + esc(m.snapshot_date);
 }
 
@@ -626,7 +631,7 @@ function wirePager(key, refresh) {
 }
 
 /* ============================================================ INTELLIGENCE DETAIL
-   V2.1 · IO READER — Institutional Intelligence Reading Environment
+   V2.2 · IO READER — Institutional Intelligence Reading Environment
    Presentation layer only: every rendered value is a committed Core field,
    verbatim. Narrative sentences are assembled from committed fields only —
    no interpretation is generated. Reading measure 940px.
@@ -700,37 +705,37 @@ function viewIoDetail(app, ioId) {
 
   document.title = io.institution_name + ' — ' + io.event_type_label + ' · ROUAA';
 
-  /* ---------- HERO ---------- */
+  /* ---------- HERO (V2.2 order §7: SOURCE/TYPE/JURISDICTION → institution
+     → date + status → actions; institution is the first real visual element) ---------- */
   let html = '' +
     '<div class="reader">' +
     '<div class="crumb"><a href="#/">OVERVIEW</a><span class="sep">/</span>' +
       '<a href="#/intelligence">INTELLIGENCE</a><span class="sep">/</span><span>' + esc(io.institution_name) + '</span></div>' +
 
-    '<div class="rd-kicker">INTELLIGENCE</div>' +
+    '<div class="rd-kicker">' +
+      '<span class="rk-seg">SOURCE — ' +
+        (src ? '<a href="#/sources/' + esc(src.source_id) + '" title="Open source profile">' + esc(domain || src.institution_name) + '</a>'
+             : esc(io.institution_name)) + '</span>' +
+      '<span class="rk-div">·</span>' +
+      '<span class="rk-seg">TYPE — ' + esc(io.event_type_label) + '</span>' +
+      '<span class="rk-div">·</span>' +
+      '<span class="rk-seg">JURISDICTION — ' + esc(io.jurisdiction) + '</span>' +
+    '</div>' +
     '<h1 class="rd-title">' + esc(io.institution_name) + '</h1>' +
-    '<div class="rd-type-line"><span>' + esc(io.event_type_label) + '</span>' +
-      '<span class="rt-sep">·</span><span>' + esc(io.sector_label) + '</span>' +
-      '<span class="rt-sep">·</span><span>' + esc(io.jurisdiction) + '</span></div>' +
+
+    '<div class="rd-when">' +
+      (dated ? '<span class="rw-date">' + esc(dateStr) + '</span>'
+             : '<span class="rw-nodate">No publication date attributed by Core</span>') +
+      '<span class="rw-sep">·</span>' + bStatus(io.date_status) +
+    '</div>' +
 
     '<p class="rd-summary">' +
-      (dated
-        ? 'Published <b>' + esc(dateStr) + '</b> — publication date attributed by ROUAA Core (' + esc(io.publication_provenance || 'attributed') + '). '
-        : '<b>No publication date attributed by Core</b> for this object. ') +
       'Binds <b>' + num(io.n_facts) + '</b> structured fact' + (io.n_facts === 1 ? '' : 's') +
       ', each carrying a verbatim evidence excerpt from <b>' + num(io.n_documents) + '</b> official document' +
-      (io.n_documents === 1 ? '' : 's') + (domain ? ' on <b>' + esc(domain) + '</b>' : '') + '.' +
+      (io.n_documents === 1 ? '' : 's') + (domain ? ' on <b>' + esc(domain) + '</b>' : '') + '. ' +
+      (dated ? 'Publication date attributed by ROUAA Core (' + esc(io.publication_provenance || 'attributed') + ').'
+             : 'The snapshot carries no date attribution for this object.') +
     '</p>' +
-
-    '<div class="rd-meta">' +
-      '<div class="m"><div class="mk">Source</div><div class="mv">' +
-        (src ? '<a href="#/sources/' + esc(src.source_id) + '" title="Open source profile">' + esc(src.institution_name) + '</a>' +
-          (domain ? ' <span class="dim">· ' + esc(domain) + '</span>' : '')
-          : na(null)) + '</div></div>' +
-      '<div class="m"><div class="mk">Date</div><div class="mv">' +
-        (dated ? esc(dateStr) : '<span class="na">No date attributed</span>') + '</div></div>' +
-      '<div class="m"><div class="mk">Type</div><div class="mv">' + esc(io.event_type_label) + '</div></div>' +
-      '<div class="m"><div class="mk">Status</div><div class="mv">' + bStatus(io.date_status) + '</div></div>' +
-    '</div>' +
 
     '<div class="rd-actions">' +
       (chain[0] && chain[0].canonical_url
@@ -742,9 +747,7 @@ function viewIoDetail(app, ioId) {
   html += '<div class="rd-section">' +
     rdH('WHAT HAPPENED', 'assembled verbatim from committed fields') +
     '<div class="rd-body hero-body"><p>' +
-      esc(io.event_type_label) + ' recorded from ' + esc(io.institution_name) +
-      (dated ? ', with a publication date of <b>' + esc(dateStr) + '</b> attributed by Core.'
-             : '. Core has not attributed a publication date to this object.') +
+      esc(io.event_type_label) + ' recorded from ' + esc(io.institution_name) + '.' +
       ' ' + (io.is_new ? 'The object first entered the production record in this wave.'
                       : 'The object was re-discovered from an earlier production wave.') +
     '</p>' +
@@ -756,19 +759,20 @@ function viewIoDetail(app, ioId) {
       : '<p>No facts are bound to this object in the snapshot.</p>') +
     '</div></div>';
 
-  /* ---------- WHY IT MATTERS (honest: no Core interpretation layer) ---------- */
+  /* ---------- WHY IT MATTERS (V2.2 order §10: clean relevance fields,
+     disclaimer as secondary disclosure — honest: no Core interpretation layer) ---------- */
   html += '<div class="rd-section">' +
     rdH('WHY IT MATTERS', 'relevance context from committed metadata') +
-    '<div class="rd-chips">' +
-      '<div class="rd-chip"><div class="ck">Sector</div><div class="cv">' + esc(io.sector_label) + '</div></div>' +
-      '<div class="rd-chip"><div class="ck">Jurisdiction</div><div class="cv">' + esc(io.jurisdiction) +
-        ' <span class="dim">· ' + esc(io.region) + '</span></div></div>' +
-      (src ? '<div class="rd-chip"><div class="ck">Authority</div><div class="cv">' + esc(src.authority_type) +
-        ' <span class="dim">· ' + esc(src.authority_level) + '</span></div></div>' : '') +
-      (src ? '<div class="rd-chip"><div class="ck">Source production</div><div class="cv">' +
+    '<div class="rd-why">' +
+      '<div class="wc"><div class="wk">Sector</div><div class="wv">' + esc(io.sector_label) + '</div></div>' +
+      '<div class="wc"><div class="wk">Jurisdiction</div><div class="wv">' + esc(io.jurisdiction) +
+        ' <span class="wsub">· ' + esc(io.region) + '</span></div></div>' +
+      (src ? '<div class="wc"><div class="wk">Authority</div><div class="wv">' + esc(src.authority_type) +
+        '<span class="wsub"> · ' + esc(src.authority_level) + '</span></div></div>' : '') +
+      (src ? '<div class="wc"><div class="wk">Source production</div><div class="wv">' +
         num(src.unique_vio) + ' object' + (src.unique_vio === 1 ? '' : 's') + ' this wave' +
-        ' <span class="dim">· ' + num(src.fresh_vio) + ' dated</span></div></div>' : '') +
-      '<div class="rd-chip"><div class="ck">Language</div><div class="cv">' + esc(String(io.language).toUpperCase()) + '</div></div>' +
+        '<span class="wsub"> · ' + num(src.fresh_vio) + ' dated</span></div></div>' : '') +
+      '<div class="wc"><div class="wk">Language</div><div class="wv">' + esc(String(io.language).toUpperCase()) + '</div></div>' +
     '</div>' +
     '<div class="rd-note"><b>No interpretation layer is produced by ROUAA Core</b> for this object — ' +
       'and this interface does not generate analytical narratives. ' +
@@ -785,23 +789,24 @@ function viewIoDetail(app, ioId) {
     const fd = factDisplay(c);
     const sameMetric = c.metric === prevMetric;
     prevMetric = c.metric;
+    const vlong = String(fd.disp).length > 36; /* long sentence values read better slightly smaller */
     html += '<div class="kf2-row' + (i >= kfShow ? ' kf2-extra' : '') + '">' +
       '<div class="kf2-line">' +
-        '<div class="kf2-label">' + (sameMetric
-          ? '<span class="kno">' + String(i + 1).padStart(2, '0') + '</span><span class="dim" title="' + esc(metricLabel(c.metric)) + ' (continued)">\u2033</span>'
-          : '<span class="kno">' + String(i + 1).padStart(2, '0') + '</span>' + esc(metricLabel(c.metric))) +
-          '<span class="kf2-open-hint">EVIDENCE &#9662;</span></div>' +
-        '<div class="kf2-value">' + esc(fd.disp) + '</div>' +
-        (fd.norm ? '<div class="kf2-norm">= ' + esc(fd.norm) + '</div>' : '<div class="kf2-norm"></div>') +
+        '<span class="kf2-no">' + String(i + 1).padStart(2, '0') + '</span>' +
+        '<span class="kf2-metric">' + (sameMetric
+          ? '<span class="dim" title="' + esc(metricLabel(c.metric)) + ' (continued)">\u2033</span>'
+          : esc(metricLabel(c.metric))) + '</span>' +
+        '<span class="kf2-value' + (vlong ? ' vlong' : '') + '">' + esc(fd.disp) +
+          (fd.norm ? ' <span class="kf2-norm">= ' + esc(fd.norm) + '</span>' : '') + '</span>' +
+        '<span class="kf2-evid">EVIDENCE &#9662;</span>' +
       '</div>' +
       '<div class="kf2-body">' +
         '<div class="rd-quote" style="margin-bottom:0">' +
-          '<div class="rq-meta">EVIDENCE EXCERPT — verbatim from the stored document <b>' + esc(c.document_id) + '</b></div>' +
+          '<div class="rq-meta">EVIDENCE EXCERPT — VERBATIM FROM THE STORED DOCUMENT</div>' +
           '<blockquote>' + hlExcerpt(c) + '</blockquote>' +
           '<div class="rq-actions">' +
             '<a class="btn sm" href="#/evidence/' + io.io_id + '/' + esc(c.fact_id) + '">VIEW EVIDENCE</a>' +
             (c.canonical_url ? '<a class="btn sm" href="' + esc(c.canonical_url) + '" target="_blank" rel="noopener">OPEN ORIGINAL &#8599;</a>' : '') +
-            '<span class="rq-loc">' + esc(c.evidence_location) + '</span>' +
           '</div>' +
         '</div>' +
       '</div></div>';
@@ -827,7 +832,6 @@ function viewIoDetail(app, ioId) {
         '<div class="rq-actions">' +
           '<a class="btn sm" href="#/evidence/' + io.io_id + '/' + esc(c.fact_id) + '">VIEW EVIDENCE</a>' +
           (c.canonical_url ? '<a class="btn sm" href="' + esc(c.canonical_url) + '" target="_blank" rel="noopener">OPEN ORIGINAL &#8599;</a>' : '') +
-          '<span class="rq-loc">' + esc(c.evidence_location) + '</span>' +
         '</div></div>';
     }
     if (chain.length > qn) {
@@ -841,9 +845,9 @@ function viewIoDetail(app, ioId) {
   if (doc) {
     html += '<div class="def">' +
       '<div class="def-row"><div class="dk">Document</div><div class="dv"><span class="def-doc-title">' +
-        (doc.canonical_url ? '<a href="' + esc(doc.canonical_url) + '" target="_blank" rel="noopener">' + esc(cleanUrl(doc.canonical_url)) + '</a>' : na(null)) +
-        '</span><span class="sub">' + esc(doc.document_id) + ' — documents in this snapshot are identified by canonical URL; ' +
-        'Core does not yet produce document titles</span></div></div>' +
+        (doc.canonical_url ? '<a href="' + esc(doc.canonical_url) + '" target="_blank" rel="noopener">' + esc(domain) + '</a>' : na(null)) +
+        '</span><span class="sub">' + esc(doc.canonical_url) + '</span>' +
+        '<span class="sub">Documents in this snapshot are identified by canonical URL — Core does not yet produce document titles</span></div></div>' +
       '<div class="def-row"><div class="dk">Issuing authority</div><div class="dv">' + esc(src ? src.institution_name : io.institution_name) +
         (src ? '<span class="sub">' + esc(src.authority_type) + ' · ' + esc(src.authority_level) + '</span>' : '') + '</div></div>' +
       '<div class="def-row"><div class="dk">Publication date</div><div class="dv">' +
@@ -851,8 +855,6 @@ function viewIoDetail(app, ioId) {
           '<span class="na">Not available — no date attributed by Core</span>') + '</div></div>' +
       '<div class="def-row"><div class="dk">Document type</div><div class="dv">' + esc(doc.text_layer) + ' · ' +
         (doc.text_chars ? Number(doc.text_chars).toLocaleString('en-GB') + ' characters' : '—') + '</div></div>' +
-      '<div class="def-row"><div class="dk">Original source</div><div class="dv">' +
-        (doc.canonical_url ? '<a href="' + esc(doc.canonical_url) + '" target="_blank" rel="noopener">' + esc(domain) + '</a> <span class="sub">' + esc(doc.canonical_url) + '</span>' : na(null)) + '</div></div>' +
       '<div class="def-row"><div class="dk">Acquisition</div><div class="dv">' +
         (doc.new_document === 'True' ? 'First claim — acquired for the first time this wave' : 'Known document — acquired in an earlier wave') +
         ' · ' + (doc.usable === 'True' ? 'usable text layer stored' : 'not usable') + '</div></div>' +
@@ -876,7 +878,7 @@ function viewIoDetail(app, ioId) {
         '<div class="ps-s">' + esc(src ? src.authority_type + ' · ' + src.jurisdiction : io.source_id) + '</div></div>' +
       '<div class="prov-step link" data-go="' + (doc ? '#/documents/' + esc(doc.document_id) : '#/intelligence/' + io.io_id) + '">' +
         '<div class="ps-k">Official document</div><div class="ps-v">' + esc(doc ? cleanUrl(doc.canonical_url) : 'not resolved') + '</div>' +
-        '<div class="ps-s">' + esc(doc ? doc.document_id + (doc.best_iso ? ' · ' + fmtDate(doc.best_iso) : '') : '—') + '</div></div>' +
+        '<div class="ps-s">' + (doc ? (doc.best_iso ? 'dated ' + fmtDate(doc.best_iso) : 'no date attributed') : '—') + '</div></div>' +
       '<div class="prov-step link" data-go="#/intelligence/' + io.io_id + '">' +
         '<div class="ps-k">Extracted fact</div><div class="ps-v">' + chain.length + ' fact record' + (chain.length === 1 ? '' : 's') + '</div>' +
         '<div class="ps-s">' + (metrics.length ? esc(metrics.map(metricLabel).join(', ')) : '—') + '</div></div>' +
@@ -990,7 +992,7 @@ function viewEvidence(app, ioId, factId) {
       traceNode('FACT', esc(c.metric) + ' = <b style="color:var(--accent)">' + esc(c.value) + '</b>',
         'fact ' + esc(c.fact_id) + ' · description: ' + esc(c.raw_value || '—'), '#/intelligence/' + io.io_id, true) +
       arrow() +
-      traceNode('EVIDENCE EXCERPT', '<span style="font-family:var(--mono);font-size:11.5px">' + esc(c.excerpt) + '</span>',
+      traceNode('EVIDENCE EXCERPT', '<span style="font-family:var(--mono);font-size:13px;line-height:1.7">' + esc(c.excerpt) + '</span>',
         'technical location: ' + esc(c.evidence_location) + ' · evidence object ' + esc(c.evidence_id), null, false) +
       arrow() +
       traceNode('DOCUMENT', esc(cleanUrl(c.canonical_url)),
