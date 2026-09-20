@@ -1,0 +1,100 @@
+/* ============================================================================
+   ROUAA BRAND TOKENS — V1 (BRAND FOUNDATION)
+   ============================================================================
+   Governing token layer ABOVE the two functional languages:
+     · CORPORATE LAYER  (v7 marketing/corporate site)
+     · PRODUCT LAYER    (V3.1 institutional intelligence interface)
+   Established by: ROUAA VISUAL ARBITRATION V1 — IDENTITY_BOUNDARY = CONFIRMED
+   Executed by:    ROUAA BRAND FOUNDATION EXECUTION V1
+
+   PRINCIPLE: ONE BRAND. TWO FUNCTIONAL LANGUAGES. ZERO DATA CONTAMINATION.
+
+   This file is BYTE-IDENTICAL in both repositories (hash-verified).
+   No page, component or stylesheet may redefine these values.
+   Layer-specific values live ONLY in the LAYER SURFACES section below,
+   and their relationship is documented — not unified by force.
+
+   ----------------------------------------------------------------------------
+   D-02 · INSTITUTIONAL GOLD — decision record
+   ----------------------------------------------------------------------------
+   Canonical gold is #C9A961 — the live production institutional gold
+   (V3.1 --accent since V3.0-A.1). It is THE institutional accent: evidence
+   emphasis, actions, active states. Never decoration.
+     · brand-gold-strong #E3B45A — corporate high-energy variant (existing v7
+       gold), reserved for corporate CTA / hero energy moments.
+     · brand-gold-muted  #8A7440  — quiet gold for hairlines, borders and
+       restrained contexts (existing V3.1 --accent-dim).
+   All three are the SAME warm antique-gold family (hue ≈ 41–44°).
+   No third gold may be introduced. No neon gold. No page-level redefinition.
+
+   ----------------------------------------------------------------------------
+   D-03 · INK DIRECTION — decision record
+   ----------------------------------------------------------------------------
+   The institutional reference ink is WARM: #0B0A08 (brand-ink) — the
+   production reading surface proven for prolonged intelligence consumption.
+   Background UNIFICATION IS NOT FORCED. Layers keep governed surfaces:
+     · corporate-surface #040B1C — cool deep navy; may carry controlled
+       cosmic/cool atmosphere (homepage hero primarily, D-01).
+     · product-surface  #0B0A08 — solid, stable warm ink. Data/intelligence
+       surfaces must remain solid: no gradients, no glow, no starfield.
+   ============================================================================ */
+
+:root {
+
+  /* ---- IDENTITY ---------------------------------------------------------- */
+  --brand-gold:            #C9A961;  /* canonical institutional gold          */
+  --brand-gold-muted:      #8A7440;  /* quiet gold — hairlines, borders       */
+  --brand-gold-strong:     #E3B45A;  /* corporate CTA / hero energy variant   */
+
+  --brand-ink:             #0B0A08;  /* institutional reference ink (warm)    */
+  --brand-surface:         #0B0A08;  /* canonical surface = brand ink         */
+  --brand-text:            #EFEAE0;  /* canonical ivory primary text          */
+  --brand-text-muted:      #B7B1A4;  /* canonical secondary text              */
+
+  /* ---- TYPOGRAPHY (SANS + MONO coalition; SERIF = evidence voice only) --- */
+  --brand-sans:            -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --brand-mono:            ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --brand-serif-evidence:  Georgia, "Iowan Old Style", "Palatino Linotype", "Times New Roman", serif;
+  /* serif is reserved for: source quotations, documentary evidence excerpts,
+     and product/intelligence reading contexts (reader titles). It is a
+     quotation voice — never a theme. */
+
+  /* ---- SHAPE (compact institutional geometry) ---------------------------- */
+  --brand-radius-small:    2px;
+  --brand-radius-medium:   6px;
+
+  /* ---- MOTION (restrained institutional scale) --------------------------- */
+  --brand-motion-fast:     120ms;   /* product micro-interactions             */
+  --brand-motion-normal:   250ms;   /* corporate reveal/hover (controlled)    */
+  --brand-motion-none:     0ms;     /* reduced-motion / data surfaces         */
+
+  /* ---- SEMANTIC STATUS ---------------------------------------------------- */
+  --status-operational:    #5FBE85;  /* operational / fresh                   */
+  --status-verified:       #5FBE85;  /* verified (same institutional green)   */
+  --status-warning:        #C98F2E;  /* warning / historical amber            */
+  --status-muted:          #99917F;  /* muted / undated warm gray             */
+
+  /* ---- LAYER SURFACES (D-03 — governed, documented, NOT unified) --------- */
+  --corporate-surface:     #040B1C;  /* v7 cool navy — atmosphere permitted   */
+  --product-surface:       #0B0A08;  /* warm ink — solid, stable, readable    */
+}
+
+/* ----------------------------------------------------------------------------
+   GOVERNANCE NOTES (binding)
+   ----------------------------------------------------------------------------
+   1. Gold = significance. In BOTH layers gold marks evidence, action and
+      active state — never ambient decoration.
+   2. Corporate pages: general gold accents resolve to --brand-gold; CTA and
+      hero energy moments may resolve to --brand-gold-strong.
+   3. Product pages: gold resolves to --brand-gold / --brand-gold-muted.
+   4. Data/intelligence surfaces (tables, facts, IO reader, evidence,
+      provenance, trace, filters, production records) inherit BRAND TOKENS
+      but NEVER corporate visual effects: no starfield, no glass-heavy cards,
+      no decorative gradients, no decorative glow. CALM · DENSE · READABLE ·
+      TRACEABLE.
+   5. prefers-reduced-motion: all layers honor it; motion collapses to
+      --brand-motion-none.
+   -------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  :root { --brand-motion-normal: 0ms; --brand-motion-fast: 0ms; }
+}
