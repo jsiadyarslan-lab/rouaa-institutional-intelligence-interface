@@ -186,8 +186,8 @@ function renderSysline() {
     ' &nbsp;·&nbsp; NOT A LIVE FEED' +
     ' &nbsp;·&nbsp; Core commit <b>' + esc(m.production_commit.slice(0, 10)) + '</b> on ' + esc(m.production_branch) +
     ' &nbsp;·&nbsp; fresh window ' + esc(m.fresh_window.start) + ' &rarr; ' + esc(m.fresh_window.end) +
-    ' &nbsp;·&nbsp; snapshot ' + esc(m.snapshot_date) +
-    ' &nbsp;·&nbsp; interface V2 — presentation layer only';
+    ' &nbsp;·&nbsp; snapshot ' + esc(fmtDate(m.snapshot_date)) +
+    ' &nbsp;·&nbsp; interface V2.1 · presentation layer only';
   document.getElementById('snapshot-chip').innerHTML = 'SNAPSHOT · ' + esc(m.wave) + ' · ' + esc(m.snapshot_date);
 }
 
@@ -625,7 +625,66 @@ function wirePager(key, refresh) {
   });
 }
 
-/* ============================================================ INTELLIGENCE DETAIL */
+/* ============================================================ INTELLIGENCE DETAIL
+   V2.1 · IO READER — Institutional Intelligence Reading Environment
+   Presentation layer only: every rendered value is a committed Core field,
+   verbatim. Narrative sentences are assembled from committed fields only —
+   no interpretation is generated. Reading measure 940px.
+   Hierarchy: WHAT HAPPENED → WHY IT MATTERS → KEY FACTS → EVIDENCE →
+              SOURCE DOCUMENT → PROVENANCE → RELATED */
+
+function metricLabel(m) {
+  return String(m == null ? '' : m).replace(/_/g, ' ');
+}
+
+/* human display value = raw_value when it differs from the normalized value */
+function factDisplay(c) {
+  const v = String(c.value == null ? '' : c.value);
+  const r = String(c.raw_value == null ? '' : c.raw_value);
+  if (r && r !== v) return { disp: r, norm: v };
+  return { disp: v, norm: null };
+}
+
+/* verbatim excerpt with the committed fact value visually anchored (first whole-word
+   occurrence only; if the value does not appear verbatim, the excerpt is untouched) */
+function findWhole(hay, needle) {
+  let from = 0;
+  for (;;) {
+    const p = hay.indexOf(needle, from);
+    if (p === -1 || !needle.length) return -1;
+    const before = p > 0 ? hay[p - 1] : '';
+    const after = p + needle.length < hay.length ? hay[p + needle.length] : '';
+    if (!/[0-9A-Za-z]/.test(before) && !/[0-9A-Za-z]/.test(after)) return p;
+    from = p + 1;
+  }
+}
+function hlExcerpt(c) {
+  const escd = esc(c.excerpt);
+  const cand = [];
+  if (c.raw_value != null && String(c.raw_value).length) cand.push(String(c.raw_value));
+  if (c.value != null && String(c.value).length) cand.push(String(c.value));
+  for (const n of cand) {
+    const en = esc(n);
+    const p = findWhole(escd, en);
+    if (p !== -1) {
+      return escd.slice(0, p) + '<b>' + escd.slice(p, p + en.length) + '</b>' + escd.slice(p + en.length);
+    }
+  }
+  return escd;
+}
+
+/* feed order: FRESH → HISTORICAL → UNDATED, then most recent date */
+function feedOrderIo() {
+  return D.intelligence.slice().sort((a, b) =>
+    (statusRank(a.date_status) - statusRank(b.date_status)) ||
+    ioSortDate(b).localeCompare(ioSortDate(a)) ||
+    a.institution_name.localeCompare(b.institution_name));
+}
+
+function rdH(title, sub) {
+  return '<div class="rd-h"><span class="rh-t">' + title + '</span>' +
+    '<span class="rh-rule"></span>' + (sub ? '<span class="rh-sub">' + sub + '</span>' : '') + '</div>';
+}
 
 function viewIoDetail(app, ioId) {
   const io = IX.ios[ioId];
@@ -634,138 +693,273 @@ function viewIoDetail(app, ioId) {
   const chain = io.chain || [];
   const doc = chain.length ? IX.docs[chain[0].document_id] : null;
   const traceOk = ioTraceable(io);
+  const domain = src ? src.official_domain : (chain[0] ? cleanUrl(chain[0].canonical_url).split('/')[0] : '');
+  const dated = io.date_status === 'FRESH' || io.date_status === 'HISTORICAL';
+  const dateStr = dated ? (io.publication_time ? fmtDateTime(io.publication_time) : fmtDate(io.best_document_date)) : null;
+  const metrics = uniq(chain.map(c => c.metric));
 
+  document.title = io.institution_name + ' — ' + io.event_type_label + ' · ROUAA';
+
+  /* ---------- HERO ---------- */
   let html = '' +
-    '<div class="crumb"><a href="#/">OVERVIEW</a><span class="sep">/</span><a href="#/intelligence">INTELLIGENCE</a><span class="sep">/</span><span class="mono">' + esc(io.io_id) + '</span></div>' +
+    '<div class="reader">' +
+    '<div class="crumb"><a href="#/">OVERVIEW</a><span class="sep">/</span>' +
+      '<a href="#/intelligence">INTELLIGENCE</a><span class="sep">/</span><span>' + esc(io.institution_name) + '</span></div>' +
 
-    /* --- identity block (metadata, not a synthesized title) --- */
-    '<div class="io-head">' +
-      '<div class="io-kind">INTELLIGENCE OBJECT</div>' +
-      '<div class="io-inst">' + esc(io.institution_name) + '</div>' +
-      '<div class="io-sub"><span class="io-type">' + esc(io.event_type_label) + '</span>' + bStatus(io.date_status) + '</div>' +
-      '<div class="io-tags">' + bOfficial(src) + bEvidence(chain.length) + bTraceable(traceOk) +
-        '<span class="badge b-accent" title="Acquisition cohort ' + esc(src ? src.cohort : '') + ' · ' + esc(io.language) + '">' + esc(io.language.toUpperCase()) + '</span></div>' +
-      '<div class="io-actions">' +
-        '<a class="btn primary" href="#/trace/' + io.io_id + '">TRACE EVIDENCE</a>' +
-        (chain[0] && chain[0].canonical_url ? '<a class="btn" href="' + esc(chain[0].canonical_url) + '" target="_blank" rel="noopener">OPEN ORIGINAL DOCUMENT</a>' : '') +
-        (doc ? '<a class="btn" href="#/documents/' + esc(doc.document_id) + '">DOCUMENT RECORD</a>' : '') +
-        (src ? '<a class="btn" href="#/sources/' + esc(src.source_id) + '">SOURCE PROFILE</a>' : '') +
-      '</div>' +
-      '<div class="io-ids">' +
-        'institution <b>' + esc(io.institution_name) + '</b> &nbsp;·&nbsp; jurisdiction <b>' + esc(io.jurisdiction) + '</b> (' + esc(io.region) + ')' +
-        ' &nbsp;·&nbsp; sector <b>' + esc(io.sector_label) + '</b><br>' +
-        'date <b>' + ioDateLine(io) + '</b><br>' +
-        'object <b>' + esc(io.io_id) + '</b> v' + num(io.version) + ' &nbsp;·&nbsp; event <b>' + esc(io.event_id) + '</b> v' + num(io.event_version) +
-        ' &nbsp;·&nbsp; ' + (io.is_new ? '<b>net-new this wave</b>' : 'rediscovered from earlier wave') +
-      '</div>' +
+    '<div class="rd-kicker">INTELLIGENCE</div>' +
+    '<h1 class="rd-title">' + esc(io.institution_name) + '</h1>' +
+    '<div class="rd-type-line"><span>' + esc(io.event_type_label) + '</span>' +
+      '<span class="rt-sep">·</span><span>' + esc(io.sector_label) + '</span>' +
+      '<span class="rt-sep">·</span><span>' + esc(io.jurisdiction) + '</span></div>' +
+
+    '<p class="rd-summary">' +
+      (dated
+        ? 'Published <b>' + esc(dateStr) + '</b> — publication date attributed by ROUAA Core (' + esc(io.publication_provenance || 'attributed') + '). '
+        : '<b>No publication date attributed by Core</b> for this object. ') +
+      'Binds <b>' + num(io.n_facts) + '</b> structured fact' + (io.n_facts === 1 ? '' : 's') +
+      ', each carrying a verbatim evidence excerpt from <b>' + num(io.n_documents) + '</b> official document' +
+      (io.n_documents === 1 ? '' : 's') + (domain ? ' on <b>' + esc(domain) + '</b>' : '') + '.' +
+    '</p>' +
+
+    '<div class="rd-meta">' +
+      '<div class="m"><div class="mk">Source</div><div class="mv">' +
+        (src ? '<a href="#/sources/' + esc(src.source_id) + '" title="Open source profile">' + esc(src.institution_name) + '</a>' +
+          (domain ? ' <span class="dim">· ' + esc(domain) + '</span>' : '')
+          : na(null)) + '</div></div>' +
+      '<div class="m"><div class="mk">Date</div><div class="mv">' +
+        (dated ? esc(dateStr) : '<span class="na">No date attributed</span>') + '</div></div>' +
+      '<div class="m"><div class="mk">Type</div><div class="mv">' + esc(io.event_type_label) + '</div></div>' +
+      '<div class="m"><div class="mk">Status</div><div class="mv">' + bStatus(io.date_status) + '</div></div>' +
     '</div>' +
 
-    /* --- CONTEXT (honest: Core supplies no interpretation) --- */
-    '<div class="section"><div class="section-title">CONTEXT <span class="sub">why this object may be relevant</span></div>' +
-      '<div class="context-block"><span class="cb-k">CONTEXT</span><span class="cb-v">No interpretation supplied by Core. ' +
-      'This interface does not generate analytical narratives. Relevance must be assessed from the committed facts and evidence below.</span></div>' +
+    '<div class="rd-actions">' +
+      (chain[0] && chain[0].canonical_url
+        ? '<a class="btn ghost" href="' + esc(chain[0].canonical_url) + '" target="_blank" rel="noopener">OPEN ORIGINAL DOCUMENT &#8599;</a>' : '') +
+      '<a class="rd-link" href="#/trace/' + io.io_id + '">EVIDENCE CHAIN &rarr;</a>' +
+    '</div>';
+
+  /* ---------- WHAT HAPPENED (narrative from committed fields only) ---------- */
+  html += '<div class="rd-section">' +
+    rdH('WHAT HAPPENED', 'assembled verbatim from committed fields') +
+    '<div class="rd-body hero-body"><p>' +
+      esc(io.event_type_label) + ' recorded from ' + esc(io.institution_name) +
+      (dated ? ', with a publication date of <b>' + esc(dateStr) + '</b> attributed by Core.'
+             : '. Core has not attributed a publication date to this object.') +
+      ' ' + (io.is_new ? 'The object first entered the production record in this wave.'
+                      : 'The object was re-discovered from an earlier production wave.') +
+    '</p>' +
+    (chain.length ? '<p>The object binds <span class="num-hl">' + chain.length + '</span> structured fact' +
+      (chain.length === 1 ? '' : 's') + ' — ' +
+      (metrics.length ? 'covering ' + metrics.map(m => esc(metricLabel(m))).join(', ') + ' — ' : '') +
+      'and every fact carries a verbatim excerpt from the official document stored in this snapshot. ' +
+      'Open any fact below to read its evidence in full.</p>'
+      : '<p>No facts are bound to this object in the snapshot.</p>') +
+    '</div></div>';
+
+  /* ---------- WHY IT MATTERS (honest: no Core interpretation layer) ---------- */
+  html += '<div class="rd-section">' +
+    rdH('WHY IT MATTERS', 'relevance context from committed metadata') +
+    '<div class="rd-chips">' +
+      '<div class="rd-chip"><div class="ck">Sector</div><div class="cv">' + esc(io.sector_label) + '</div></div>' +
+      '<div class="rd-chip"><div class="ck">Jurisdiction</div><div class="cv">' + esc(io.jurisdiction) +
+        ' <span class="dim">· ' + esc(io.region) + '</span></div></div>' +
+      (src ? '<div class="rd-chip"><div class="ck">Authority</div><div class="cv">' + esc(src.authority_type) +
+        ' <span class="dim">· ' + esc(src.authority_level) + '</span></div></div>' : '') +
+      (src ? '<div class="rd-chip"><div class="ck">Source production</div><div class="cv">' +
+        num(src.unique_vio) + ' object' + (src.unique_vio === 1 ? '' : 's') + ' this wave' +
+        ' <span class="dim">· ' + num(src.fresh_vio) + ' dated</span></div></div>' : '') +
+      '<div class="rd-chip"><div class="ck">Language</div><div class="cv">' + esc(String(io.language).toUpperCase()) + '</div></div>' +
     '</div>' +
+    '<div class="rd-note"><b>No interpretation layer is produced by ROUAA Core</b> for this object — ' +
+      'and this interface does not generate analytical narratives. ' +
+      'Relevance must be assessed from the committed facts, evidence and source below.</div>' +
+    '</div>';
 
-    /* --- WHAT HAPPENED (structured facts, information first) --- */
-    '<div class="section"><div class="section-title">WHAT HAPPENED <span class="sub">' + chain.length +
-      ' structured fact' + (chain.length === 1 ? '' : 's') + ' bound to this object — displayed verbatim</span></div>';
-
-  if (chain.length) {
-    html += '<div class="wh-facts">';
-    chain.slice(0, 12).forEach(c => {
-      html += '<div class="wh-fact"><span class="wf-v">' + esc(c.value) + '</span><span class="wf-r">' + na(c.raw_value) + '</span></div>';
-    });
-    if (chain.length > 12) {
-      html += '<div class="wh-fact"><span class="wf-v dim">+' + (chain.length - 12) + '</span><span class="wf-r dim">further facts listed below in KEY FACTS</span></div>';
-    }
-    html += '</div>';
-  } else {
-    html += '<div class="note">No facts bound to this object in the snapshot.</div>';
-  }
-  html += '</div>';
-
-  /* --- KEY FACTS --- */
-  html += '<div class="section"><div class="section-title">KEY FACTS <span class="sub">fact ' +
-    (chain.length === 1 ? 'record' : 'records') + ' — click a row to open its evidence</span></div><div class="kf-list">';
+  /* ---------- KEY FACTS (scannable) ---------- */
+  html += '<div class="rd-section">' +
+    rdH('KEY FACTS', chain.length + ' fact record' + (chain.length === 1 ? '' : 's') + ' · displayed verbatim') +
+    '<div class="kf2">';
+  const kfShow = 10;
+  let prevMetric = null;
   chain.forEach((c, i) => {
-    html += '<div class="kf-row" data-kf="' + i + '">' +
-      '<div class="kf-head">' +
-        '<span class="kf-no">FACT ' + String(i + 1).padStart(2, '0') + '</span>' +
-        '<span class="kf-metric">' + esc(c.metric) + '</span>' +
-        '<span class="kf-value">' + esc(c.value) + '</span>' +
-        '<span class="kf-raw ellip">' + esc(String(c.raw_value || '')) + '</span>' +
-        '<span class="kf-actions"><a class="btn sm" href="#/evidence/' + io.io_id + '/' + esc(c.fact_id) + '">VIEW EVIDENCE</a></span>' +
+    const fd = factDisplay(c);
+    const sameMetric = c.metric === prevMetric;
+    prevMetric = c.metric;
+    html += '<div class="kf2-row' + (i >= kfShow ? ' kf2-extra' : '') + '">' +
+      '<div class="kf2-line">' +
+        '<div class="kf2-label">' + (sameMetric
+          ? '<span class="kno">' + String(i + 1).padStart(2, '0') + '</span><span class="dim" title="' + esc(metricLabel(c.metric)) + ' (continued)">\u2033</span>'
+          : '<span class="kno">' + String(i + 1).padStart(2, '0') + '</span>' + esc(metricLabel(c.metric))) +
+          '<span class="kf2-open-hint">EVIDENCE &#9662;</span></div>' +
+        '<div class="kf2-value">' + esc(fd.disp) + '</div>' +
+        (fd.norm ? '<div class="kf2-norm">= ' + esc(fd.norm) + '</div>' : '<div class="kf2-norm"></div>') +
       '</div>' +
-      '<div class="kf-body">' +
-        '<div class="ev-block">' +
-          '<div class="ev-loc">EVIDENCE EXCERPT — verbatim from stored document <span class="mono">' + esc(c.document_id) + '</span></div>' +
-          '<div class="ev-excerpt">' + esc(c.excerpt) + '</div>' +
-          '<div class="ev-loc">Technical location: <span class="mono">' + esc(c.evidence_location) + '</span>' +
-            ' &nbsp;·&nbsp; evidence object <span class="mono">' + esc(c.evidence_id) + '</span></div>' +
-          '<div class="ev-links">' +
-            '<a class="btn sm" href="#/documents/' + esc(c.document_id) + '">DOCUMENT RECORD</a>' +
-            '<a class="btn sm" href="#/sources/' + esc(c.source_id) + '">SOURCE PROFILE</a>' +
-            (c.canonical_url ? '<a class="btn sm" href="' + esc(c.canonical_url) + '" target="_blank" rel="noopener">OPEN ORIGINAL</a>' : '') +
+      '<div class="kf2-body">' +
+        '<div class="rd-quote" style="margin-bottom:0">' +
+          '<div class="rq-meta">EVIDENCE EXCERPT — verbatim from the stored document <b>' + esc(c.document_id) + '</b></div>' +
+          '<blockquote>' + hlExcerpt(c) + '</blockquote>' +
+          '<div class="rq-actions">' +
+            '<a class="btn sm" href="#/evidence/' + io.io_id + '/' + esc(c.fact_id) + '">VIEW EVIDENCE</a>' +
+            (c.canonical_url ? '<a class="btn sm" href="' + esc(c.canonical_url) + '" target="_blank" rel="noopener">OPEN ORIGINAL &#8599;</a>' : '') +
+            '<span class="rq-loc">' + esc(c.evidence_location) + '</span>' +
           '</div>' +
         '</div>' +
       '</div></div>';
   });
-  html += '</div></div>';
+  html += '</div>';
+  if (chain.length > kfShow) {
+    html += '<div class="kf2-more"><button class="btn" id="kf2-toggle">SHOW ALL ' + chain.length + ' FACTS</button></div>';
+  }
+  html += '</div>';
 
-  /* --- PRIMARY DOCUMENT --- */
-  html += '<div class="section"><div class="section-title">PRIMARY DOCUMENT</div>';
+  /* ---------- EVIDENCE (prominent, readable quotes) ---------- */
+  if (chain.length) {
+    const qn = Math.min(3, chain.length);
+    html += '<div class="rd-section">' +
+      rdH('EVIDENCE', 'verbatim excerpts from the stored document') ;
+    for (let i = 0; i < qn; i++) {
+      const c = chain[i];
+      const fd = factDisplay(c);
+      html += '<div class="rd-quote">' +
+        '<div class="rq-meta">FACT ' + String(i + 1).padStart(2, '0') + ' · <b>' + esc(metricLabel(c.metric)) +
+          ' = ' + esc(fd.disp) + '</b></div>' +
+        '<blockquote>' + hlExcerpt(c) + '</blockquote>' +
+        '<div class="rq-actions">' +
+          '<a class="btn sm" href="#/evidence/' + io.io_id + '/' + esc(c.fact_id) + '">VIEW EVIDENCE</a>' +
+          (c.canonical_url ? '<a class="btn sm" href="' + esc(c.canonical_url) + '" target="_blank" rel="noopener">OPEN ORIGINAL &#8599;</a>' : '') +
+          '<span class="rq-loc">' + esc(c.evidence_location) + '</span>' +
+        '</div></div>';
+    }
+    if (chain.length > qn) {
+      html += '<div><a class="btn" href="#/trace/' + io.io_id + '">VIEW ALL ' + chain.length + ' EVIDENCE RECORDS &rarr;</a></div>';
+    }
+    html += '</div>';
+  }
+
+  /* ---------- SOURCE DOCUMENT ---------- */
+  html += '<div class="rd-section">' + rdH('SOURCE DOCUMENT');
   if (doc) {
-    html += '<div class="meta-grid">' +
-      mcell('Document', '<span class="mono">' + esc(doc.document_id) + '</span>') +
-      mcell('Official URL', doc.canonical_url ? '<a href="' + esc(doc.canonical_url) + '" target="_blank" rel="noopener">' + esc(cleanUrl(doc.canonical_url)) + '</a>' : na(null)) +
-      mcell('Document date', doc.best_iso ? fmtDate(doc.best_iso) : na(null)) +
-      mcell('Temporal status (document)', bStatus(doc.fresh_status === 'DATE_UNKNOWN' ? 'UNDATED' : doc.fresh_status)) +
-      mcell('Text layer', esc(doc.text_layer) + ' · ' + (doc.text_chars ? Number(doc.text_chars).toLocaleString('en-GB') + ' chars' : '—')) +
-      mcell('Facts extracted / IOs', num(doc.n_facts) + ' / ' + num(doc.n_intelligence)) +
-      mcell('Acquired', doc.new_document === 'True' ? 'First claim this wave' : 'Known from earlier wave') +
-      mcell('Usable (stored)', doc.usable === 'True' ? 'Yes' : 'No') +
+    html += '<div class="def">' +
+      '<div class="def-row"><div class="dk">Document</div><div class="dv"><span class="def-doc-title">' +
+        (doc.canonical_url ? '<a href="' + esc(doc.canonical_url) + '" target="_blank" rel="noopener">' + esc(cleanUrl(doc.canonical_url)) + '</a>' : na(null)) +
+        '</span><span class="sub">' + esc(doc.document_id) + ' — documents in this snapshot are identified by canonical URL; ' +
+        'Core does not yet produce document titles</span></div></div>' +
+      '<div class="def-row"><div class="dk">Issuing authority</div><div class="dv">' + esc(src ? src.institution_name : io.institution_name) +
+        (src ? '<span class="sub">' + esc(src.authority_type) + ' · ' + esc(src.authority_level) + '</span>' : '') + '</div></div>' +
+      '<div class="def-row"><div class="dk">Publication date</div><div class="dv">' +
+        (doc.best_iso ? esc(fmtDate(doc.best_iso)) + ' <span class="sub">best date attributed by Core to this document</span>' :
+          '<span class="na">Not available — no date attributed by Core</span>') + '</div></div>' +
+      '<div class="def-row"><div class="dk">Document type</div><div class="dv">' + esc(doc.text_layer) + ' · ' +
+        (doc.text_chars ? Number(doc.text_chars).toLocaleString('en-GB') + ' characters' : '—') + '</div></div>' +
+      '<div class="def-row"><div class="dk">Original source</div><div class="dv">' +
+        (doc.canonical_url ? '<a href="' + esc(doc.canonical_url) + '" target="_blank" rel="noopener">' + esc(domain) + '</a> <span class="sub">' + esc(doc.canonical_url) + '</span>' : na(null)) + '</div></div>' +
+      '<div class="def-row"><div class="dk">Acquisition</div><div class="dv">' +
+        (doc.new_document === 'True' ? 'First claim — acquired for the first time this wave' : 'Known document — acquired in an earlier wave') +
+        ' · ' + (doc.usable === 'True' ? 'usable text layer stored' : 'not usable') + '</div></div>' +
+      '<div class="def-row"><div class="dk">Extraction</div><div class="dv">' + num(doc.n_facts) + ' fact' + (doc.n_facts === 1 ? '' : 's') +
+        ' extracted · ' + num(doc.n_intelligence) + ' intelligence object' + (doc.n_intelligence === 1 ? '' : 's') + ' bound</div></div>' +
     '</div>' +
-    '<div style="margin-top:10px"><a class="btn" href="' + esc(doc.canonical_url) + '" target="_blank" rel="noopener">OPEN ORIGINAL DOCUMENT</a> ' +
-    '<a class="btn" href="#/documents/' + esc(doc.document_id) + '">DOCUMENT RECORD &rarr;</a></div>';
+    '<div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap">' +
+      (doc.canonical_url ? '<a class="btn primary" href="' + esc(doc.canonical_url) + '" target="_blank" rel="noopener">OPEN ORIGINAL DOCUMENT &#8599;</a>' : '') +
+      '<a class="btn" href="#/documents/' + esc(doc.document_id) + '">DOCUMENT RECORD &rarr;</a></div>';
   } else {
-    html += '<div class="note">No document record available for this object.</div>';
+    html += '<div class="rd-note">No document record is available for this object in the snapshot.</div>';
   }
   html += '</div>';
 
-  /* --- SOURCE --- */
-  html += '<div class="section"><div class="section-title">SOURCE</div>';
-  if (src) {
-    html += '<div class="meta-grid">' +
-      mcell('Institution', esc(src.institution_name)) +
-      mcell('Authority', esc(src.authority_type) + ' · ' + esc(src.authority_level)) +
-      mcell('Jurisdiction', esc(src.jurisdiction) + ' (' + esc(src.region) + ')') +
-      mcell('Source', '<a href="' + esc(src.canonical_source_url || src.endpoint) + '" target="_blank" rel="noopener">' + esc(src.official_domain) + '</a>') +
-      mcell('Access status', esc(src.access_status) + ' · ' + esc(src.failure_class)) +
-      mcell('Production status', esc(src.production_status)) +
+  /* ---------- PROVENANCE ---------- */
+  html += '<div class="rd-section">' +
+    rdH('PROVENANCE', traceOk ? 'every level resolves in this snapshot' : 'trace incomplete in this snapshot') +
+    '<div class="prov-chain">' +
+      '<div class="prov-step link" data-go="' + (src ? '#/sources/' + esc(src.source_id) : '#/intelligence/' + io.io_id) + '">' +
+        '<div class="ps-k">Official authority</div><div class="ps-v">' + esc(src ? src.institution_name : io.institution_name) + '</div>' +
+        '<div class="ps-s">' + esc(src ? src.authority_type + ' · ' + src.jurisdiction : io.source_id) + '</div></div>' +
+      '<div class="prov-step link" data-go="' + (doc ? '#/documents/' + esc(doc.document_id) : '#/intelligence/' + io.io_id) + '">' +
+        '<div class="ps-k">Official document</div><div class="ps-v">' + esc(doc ? cleanUrl(doc.canonical_url) : 'not resolved') + '</div>' +
+        '<div class="ps-s">' + esc(doc ? doc.document_id + (doc.best_iso ? ' · ' + fmtDate(doc.best_iso) : '') : '—') + '</div></div>' +
+      '<div class="prov-step link" data-go="#/intelligence/' + io.io_id + '">' +
+        '<div class="ps-k">Extracted fact</div><div class="ps-v">' + chain.length + ' fact record' + (chain.length === 1 ? '' : 's') + '</div>' +
+        '<div class="ps-s">' + (metrics.length ? esc(metrics.map(metricLabel).join(', ')) : '—') + '</div></div>' +
+      '<div class="prov-step static" style="cursor:default">' +
+        '<div class="ps-k">Evidence</div><div class="ps-v">' + chain.length + ' verbatim excerpt' + (chain.length === 1 ? '' : 's') + '</div>' +
+        '<div class="ps-s">stored in this snapshot · content-verified by Core</div></div>' +
+      '<div class="prov-step link" data-go="#/intelligence/' + io.io_id + '">' +
+        '<div class="ps-k">Intelligence</div><div class="ps-v">This object</div>' +
+        '<div class="ps-s">' + esc(io.institution_name) + ' · ' + esc(io.event_type_label) + '</div></div>' +
     '</div>' +
-    '<div style="margin-top:10px"><a class="btn" href="#/sources/' + esc(src.source_id) + '">SOURCE PROFILE &rarr;</a></div>';
-  } else {
-    html += '<div class="note">Source record not available.</div>';
-  }
-  html += '</div>';
+    (traceOk ? '' : '<div class="rd-note" style="margin-top:16px"><b>Trace incomplete.</b> One or more chain levels do not resolve inside this snapshot — see technical provenance below.</div>');
 
-  /* --- TECHNICAL PROVENANCE (bottom) --- */
-  html += '<div class="section"><div class="section-title">TECHNICAL PROVENANCE</div>' +
+  /* technical provenance — available, not dominant */
+  const hashes = uniq(chain.map(c => c.content_sha256));
+  html += '<details class="rd-tech"><summary>VIEW TECHNICAL PROVENANCE</summary><div class="rd-tech-body">' +
     '<div class="meta-grid">' +
-      mcell('Core template headline', esc(io.headline) + ' <span class="dim">(generated by Core from institution + event type; not a semantic title)</span>') +
+      mcell('Object ID', '<span class="mono">' + esc(io.io_id) + '</span>') +
+      mcell('Event ID', '<span class="mono">' + esc(io.event_id) + '</span>') +
+      mcell('Version', 'object v' + num(io.version) + ' · event v' + num(io.event_version)) +
+      mcell('Core template headline', esc(io.headline) + ' <span class="dim">(generated from institution + event type — not a semantic title)</span>') +
       mcell('Publication basis', esc(io.publication_basis || '—')) +
       mcell('Publication provenance', esc(io.publication_provenance || '—')) +
       mcell('Raw date field', esc(io.publication_time_raw || '—')) +
       mcell('Event type (raw)', '<span class="mono">' + esc(io.event_type) + '</span>') +
-      (chain[0] ? mcell('Document content hash', '<span class="mono">' + esc(chain[0].content_sha256) + '</span>') : '') +
+      (hashes.length ? mcell('Document content SHA-256', hashes.map(h => '<span class="mono">' + esc(h) + '</span>').join('<br>')) : '') +
+      mcell('Source ID', '<span class="mono">' + esc(io.source_id) + '</span>') +
+    '</div></div></details></div>';
+
+  /* ---------- RELATED INTELLIGENCE (data-proven links only) ---------- */
+  const sameSrc = D.intelligence.filter(x => x.source_id === io.source_id && x.io_id !== io.io_id);
+  const sameInst = D.intelligence.filter(x => x.institution_name === io.institution_name &&
+    x.source_id !== io.source_id && x.io_id !== io.io_id);
+  if (sameSrc.length || sameInst.length) {
+    html += '<div class="rd-section">' +
+      rdH('RELATED INTELLIGENCE', 'proven links only — same source or same institution');
+    const relRow = x => '<div class="rel-row" data-go="#/intelligence/' + x.io_id + '">' +
+      bStatus(x.date_status) +
+      '<span class="rr-inst">' + esc(x.institution_name) + '</span>' +
+      '<span class="rr-type">' + esc(x.event_type_label) + '</span>' +
+      '<span class="rr-meta">' + (x.date_status === 'UNDATED' ? 'no date' : esc(fmtDate(ioDateKey(x)))) +
+        ' · ' + x.n_facts + ' fact' + (x.n_facts === 1 ? '' : 's') + '</span>' +
+      '<span class="rr-open">OPEN &rarr;</span></div>';
+    if (sameSrc.length) {
+      html += '<div class="rel-group"><div class="rel-group-k">From the same official source · ' + sameSrc.length + ' other' +
+        (sameSrc.length === 1 ? '' : 's') + '</div>' + sameSrc.slice(0, 6).map(relRow).join('') + '</div>';
+    }
+    if (sameInst.length) {
+      html += '<div class="rel-group"><div class="rel-group-k">From the same institution · ' + sameInst.length + ' other' +
+        (sameInst.length === 1 ? '' : 's') + '</div>' + sameInst.slice(0, 6).map(relRow).join('') + '</div>';
+    }
+    html += '</div>';
+  }
+
+  /* ---------- footer navigation ---------- */
+  const order = feedOrderIo();
+  const idx = order.findIndex(x => x.io_id === io.io_id);
+  const prev = idx > 0 ? order[idx - 1] : null;
+  const next = idx >= 0 && idx < order.length - 1 ? order[idx + 1] : null;
+  html += '<div class="rd-footer">' +
+    '<a class="rf-back" href="#/intelligence">&larr; ALL INTELLIGENCE</a>' +
+    '<div class="rf-nav">' +
+      (prev ? '<a class="btn sm" href="#/intelligence/' + prev.io_id + '" title="' + esc(prev.institution_name) + '">&larr; PREVIOUS</a>' : '') +
+      (next ? '<a class="btn sm" href="#/intelligence/' + next.io_id + '" title="' + esc(next.institution_name) + '">NEXT &rarr;</a>' : '') +
     '</div></div>';
 
+  html += '</div>'; /* .reader */
   app.innerHTML = html;
 
-  /* key fact accordion */
-  app.querySelectorAll('.kf-head').forEach(h => h.onclick = () => {
-    h.parentElement.classList.toggle('open');
+  /* interactions */
+  app.querySelectorAll('.kf2-line').forEach(l => l.onclick = () => {
+    l.parentElement.classList.toggle('open');
   });
+  const tog = document.getElementById('kf2-toggle');
+  if (tog) tog.onclick = () => {
+    const extra = app.querySelectorAll('.kf2-extra');
+    const hidden = extra.length && extra[0].style.display !== 'block';
+    extra.forEach(r => { r.style.display = hidden ? 'block' : 'none'; });
+    tog.textContent = hidden ? 'SHOW FIRST 10 FACTS' : ('SHOW ALL ' + chain.length + ' FACTS');
+  };
+  if (chain.length > kfShow) {
+    app.querySelectorAll('.kf2-extra').forEach(r => { r.style.display = 'none'; });
+  }
+  bindGo(app);
 }
 
 function mcell(k, v) { return '<div class="meta-cell"><div class="meta-k">' + k + '</div><div class="meta-v">' + v + '</div></div>'; }
