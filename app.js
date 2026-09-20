@@ -1,5 +1,5 @@
 /* ==========================================================================
-   ROUAA INSTITUTIONAL INTELLIGENCE — INTERFACE V2.3 (presentation layer only)
+   ROUAA INSTITUTIONAL INTELLIGENCE — INTERFACE V3.0-A (presentation layer only)
    Black Institutional Terminal · Repository Production Snapshot · NOT LIVE
    ---------------------------------------------------------------------------
    V2 MANDATE: better consumption of existing truth — not creation of new truth.
@@ -192,7 +192,7 @@ function renderSysline() {
     ' &nbsp;·&nbsp; Core commit <b>' + esc(m.production_commit.slice(0, 10)) + '</b> on ' + esc(m.production_branch) +
     ' &nbsp;·&nbsp; fresh window ' + esc(m.fresh_window.start) + ' &rarr; ' + esc(m.fresh_window.end) +
     ' &nbsp;·&nbsp; snapshot ' + esc(fmtDate(m.snapshot_date)) +
-    ' &nbsp;·&nbsp; interface V2.3 · presentation layer only';
+    ' &nbsp;·&nbsp; interface V3.0-A · presentation layer only';
   document.getElementById('snapshot-chip').innerHTML = 'SNAPSHOT · ' + esc(m.wave) + ' · ' + esc(m.snapshot_date);
 }
 
@@ -381,7 +381,7 @@ function viewOverview(app) {
   const group = (name, cls, def, arr) => {
     if (!arr.length) return;
     html += '<div class="feed-group"><div class="feed-ghead"><span class="gname ' + cls + '">' + name + '</span>' +
-      '<span class="view-count">' + arr.length + ' object' + (arr.length > 1 ? 's' : '') + '</span>' +
+      '<span class="gcount">' + arr.length + '</span><span class="gunit">object' + (arr.length > 1 ? 's' : '') + '</span>' +
       '<span class="gdef">' + esc(def) + '</span></div>';
     arr.forEach(io => { html += feedRow(io); });
     html += '</div>';
@@ -398,13 +398,13 @@ function viewOverview(app) {
 function feedRow(io) {
   const d = io.date_status === 'UNDATED' ? '' : ioDateKey(io);
   return '<div class="feed-row" data-go="#/intelligence/' + io.io_id + '">' +
-    bStatus(io.date_status) +
-    '<span class="f-inst ellip">' + esc(io.institution_name) + '</span>' +
-    '<span class="f-type">' + esc(io.event_type_label) + '</span>' +
-    '<span class="f-meta">' + esc(io.jurisdiction) + ' · ' + esc(io.sector_label) +
-      ' · <span class="num">' + io.n_facts + '</span> fact' + (io.n_facts === 1 ? '' : 's') + '</span>' +
-    (d ? '<span class="f-date">' + fmtDate(d) + '</span>' : '<span class="f-date dim">no date</span>') +
-    '<span class="f-open">OPEN &rarr;</span>' +
+    '<div class="f-left">' + bStatus(io.date_status) +
+      '<span class="f-inst ellip">' + esc(io.institution_name) + '</span></div>' +
+    '<div class="f-right">' +
+      '<span class="f-meta">' + esc(io.jurisdiction) + ' · ' + esc(io.sector_label) + '</span>' +
+      (d ? '<span class="f-date">' + fmtDate(d) + '</span>' : '<span class="f-date dim">no date</span>') +
+      '<span class="f-facts"><span class="num">' + io.n_facts + '</span> fact' + (io.n_facts === 1 ? '' : 's') + '</span>' +
+      '<span class="f-open">OPEN &rarr;</span></div>' +
     '</div>';
 }
 
@@ -556,7 +556,7 @@ function renderIntelMain(sorted) {
       const arr = slice.filter(x => x.date_status === name);
       if (!arr.length) return;
       html += '<div class="feed-group"><div class="feed-ghead"><span class="gname ' + cls + '">' + name + '</span>' +
-        '<span class="view-count">' + arr.length + ' shown</span><span class="gdef">' + esc(def) + '</span></div>';
+        '<span class="gcount">' + arr.length + '</span><span class="gunit">shown</span><span class="gdef">' + esc(def) + '</span></div>';
       arr.forEach(io => { html += feedRow(io); });
       html += '</div>';
     });
@@ -567,7 +567,7 @@ function renderIntelMain(sorted) {
       (f.sort === key ? '<span class="arr">' + (f.dir === 'asc' ? '&#9650;' : '&#9660;') + '</span>' : '') + '</th>';
     html += '<div class="tbl-wrap"><table class="tbl"><thead><tr>' +
       th('rank', 'STATUS') + th('inst', 'INSTITUTION') + th('type', 'TYPE') + th('date', 'DATE') +
-      th('facts', 'FACTS') + th('evi', 'EVIDENCE') + th('doc', 'DOCUMENT') +
+      th('facts', 'FACTS', 'num-col') + th('evi', 'EVIDENCE', 'num-col') + th('doc', 'DOCUMENT') +
       '</tr></thead><tbody>';
     slice.forEach(io => {
       const doc = (io.chain[0] || {}).document_id;
@@ -576,8 +576,8 @@ function renderIntelMain(sorted) {
         '<td class="t-strong ellip" title="' + esc(io.institution_name) + '">' + esc(io.institution_name) + '</td>' +
         '<td>' + esc(io.event_type_label) + '</td>' +
         '<td class="mono">' + (io.date_status === 'UNDATED' ? '<span class="dim">—</span>' : esc(ioSortDate(io))) + '</td>' +
-        '<td><span class="num' + (io.n_facts >= 20 ? ' hot' : '') + '">' + io.n_facts + '</span></td>' +
-        '<td><span class="num">' + (io.chain || []).length + '</span></td>' +
+        '<td class="num-col"><span class="num' + (io.n_facts >= 20 ? ' hot' : '') + '">' + io.n_facts + '</span></td>' +
+        '<td class="num-col"><span class="num">' + (io.chain || []).length + '</span></td>' +
         '<td class="mono dim">' + (doc ? esc(doc.slice(0, 14)) + '…' : '<span class="dim">—</span>') + '</td>' +
         '</tr>';
     });
@@ -1215,16 +1215,16 @@ function renderDocMain(sorted) {
   if (f.page > pages) f.page = pages;
   const slice = sorted.slice((f.page - 1) * per, f.page * per);
 
-  const th = (key, label) =>
-    '<th class="sortable" data-sk="' + key + '">' + label +
-    (f.sort === key ? '<span class="arr">' + (f.dir === 'asc' ? '&#9650;' : '&#9660;') + '</span>' : '') + '</th>';
-
   let html = '<div class="note" style="margin-bottom:12px"><b>Document identity.</b> Core does not yet extract document titles. ' +
     'Documents are identified by their canonical URL and document id, exactly as committed. ' +
     'Search matches URL, institution, source, jurisdiction, text layer and date.</div>';
+  const th = (key, label, cls) =>
+    '<th class="sortable ' + (cls || '') + '" data-sk="' + key + '">' + label +
+    (f.sort === key ? '<span class="arr">' + (f.dir === 'asc' ? '&#9650;' : '&#9660;') + '</span>' : '') + '</th>';
+
   html += '<div class="tbl-wrap"><table class="tbl"><thead><tr>' +
     th('date', 'DATE') + th('inst', 'INSTITUTION') + th('layer', 'TYPE') +
-    th('fresh', 'TEMPORAL') + th('facts', 'FACTS') + th('ios', 'IOS') + th('src', 'SOURCE') +
+    th('fresh', 'TEMPORAL') + th('facts', 'FACTS', 'num-col') + th('ios', 'IOS', 'num-col') + th('src', 'SOURCE') +
     '</tr></thead><tbody>';
   slice.forEach(d => {
     const src = IX.srcs[d.source_id] || {};
@@ -1233,8 +1233,8 @@ function renderDocMain(sorted) {
       '<td class="t-strong ellip" title="' + esc(src.institution_name || '') + '">' + esc(src.institution_name || d.source_id) + '</td>' +
       '<td class="dim">' + esc(d.text_layer) + '</td>' +
       '<td>' + bStatus(d.fresh_status) + '</td>' +
-      '<td><span class="num' + (d.n_facts > 0 ? ' hot' : '') + '">' + d.n_facts + '</span></td>' +
-      '<td><span class="num' + (d.n_intelligence > 0 ? ' hot' : '') + '">' + d.n_intelligence + '</span></td>' +
+      '<td class="num-col"><span class="num' + (d.n_facts > 0 ? ' hot' : '') + '">' + d.n_facts + '</span></td>' +
+      '<td class="num-col"><span class="num' + (d.n_intelligence > 0 ? ' hot' : '') + '">' + d.n_intelligence + '</span></td>' +
       '<td class="mono dim ellip" title="' + esc(d.source_id) + '">' + esc(d.source_id) + '</td>' +
       '</tr>';
   });
@@ -1295,11 +1295,11 @@ function viewDocDetail(app, docId) {
     html += '<div class="section"><div class="section-title">INTELLIGENCE OBJECTS FROM THIS DOCUMENT <span class="sub">' +
       ios.length + ' object' + (ios.length === 1 ? '' : 's') + '</span></div>';
     ios.forEach(io => {
-      html += '<div class="feed-row" data-go="#/intelligence/' + io.io_id + '">' + bStatus(io.date_status) +
-        '<span class="f-inst ellip">' + esc(io.institution_name) + '</span>' +
-        '<span class="f-type">' + esc(io.event_type_label) + '</span>' +
-        '<span class="f-meta"><span class="num">' + (io.chain || []).length + '</span> linked facts</span>' +
-        '<span class="f-open">OPEN &rarr;</span></div>';
+      html += '<div class="feed-row" data-go="#/intelligence/' + io.io_id + '">' +
+        '<div class="f-left">' + bStatus(io.date_status) +
+        '<span class="f-inst ellip">' + esc(io.institution_name) + '</span></div>' +
+        '<div class="f-right"><span class="f-facts"><span class="num">' + (io.chain || []).length + '</span> linked facts</span>' +
+        '<span class="f-open">OPEN &rarr;</span></div></div>';
     });
     html += '</div>';
   } else {
@@ -1556,23 +1556,23 @@ function refreshSources() {
   if (c) c.textContent = all.length + ' of ' + D.sources.length + ' registered official sources · ' +
     D.sources.filter(s => s.unique_vio > 0).length + ' produced verified intelligence this wave';
 
-  const th = (key, label) =>
-    '<th class="sortable" data-sk="' + key + '">' + label +
+  const th = (key, label, cls) =>
+    '<th class="sortable ' + (cls || '') + '" data-sk="' + key + '">' + label +
     (f.sort === key ? '<span class="arr">' + (f.dir === 'asc' ? '&#9650;' : '&#9660;') + '</span>' : '') + '</th>';
 
   let html = '<div class="tbl-wrap"><table class="tbl"><thead><tr>' +
     th('inst', 'INSTITUTION') + th('jur', 'JURISDICTION') + th('auth', 'AUTHORITY') +
-    th('docs', 'DOCS') + th('facts', 'FACTS') + th('ios', 'IOS') + th('fresh', 'FRESH IOS') + '<th>ACCESS</th>' +
+    th('docs', 'DOCS', 'num-col') + th('facts', 'FACTS', 'num-col') + th('ios', 'IOS', 'num-col') + th('fresh', 'FRESH IOS', 'num-col') + '<th>ACCESS</th>' +
     '</tr></thead><tbody>';
   slice.forEach(s => {
     html += '<tr class="rowlink" data-go="#/sources/' + esc(s.source_id) + '">' +
       '<td class="t-strong ellip" title="' + esc(s.institution_name) + '">' + esc(s.institution_name) + '</td>' +
       '<td class="mono">' + esc(s.jurisdiction) + '</td>' +
       '<td class="dim">' + esc(s.authority_type) + '</td>' +
-      '<td><span class="num">' + num(s.documents_acquired) + '</span></td>' +
-      '<td><span class="num' + (s.facts > 0 ? ' hot' : '') + '">' + num(s.facts) + '</span></td>' +
-      '<td><span class="num' + (s.unique_vio > 0 ? ' hot' : '') + '">' + num(s.unique_vio) + '</span></td>' +
-      '<td><span class="num">' + num(s.fresh_vio) + '</span></td>' +
+      '<td class="num-col"><span class="num">' + num(s.documents_acquired) + '</span></td>' +
+      '<td class="num-col"><span class="num' + (s.facts > 0 ? ' hot' : '') + '">' + num(s.facts) + '</span></td>' +
+      '<td class="num-col"><span class="num' + (s.unique_vio > 0 ? ' hot' : '') + '">' + num(s.unique_vio) + '</span></td>' +
+      '<td class="num-col"><span class="num">' + num(s.fresh_vio) + '</span></td>' +
       '<td class="dim mono">' + esc(s.access_status) + '</td>' +
       '</tr>';
   });
@@ -1686,12 +1686,13 @@ function viewSourceDetail(app, srcId) {
   if (ios.length) {
     html += '<div class="section"><div class="section-title">INTELLIGENCE OBJECTS <span class="sub">' + ios.length + ' from this source</span></div>';
     ios.forEach(io => {
-      html += '<div class="feed-row" data-go="#/intelligence/' + io.io_id + '">' + bStatus(io.date_status) +
-        '<span class="f-inst ellip">' + esc(io.institution_name) + '</span>' +
-        '<span class="f-type">' + esc(io.event_type_label) + '</span>' +
-        '<span class="f-meta"><span class="num">' + (io.chain || []).length + '</span> facts</span>' +
+      html += '<div class="feed-row" data-go="#/intelligence/' + io.io_id + '">' +
+        '<div class="f-left">' + bStatus(io.date_status) +
+        '<span class="f-inst ellip">' + esc(io.institution_name) + '</span></div>' +
+        '<div class="f-right">' +
         (ioDateKey(io) ? '<span class="f-date">' + fmtDate(ioDateKey(io)) + '</span>' : '') +
-        '<span class="f-open">OPEN &rarr;</span></div>';
+        '<span class="f-facts"><span class="num">' + (io.chain || []).length + '</span> facts</span>' +
+        '<span class="f-open">OPEN &rarr;</span></div></div>';
     });
     html += '</div>';
   } else {
@@ -1704,14 +1705,14 @@ function viewSourceDetail(app, srcId) {
   if (docs.length) {
     html += '<div class="section"><div class="section-title">DOCUMENTS FROM THIS SOURCE <span class="sub">' + docs.length +
       ' — showing first 100</span></div><div class="tbl-wrap"><table class="tbl"><thead><tr>' +
-      '<th>DATE</th><th>DOCUMENT</th><th>TEMPORAL</th><th>FACTS</th><th>IOS</th></tr></thead><tbody>';
+      '<th>DATE</th><th>DOCUMENT</th><th>TEMPORAL</th><th class="num-col">FACTS</th><th class="num-col">IOS</th></tr></thead><tbody>';
     docs.slice(0, 100).forEach(d => {
       html += '<tr class="rowlink" data-go="#/documents/' + d.document_id + '">' +
         '<td class="mono">' + (d.best_iso ? esc(d.best_iso) : '<span class="dim">—</span>') + '</td>' +
         '<td class="mono dim ellip" title="' + esc(d.canonical_url) + '">' + esc(cleanUrl(d.canonical_url)) + '</td>' +
         '<td>' + bStatus(d.fresh_status) + '</td>' +
-        '<td><span class="num">' + d.n_facts + '</span></td>' +
-        '<td><span class="num">' + d.n_intelligence + '</span></td></tr>';
+        '<td class="num-col"><span class="num">' + d.n_facts + '</span></td>' +
+        '<td class="num-col"><span class="num">' + d.n_intelligence + '</span></td></tr>';
     });
     html += '</tbody></table></div>';
     if (docs.length > 100) html += '<div class="note" style="margin-top:8px">+' + (docs.length - 100) +

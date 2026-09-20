@@ -1,5 +1,5 @@
 /* ==========================================================================
-   ROUAA INSTITUTIONAL INTELLIGENCE — V2.3 · FEED READABILITY & ACCESSIBILITY
+   ROUAA INSTITUTIONAL INTELLIGENCE — V3.0-A · FEED + TABLE INFORMATION HIERARCHY
    Repository Production Snapshot · read-only · NOT A LIVE FEED
    Palette: #0A0A0A page / #101014 chrome / #141419 panels / #1E1E24 cards
    Text:    #F3F4F6 primary / #B8BCC5 secondary / #A3A8B2 muted — all AA+
@@ -254,7 +254,10 @@ main { max-width: 1440px; margin: 0 auto; padding: 24px 24px 70px; min-height: 6
 /* =========================================================== tables */
 
 .tbl-wrap { border: 1px solid var(--border); background: var(--bg-2); overflow-x: auto; }
-table.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+table.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+/* V3.0-A institutional data-table rule: countable magnitudes (facts, IOs,
+   documents) right-align on tabular numerals so digits compare vertically. */
+.tbl th.num-col, .tbl td.num-col { text-align: right; }
 .tbl th {
   font-family: var(--mono); font-size: 10.5px; font-weight: 600; letter-spacing: 0.14em;
   color: var(--fg-3); text-align: left; padding: 8px 10px;
@@ -311,7 +314,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; }
   cursor: pointer; background: var(--bg-2); white-space: nowrap;
 }
 .fopt:hover { color: var(--fg-2); }
-.fopt.on { color: var(--accent); border-color: var(--accent-dim); background: rgba(201,169,97,0.08); }
+.fopt.on { color: var(--accent); border-color: var(--accent); background: rgba(201,169,97,0.14); font-weight: 600; }
 .fopt b { font-weight: 400; color: var(--fg-3); }
 .fgroup input[type="text"] {
   width: 100%; background: var(--bg); color: var(--fg); border: 1px solid var(--border-2);
@@ -330,41 +333,60 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; }
 .ov-a .lnk { color: var(--link); border-bottom: 1px dotted rgba(111,179,227,0.45); cursor: pointer; }
 .ov-a .lnk:hover { color: var(--link-hover); }
 
-/* Feed cards (V2.3 accessibility correction): every feed item sits on its
-   own card surface, clearly separated from the page background — radius 8px,
-   1px outline, soft shadow. Metadata >= 12px at AA+ contrast; category labels
-   carry the unified blue; fact counts carry the verified-green. */
-.feed-group { margin-bottom: 14px; }
+/* Feed groups + cards (V3.0-A information hierarchy): the feed reads as an
+   Intelligence Stream — a strong temporal section bar (FRESH/HISTORICAL/
+   UNDATED are cognitive states, not mere filters) above two-cluster cards:
+   identity left (status + institution), aligned data columns right
+   (jurisdiction - sector - date - fact density). The event-type label is
+   removed from the card as a presentation decision (132/147 objects are
+   "Statistical Release" — a 90%-constant column carries no scanning signal;
+   the type remains fully present in the TABLE view, the reader kicker, search
+   and the filters). Dates and fact counts sit in fixed-width, right-aligned
+   mono columns so every row scans on the same vertical rules. */
+.feed-group { margin-bottom: 30px; }
+.feed-group:last-child { margin-bottom: 0; }
 .feed-ghead {
-  display: flex; align-items: baseline; gap: 10px;
-  font-family: var(--mono); font-size: 11px; letter-spacing: 0.18em;
-  padding: 10px 2px 8px; border-bottom: 1px solid var(--border-2);
-  position: sticky; top: 118px; background: var(--bg); z-index: 5;
+  display: flex; align-items: baseline; gap: 12px;
+  font-family: var(--mono); font-size: 12px; font-weight: 700; letter-spacing: 0.22em;
+  padding: 13px 16px 12px;
+  margin-bottom: 12px;
+  background: var(--bg-2);
+  border-top: 2px solid var(--border-2);
+  border-bottom: 1px solid var(--border-2);
+  position: sticky; top: 118px; z-index: 5;
 }
 .feed-ghead .gname { font-weight: 700; }
-.feed-ghead .gdef { color: var(--fg-3); font-size: 10.5px; letter-spacing: 0.04em; text-transform: none; margin-left: auto; font-family: var(--sans); }
+.feed-ghead .gcount { font-size: 15px; font-weight: 600; color: var(--fg); letter-spacing: 0.02em; }
+.feed-ghead .gunit { font-family: var(--sans); font-size: 11px; font-weight: 400; color: var(--fg-3); letter-spacing: 0.02em; }
+.feed-ghead .gdef { color: var(--fg-3); font-size: 11px; letter-spacing: 0.04em; text-transform: none; margin-left: auto; font-family: var(--sans); }
 .gname.c-fresh { color: var(--fresh); }
 .gname.c-historical { color: var(--historical); }
 .gname.c-undated { color: var(--undated); }
 
 .feed-row {
-  display: flex; align-items: baseline; gap: 12px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  column-gap: 18px;
   background: var(--card);
   border: 1px solid var(--card-border);
   border-radius: 8px;
   box-shadow: 0 2px 6px rgba(0,0,0,0.35);
-  padding: 13px 18px;
-  margin-bottom: 8px;
+  padding: 14px 20px;
+  margin-bottom: 10px;
   cursor: pointer;
 }
 .feed-row:last-child { margin-bottom: 0; }
 .feed-row:hover { background: var(--card-hover); border-color: var(--card-border-hover); }
-.feed-row .f-inst { color: var(--fg); font-size: 15px; font-weight: 500; flex: 0 1 auto; min-width: 0; }
-.feed-row .f-type { color: var(--link); font-size: 13.5px; white-space: nowrap; }
+.feed-row .f-left { display: flex; align-items: baseline; gap: 12px; min-width: 0; }
+.feed-row .f-left .si { flex: 0 0 auto; }
+.feed-row .f-inst { color: var(--fg); font-size: 15px; font-weight: 500; min-width: 0; }
+.feed-row .f-right { display: flex; align-items: baseline; gap: 16px; justify-self: end; }
 .feed-row .f-meta { font-family: var(--mono); font-size: 12.5px; color: var(--fg-2); white-space: nowrap; }
-.feed-row .f-meta .num { color: var(--fresh); font-weight: 600; }
-.feed-row .f-date { font-family: var(--mono); font-size: 12.5px; color: var(--fg-2); white-space: nowrap; margin-left: auto; }
+.feed-row .f-date { font-family: var(--mono); font-size: 12.5px; color: var(--fg-2); white-space: nowrap; min-width: 92px; text-align: right; }
 .feed-row .f-date.dim { color: var(--fg-3); }
+.feed-row .f-facts { font-family: var(--mono); font-size: 12.5px; color: var(--fg-2); white-space: nowrap; min-width: 66px; text-align: right; }
+.feed-row .f-facts .num { color: var(--fresh); font-weight: 600; }
 .feed-row .f-open {
   font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.1em; color: var(--link);
   opacity: 0; white-space: nowrap;
@@ -761,8 +783,11 @@ details.rd-tech .rd-tech-body { padding: 4px 16px 14px; }
 }
 @media (max-width: 960px) {
   .cols { flex-direction: column; }
-  /* feed cards: metadata wraps to a second line instead of overflowing */
-  .feed-row { flex-wrap: wrap; row-gap: 5px; padding: 12px 14px; }
+  /* feed cards stack into reading cards: identity line, then data line */
+  .feed-row { grid-template-columns: 1fr; row-gap: 4px; padding: 12px 14px; }
+  .feed-row .f-right { justify-self: start; flex-wrap: wrap; gap: 10px 14px; }
+  .feed-row .f-date, .feed-row .f-facts { min-width: 0; text-align: left; }
+  .feed-row .f-open { display: none; }
   .sr-row { flex-wrap: wrap; row-gap: 4px; }
   .col-side { flex: 1 1 auto; max-width: none; width: 100%; order: 2; }
   .ov-answers { grid-template-columns: 1fr; }
