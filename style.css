@@ -1,5 +1,7 @@
 /* ==========================================================================
-   ROUAA INSTITUTIONAL INTELLIGENCE — V3.0-A.1 · INSTITUTIONAL IDENTITY RESET
+   ROUAA INSTITUTIONAL INTELLIGENCE — V3.0-A.2 · LEGIBILITY FLOOR & ROW TRACKING
+   (user review pass over V3.0-A.1 — data text floors, bold registry titles,
+   clearer hairlines, perceptible hover; A.1 identity reset retained)
    Repository Production Snapshot · read-only · NOT A LIVE FEED
    --------------------------------------------------------------------------
    Art direction: an institutional intelligence environment, not a polished
@@ -15,7 +17,7 @@
    Palette (warm institutional ink — V3.0-A.1):
      page   #0B0A08 deep warm ink / chrome #12100D / panel #171511
      text   #EFEAE0 ivory primary / #B7B1A4 secondary / #99917F muted — AA+
-     lines  hairline #262219 / strong rule #34302A (fewer, quieter)
+     lines  hairline #312B21 (raised V3.0-A.2) / strong rule #34302A
    Color system (unified, restrained):
      gold  #C9A961 — THE institutional accent: evidence emphasis, actions,
            active state (never decoration)
@@ -24,8 +26,12 @@
      amber #C98F2E / warm gray #8F8A7C — historical / undated status
      warning colors reserved — none currently warranted by committed data
    Feed registry rows: borderless on the page, separated by hairlines and
-   space; hover is a quiet ivory wash. List metadata >= 12px at AA+
-   contrast; titles >= 14px. No gradients, no glow, no neon.
+   space; hover is a quiet but perceptible ivory wash (V3.0-A.2: 0.07 —
+   functional row tracking across wide screens). Data-bearing text floors
+   (V3.0-A.2): status indicators + table numerals 12px; reader/evidence/
+   provenance/trace data 11-11.5px; titles >= 14px at weight 600.
+   Structural tracked-caps kickers keep their typographic scale (labels,
+   not data). No gradients, no glow, no neon.
    IO Reader: 940px measure · 15-17px institutional reading scale (V2.2).
    ========================================================================== */
 
@@ -41,7 +47,7 @@
   --fg: #EFEAE0;
   --fg-2: #B7B1A4;
   --fg-3: #99917F;
-  --border: #2C271E;
+  --border: #312B21;
   --border-2: #34302A;
   --accent: #C9A961;
   --accent-dim: #8A7440;
@@ -98,7 +104,7 @@ a:focus-visible, button:focus-visible, input:focus-visible, summary:focus-visibl
 }
 /* standing provenance line — third line of the lockup (renders via app.js) */
 .sysline {
-  margin-top: 19px; font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.05em;
+  margin-top: 19px; font-family: var(--mono); font-size: 11px; letter-spacing: 0.05em;
   color: var(--fg-3); line-height: 1.75; max-width: 1080px;
 }
 .sysline b { color: var(--fg-2); font-weight: 400; }
@@ -157,14 +163,14 @@ a:focus-visible, button:focus-visible, input:focus-visible, summary:focus-visibl
 }
 .gs-row:hover, .gs-row.active { background: var(--bg-2); }
 .gs-row .gs-t { color: var(--fg); font-size: 12.5px; flex: 0 1 auto; min-width: 0; }
-.gs-row .gs-m { color: var(--fg-3); font-size: 11px; font-family: var(--mono); margin-left: auto; white-space: nowrap; }
+.gs-row .gs-m { color: var(--fg-3); font-size: 11.5px; font-family: var(--mono); margin-left: auto; white-space: nowrap; }
 .gs-more { display: block; padding: 7px 12px; color: var(--link); font-size: 11.5px; border-top: 1px solid var(--border); cursor: pointer; }
 .gs-more:hover { background: var(--bg-2); }
 .gs-empty { padding: 14px 12px; color: var(--fg-3); font-size: 12px; }
 
 /* snapshot honesty marker — quiet, always visible in the rail */
 .snapshot-chip {
-  white-space: nowrap; font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.12em;
+  white-space: nowrap; font-family: var(--mono); font-size: 11px; letter-spacing: 0.12em;
   color: var(--fg-3); border: 1px solid var(--border-2);
   padding: 4px 10px; border-radius: 2px; cursor: default;
 }
@@ -259,7 +265,7 @@ main { max-width: 1440px; margin: 0 auto; padding: 46px 24px 70px; min-height: 6
 /* quiet institutional status indicator (V2.2 §8): colored dot + label,
    no pill, no border, no glow — used everywhere status is shown */
 .si {
-  font-family: var(--mono); font-size: 11.5px; font-weight: 600;
+  font-family: var(--mono); font-size: 12px; font-weight: 600;
   letter-spacing: 0.1em; color: var(--fg-2); white-space: nowrap;
 }
 .si::before {
@@ -283,7 +289,7 @@ main { max-width: 1440px; margin: 0 auto; padding: 46px 24px 70px; min-height: 6
 .btn.primary:hover { background: #D8B876; color: #000; }
 .btn.ghost { color: var(--accent); background: transparent; border-color: var(--accent-dim); }
 .btn.ghost:hover { color: #D8B876; border-color: var(--accent); background: rgba(201,169,97,0.07); }
-.btn.sm { padding: 4px 9px; font-size: 10px; }
+.btn.sm { padding: 4px 9px; font-size: 10.5px; }
 .btn.on { color: var(--accent); border-color: var(--accent-dim); background: rgba(201,169,97,0.08); }
 
 /* =========================================================== tables */
@@ -295,7 +301,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; font-vari
    documents) right-align on tabular numerals so digits compare vertically. */
 .tbl th.num-col, .tbl td.num-col { text-align: right; }
 .tbl th {
-  font-family: var(--mono); font-size: 10.5px; font-weight: 600; letter-spacing: 0.14em;
+  font-family: var(--mono); font-size: 11px; font-weight: 600; letter-spacing: 0.14em;
   color: var(--fg-3); text-align: left; padding: 8px 10px;
   border-bottom: 1px solid var(--border-2); background: var(--bg-1);
   white-space: nowrap; user-select: none;
@@ -312,7 +318,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; font-vari
 .tbl tbody tr.rowlink:hover { background: var(--bg-3); }
 .tbl tbody tr.rowlink:hover td { color: var(--fg); }
 .tbl td.t-strong { color: var(--fg); }
-.tbl td .num { font-family: var(--mono); font-size: 11px; color: var(--fg-2); }
+.tbl td .num { font-family: var(--mono); font-size: 12px; color: var(--fg-2); }
 .tbl td .num.hot { color: var(--accent); }
 
 /* pagination */
@@ -340,12 +346,12 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; font-vari
 .fgroup { border-bottom: 1px solid var(--border); padding: 10px 14px; }
 .fgroup:last-child { border-bottom: 0; }
 .fgroup-k {
-  font-family: var(--mono); font-size: 10px; letter-spacing: 0.16em; color: var(--fg-3);
+  font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.16em; color: var(--fg-3);
   margin-bottom: 6px; text-transform: uppercase;
 }
 .fgroup .opts { display: flex; flex-wrap: wrap; gap: 5px; }
 .fopt {
-  font-family: var(--mono); font-size: 10.5px; color: var(--fg-3);
+  font-family: var(--mono); font-size: 11px; color: var(--fg-3);
   border: 1px solid var(--border-2); border-radius: 2px; padding: 2px 7px;
   cursor: pointer; background: var(--bg-2); white-space: nowrap;
 }
@@ -413,10 +419,10 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; font-vari
   border-bottom: 1px solid var(--border);
   cursor: pointer;
 }
-.feed-row:hover { background: rgba(239, 234, 224, 0.04); }
+.feed-row:hover { background: rgba(239, 234, 224, 0.07); }
 .feed-row .f-left { display: flex; align-items: baseline; gap: 12px; min-width: 0; }
 .feed-row .f-left .si { flex: 0 0 auto; }
-.feed-row .f-inst { color: var(--fg); font-size: 15px; font-weight: 500; min-width: 0; }
+.feed-row .f-inst { color: var(--fg); font-size: 15px; font-weight: 600; min-width: 0; }
 .feed-row .f-right { display: flex; align-items: baseline; gap: 16px; justify-self: end; }
 .feed-row .f-meta { font-family: var(--mono); font-size: 12.5px; color: var(--fg-2); white-space: nowrap; }
 .feed-row .f-date { font-family: var(--mono); font-size: 12.5px; color: var(--fg-2); white-space: nowrap; min-width: 92px; text-align: right; }
@@ -450,7 +456,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; font-vari
 .io-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
 .io-ids {
   margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border);
-  font-family: var(--mono); font-size: 10px; color: var(--fg-3); line-height: 1.8;
+  font-family: var(--mono); font-size: 11px; color: var(--fg-3); line-height: 1.8;
 }
 .io-ids b { color: var(--fg-2); font-weight: 400; }
 .io-actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
@@ -462,7 +468,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; font-vari
   display: flex; gap: 12px; align-items: baseline;
 }
 .context-block .cb-k {
-  font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: 0.18em;
+  font-family: var(--mono); font-size: 10.5px; font-weight: 700; letter-spacing: 0.18em;
   color: var(--accent); white-space: nowrap;
 }
 .context-block .cb-v { font-size: 13px; color: var(--fg-2); }
@@ -480,8 +486,8 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; font-vari
   display: flex; align-items: baseline; gap: 12px; padding: 8px 14px; cursor: pointer;
 }
 .kf-row:hover .kf-head { background: var(--bg-3); }
-.kf-no { font-family: var(--mono); font-size: 10.5px; color: var(--fg-3); white-space: nowrap; }
-.kf-metric { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.08em; color: var(--fg-2); white-space: nowrap; }
+.kf-no { font-family: var(--mono); font-size: 11px; color: var(--fg-3); white-space: nowrap; }
+.kf-metric { font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; color: var(--fg-2); white-space: nowrap; }
 .kf-value { font-family: var(--mono); font-size: 12.5px; color: var(--fg); white-space: nowrap; }
 .kf-raw { color: var(--fg-3); font-size: 11.5px; flex: 1; min-width: 0; }
 .kf-actions { margin-left: auto; display: flex; gap: 8px; white-space: nowrap; }
@@ -496,7 +502,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; font-vari
   padding: 12px 14px; margin: 8px 0; overflow-wrap: anywhere;
 }
 .ev-excerpt b { color: var(--accent); font-weight: 400; }
-.ev-loc { font-family: var(--mono); font-size: 11px; color: var(--fg-3); }
+.ev-loc { font-family: var(--mono); font-size: 11.5px; color: var(--fg-3); }
 .ev-links { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
 
 /* trace view */
@@ -511,7 +517,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; font-vari
   color: var(--fg-3); width: 118px; flex: 0 0 118px;
 }
 .trace-node .tn-v { font-size: 13.5px; color: var(--fg); min-width: 0; flex: 1; }
-.trace-node .tn-v .sub { display: block; color: var(--fg-3); font-size: 11px; margin-top: 2px; font-family: var(--mono); }
+.trace-node .tn-v .sub { display: block; color: var(--fg-3); font-size: 11.5px; margin-top: 2px; font-family: var(--mono); }
 .trace-node.static { cursor: default; }
 .trace-node.static:hover { border-color: var(--border-2); }
 .trace-arrow {
@@ -526,10 +532,10 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; font-vari
   padding: 10px 12px; text-align: center; cursor: pointer;
 }
 .rel-node:hover { border-color: var(--accent-dim); }
-.rel-node .rn-k { font-family: var(--mono); font-size: 10px; letter-spacing: 0.16em; color: var(--fg-3); margin-bottom: 4px; }
+.rel-node .rn-k { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.16em; color: var(--fg-3); margin-bottom: 4px; }
 .rel-node .rn-v { font-family: var(--mono); font-size: 17px; color: var(--fg); }
 .rel-node .rn-v.hot { color: var(--accent); }
-.rel-node .rn-s { font-size: 10.5px; color: var(--fg-3); margin-top: 2px; }
+.rel-node .rn-s { font-size: 11px; color: var(--fg-3); margin-top: 2px; }
 .rel-join {
   display: flex; align-items: center; padding: 0 6px; color: var(--accent-dim);
   font-family: var(--mono); font-size: 11px;
@@ -569,7 +575,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; font-vari
 .footer-inner { max-width: 1440px; margin: 0 auto; padding: 22px 20px 30px; }
 .footer-grid { display: grid; grid-template-columns: 300px 1fr; gap: 30px; }
 .footer-mark { font-family: var(--mono); font-size: 13px; font-weight: 700; letter-spacing: 0.14em; color: var(--fg); }
-.footer-mark span { display: block; margin-top: 4px; font-size: 10px; letter-spacing: 0.2em; color: var(--accent); font-weight: 600; }
+.footer-mark span { display: block; margin-top: 4px; font-size: 10.5px; letter-spacing: 0.2em; color: var(--accent); font-weight: 600; }
 .footer-note { color: var(--fg-3); font-size: 12.5px; margin-top: 10px; line-height: 1.65; }
 .footer-fine { color: var(--fg-3); font-size: 12.5px; line-height: 1.75; }
 .footer-fine b { color: var(--fg-2); font-weight: 600; }
@@ -681,10 +687,10 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; font-vari
 }
 .kf2-row:hover .kf2-line { background: var(--bg-1); }
 .kf2-no {
-  font-family: var(--mono); font-size: 11px; color: var(--fg-3); letter-spacing: 0.08em;
+  font-family: var(--mono); font-size: 11.5px; color: var(--fg-3); letter-spacing: 0.08em;
 }
 .kf2-metric {
-  font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em;
+  font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.1em;
   color: var(--fg-3); text-transform: uppercase; overflow-wrap: anywhere; align-self: baseline;
 }
 .kf2-value {
@@ -697,7 +703,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; font-vari
   color: var(--fg-3); white-space: nowrap;
 }
 .kf2-evid {
-  font-family: var(--mono); font-size: 10.5px; font-weight: 600; letter-spacing: 0.1em;
+  font-family: var(--mono); font-size: 11px; font-weight: 600; letter-spacing: 0.1em;
   color: var(--accent); opacity: 0.6; white-space: nowrap;
 }
 .kf2-row:hover .kf2-evid { opacity: 1; }
@@ -712,7 +718,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; font-vari
   padding: 22px 26px; margin-bottom: 24px;
 }
 .rd-quote .rq-meta {
-  font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; color: var(--fg-3);
+  font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.1em; color: var(--fg-3);
   margin-bottom: 12px;
 }
 .rd-quote .rq-meta b { color: var(--accent); font-weight: 400; }
@@ -731,7 +737,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; font-vari
   padding: 13px 2px; border-bottom: 1px solid var(--border);
 }
 .def-row .dk {
-  font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em;
+  font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.14em;
   color: var(--fg-3); text-transform: uppercase; padding-top: 2px;
 }
 .def-row .dv { font-size: 14.5px; color: var(--fg); line-height: 1.6; overflow-wrap: anywhere; }
@@ -761,7 +767,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; font-vari
 }
 .prov-step .ps-v { font-size: 13.5px; color: var(--fg-2); line-height: 1.45; overflow-wrap: anywhere; }
 .prov-step .ps-s {
-  font-family: var(--mono); font-size: 11px; color: var(--fg-3); margin-top: 4px;
+  font-family: var(--mono); font-size: 11.5px; color: var(--fg-3); margin-top: 4px;
   overflow-wrap: anywhere;
 }
 .prov-step.link { cursor: pointer; }

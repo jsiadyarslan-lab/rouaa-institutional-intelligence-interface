@@ -192,7 +192,7 @@ function renderSysline() {
     ' &nbsp;·&nbsp; Core commit <b>' + esc(m.production_commit.slice(0, 10)) + '</b> on ' + esc(m.production_branch) +
     ' &nbsp;·&nbsp; fresh window ' + esc(m.fresh_window.start) + ' &rarr; ' + esc(m.fresh_window.end) +
     ' &nbsp;·&nbsp; snapshot ' + esc(fmtDate(m.snapshot_date)) +
-    ' &nbsp;·&nbsp; interface V3.0-A.1 · presentation layer only';
+    ' &nbsp;·&nbsp; interface V3.0-A.2 · presentation layer only';
   document.getElementById('snapshot-chip').innerHTML = 'SNAPSHOT · ' + esc(m.wave) + ' · ' + esc(m.snapshot_date);
 }
 
