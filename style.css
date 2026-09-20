@@ -1,43 +1,56 @@
 /* ==========================================================================
-   ROUAA INSTITUTIONAL INTELLIGENCE — V3.0-A · FEED + TABLE INFORMATION HIERARCHY
+   ROUAA INSTITUTIONAL INTELLIGENCE — V3.0-A.1 · INSTITUTIONAL IDENTITY RESET
    Repository Production Snapshot · read-only · NOT A LIVE FEED
-   Palette: #0A0A0A page / #101014 chrome / #141419 panels / #1E1E24 cards
-   Text:    #F3F4F6 primary / #B8BCC5 secondary / #A3A8B2 muted — all AA+
+   --------------------------------------------------------------------------
+   Art direction: an institutional intelligence environment, not a polished
+   dashboard. Space, typography and hierarchy lead; boxes, borders and
+   separators follow only where they carry meaning.
+
+   Shell: masthead (ROUAA / INSTITUTIONAL INTELLIGENCE / standing provenance
+   line) is the arrival and scrolls away; the rail (navigation · search ·
+   snapshot) is the persistent instrument. The feed is an Intelligence
+   Stream: typographic temporal section bars over hairline registry rows —
+   identity left, aligned data columns right (V3.0-A anatomy retained).
+
+   Palette (warm institutional ink — V3.0-A.1):
+     page   #0B0A08 deep warm ink / chrome #12100D / panel #171511
+     text   #EFEAE0 ivory primary / #B7B1A4 secondary / #99917F muted — AA+
+     lines  hairline #262219 / strong rule #34302A (fewer, quieter)
    Color system (unified, restrained):
-     gold  #C9A961 — evidence emphasis, actions, active state (never decoration)
-     blue  #6FB3E3 — interactive/navigation links + category labels
+     gold  #C9A961 — THE institutional accent: evidence emphasis, actions,
+           active state (never decoration)
+     blue  #6FB3E3 — interactive/navigation links
      green #5FBE85 — FRESH status + fact counts
-     amber #C98F2E / gray #8B8D98 — historical / undated status
+     amber #C98F2E / warm gray #8F8A7C — historical / undated status
      warning colors reserved — none currently warranted by committed data
-   Feed items sit on card surfaces (#1E1E24, radius 8, soft shadow) clearly
-   separated from the page background; dividers #34343E; list metadata
-   >= 12px at AA+ contrast; titles >= 14px.
-   IO Reader: 940px measure · 15-17px institutional reading scale ·
-               quiet institutional authority (no gradients, no neon)
+   Feed registry rows: borderless on the page, separated by hairlines and
+   space; hover is a quiet ivory wash. List metadata >= 12px at AA+
+   contrast; titles >= 14px. No gradients, no glow, no neon.
+   IO Reader: 940px measure · 15-17px institutional reading scale (V2.2).
    ========================================================================== */
 
 :root {
-  --bg: #0A0A0A;
-  --bg-1: #101014;
-  --bg-2: #141419;
-  --bg-3: #191920;
-  --card: #1E1E24;
-  --card-hover: #24242E;
-  --card-border: #34343E;
-  --card-border-hover: #454552;
-  --fg: #F3F4F6;
-  --fg-2: #B8BCC5;
-  --fg-3: #A3A8B2;
-  --border: #2A2A32;
-  --border-2: #34343E;
+  --bg: #0B0A08;
+  --bg-1: #12100D;
+  --bg-2: #171511;
+  --bg-3: #1D1A15;
+  --card: #171511;
+  --card-hover: #1D1A15;
+  --card-border: #2A2620;
+  --card-border-hover: #3B352B;
+  --fg: #EFEAE0;
+  --fg-2: #B7B1A4;
+  --fg-3: #99917F;
+  --border: #2C271E;
+  --border-2: #34302A;
   --accent: #C9A961;
   --accent-dim: #8A7440;
   --link: #6FB3E3;
   --link-hover: #8CC4EC;
   --fresh: #5FBE85;
   --historical: #C98F2E;
-  --undated: #8B8D98;
-  --postwindow: #9799A5;
+  --undated: #8F8A7C;
+  --postwindow: #9A9486;
   --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, "Liberation Mono", monospace;
   --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
@@ -68,47 +81,67 @@ a:focus-visible, button:focus-visible, input:focus-visible, summary:focus-visibl
 .nowrap { white-space: nowrap; }
 .ellip { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* =========================================================== topbar */
+/* =========================================================== masthead — the institutional arrival
+   (V3.0-A.1) Brand with presence, descriptor as an independent quiet
+   line, then the standing provenance line. Not chrome — a lockup. */
 
-.topbar {
+.masthead { background: var(--bg); }
+.mast-inner { max-width: 1440px; margin: 0 auto; padding: 42px 24px 26px; }
+.mast-brand {
+  display: inline-block; font-family: var(--mono); font-size: 28px; font-weight: 700;
+  letter-spacing: 0.22em; color: var(--fg); line-height: 1; white-space: nowrap;
+}
+.mast-brand:hover { color: var(--fg); }
+.mast-desc {
+  margin-top: 13px; font-family: var(--mono); font-size: 11.5px; font-weight: 600;
+  letter-spacing: 0.38em; color: var(--fg-2); white-space: nowrap;
+}
+/* standing provenance line — third line of the lockup (renders via app.js) */
+.sysline {
+  margin-top: 19px; font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.05em;
+  color: var(--fg-3); line-height: 1.75; max-width: 1080px;
+}
+.sysline b { color: var(--fg-2); font-weight: 400; }
+.sysline .dot { color: var(--accent); }
+
+/* =========================================================== rail — persistent instrument
+   Navigation belongs to the institutional system: quiet tracked caps on a
+   chrome strip, active marked by a short gold rule — no tab boxes. */
+
+.rail {
   position: sticky; top: 0; z-index: 50;
   background: var(--bg-1);
+  border-top: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
 }
-.topbar-main {
-  display: flex; align-items: center; gap: 20px;
-  max-width: 1440px; margin: 0 auto; padding: 0 20px;
-  height: 52px;
+.rail-inner {
+  max-width: 1440px; margin: 0 auto; padding: 0 24px;
+  display: flex; align-items: center; gap: 30px;
 }
-.brand {
-  font-family: var(--mono); font-size: 19px; font-weight: 700;
-  letter-spacing: 0.14em; color: var(--fg); white-space: nowrap;
+.topnav { display: flex; gap: 25px; overflow-x: auto; flex: 0 1 auto; }
+.topnav a {
+  font-family: var(--mono); font-size: 11.5px; font-weight: 600; letter-spacing: 0.15em;
+  color: var(--fg-3); padding: 13px 0 11px; border-bottom: 2px solid transparent;
+  margin-bottom: -1px; white-space: nowrap;
 }
-.brand:hover { color: var(--fg); }
-.brand-sub {
-  margin-left: 10px; font-size: 10px; font-weight: 600; letter-spacing: 0.22em;
-  color: var(--accent); vertical-align: 2px;
-}
-.snapshot-chip {
-  margin-left: auto; white-space: nowrap;
-  font-family: var(--mono); font-size: 11px; letter-spacing: 0.12em;
-  color: var(--fg-3); border: 1px solid var(--border-2);
-  padding: 3px 10px; border-radius: 2px; cursor: default;
-}
+.topnav a:hover { color: var(--fg-2); }
+.topnav a.on { color: var(--fg); font-weight: 700; border-bottom-color: var(--accent); }
+.topnav a.nav-dim { color: var(--fg-3); }
+.rail-tools { margin-left: auto; display: flex; align-items: center; gap: 12px; flex: 0 0 auto; }
 
-/* global search */
-.gsearch { position: relative; flex: 1 1 420px; max-width: 640px; }
+/* global search — compact instrument in the rail */
+.gsearch { position: relative; flex: 0 1 340px; }
 #gsearch-input {
   width: 100%; background: var(--bg); color: var(--fg);
   border: 1px solid var(--border-2); border-radius: 2px;
-  font: 13px/1.4 var(--sans); padding: 7px 12px;
+  font: 12.5px/1.4 var(--sans); padding: 6px 12px;
   outline: none; transition: border-color 0.12s linear;
 }
 #gsearch-input::placeholder { color: var(--fg-3); }
 #gsearch-input:focus { border-color: var(--link); }
 .gsearch-drop {
-  position: absolute; top: calc(100% + 4px); left: 0; right: 0;
-  background: var(--bg-1); border: 1px solid var(--border-2); border-radius: 6px;
+  position: absolute; top: calc(100% + 5px); left: 0; right: 0;
+  background: var(--bg-1); border: 1px solid var(--border-2); border-radius: 4px;
   max-height: 70vh; overflow-y: auto; box-shadow: 0 12px 32px rgba(0,0,0,0.85);
 }
 .gs-cat {
@@ -129,38 +162,40 @@ a:focus-visible, button:focus-visible, input:focus-visible, summary:focus-visibl
 .gs-more:hover { background: var(--bg-2); }
 .gs-empty { padding: 14px 12px; color: var(--fg-3); font-size: 12px; }
 
-/* nav */
-.topnav {
-  max-width: 1440px; margin: 0 auto; padding: 0 20px;
-  display: flex; gap: 26px; overflow-x: auto;
-  border-top: 1px solid var(--border);
+/* snapshot honesty marker — quiet, always visible in the rail */
+.snapshot-chip {
+  white-space: nowrap; font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.12em;
+  color: var(--fg-3); border: 1px solid var(--border-2);
+  padding: 4px 10px; border-radius: 2px; cursor: default;
 }
-.topnav a {
-  font-family: var(--mono); font-size: 11.5px; font-weight: 600; letter-spacing: 0.14em;
-  color: var(--fg-3); padding: 10px 0 9px; border-bottom: 1px solid transparent;
-  white-space: nowrap;
-}
-.topnav a:hover { color: var(--fg-2); }
-.topnav a.on { color: var(--fg); border-bottom-color: var(--accent); }
-.topnav a.nav-dim { color: var(--fg-3); }
-
-/* system line */
-.sysline {
-  background: var(--bg); border-bottom: 1px solid var(--border);
-  font-family: var(--mono); font-size: 11px; letter-spacing: 0.06em; color: var(--fg-3);
-  padding: 5px 20px; text-align: center;
-}
-.sysline b { color: var(--fg-2); font-weight: 400; }
-.sysline .dot { color: var(--accent); }
 
 /* =========================================================== layout */
 
-main { max-width: 1440px; margin: 0 auto; padding: 24px 24px 70px; min-height: 60vh; }
+/* V3.0-A.1: 46px of calm between the rail and the content — the transition
+   from identity into the intelligence environment. */
+main { max-width: 1440px; margin: 0 auto; padding: 46px 24px 70px; min-height: 60vh; }
 .loading { color: var(--fg-3); font-family: var(--mono); font-size: 12px; padding: 60px 0; text-align: center; }
+
+/* arrival statement — the page opens on what this environment holds;
+   the numbers are the headline, assembled from committed counts only */
+.arrive { margin-bottom: 6px; }
+.arrive-title {
+  font-family: var(--sans); font-size: 21px; font-weight: 600;
+  letter-spacing: -0.005em; color: var(--fg); line-height: 1.45;
+  font-variant-numeric: tabular-nums;
+}
+.arrive-sub { font-size: 14px; font-weight: 400; color: var(--fg-2); letter-spacing: 0; }
+
+/* quiet text action (view switch) — no button boxes in the reading line */
+.feed-link {
+  font-family: var(--mono); font-size: 11px; font-weight: 600; letter-spacing: 0.12em;
+  color: var(--fg-2); white-space: nowrap;
+}
+.feed-link:hover { color: var(--accent); }
 
 .view-head {
   display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
-  border-bottom: 1px solid var(--border-2); padding-bottom: 10px; margin-bottom: 16px;
+  border-bottom: 1px solid var(--border-2); padding-bottom: 12px; margin-bottom: 20px;
 }
 .view-title { font-family: var(--mono); font-size: 14px; font-weight: 700; letter-spacing: 0.18em; color: var(--fg); }
 .view-count { font-family: var(--mono); font-size: 12px; color: var(--fg-3); }
@@ -169,7 +204,7 @@ main { max-width: 1440px; margin: 0 auto; padding: 24px 24px 70px; min-height: 6
 
 .cols { display: flex; gap: 20px; align-items: flex-start; }
 .col-main { flex: 1 1 auto; min-width: 0; }
-.col-side { flex: 0 0 264px; max-width: 264px; position: sticky; top: 118px; }
+.col-side { flex: 0 0 264px; max-width: 264px; position: sticky; top: 62px; }
 
 /* =========================================================== panels */
 
@@ -253,7 +288,8 @@ main { max-width: 1440px; margin: 0 auto; padding: 24px 24px 70px; min-height: 6
 
 /* =========================================================== tables */
 
-.tbl-wrap { border: 1px solid var(--border); background: var(--bg-2); overflow-x: auto; }
+/* tables sit on the page as ruled tables (V3.0-A.1 border language) */
+.tbl-wrap { border: 1px solid var(--border); background: transparent; overflow-x: auto; }
 table.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; font-variant-numeric: tabular-nums; }
 /* V3.0-A institutional data-table rule: countable magnitudes (facts, IOs,
    documents) right-align on tabular numerals so digits compare vertically. */
@@ -325,35 +361,40 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; font-vari
 
 /* =========================================================== overview */
 
-.ov-answers { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 18px; }
-.ov-answer { background: var(--bg-2); border: 1px solid var(--border); border-radius: 6px; padding: 12px 14px; min-width: 0; }
-.ov-q { font-family: var(--mono); font-size: 10.5px; font-weight: 700; letter-spacing: 0.18em; color: var(--fg-3); margin-bottom: 8px; }
-.ov-a { font-size: 13.5px; color: var(--fg); line-height: 1.6; }
+/* V3.0-A.1: the standing brief — three questions, answered from committed
+   data, set as a borderless editorial column grid. Space and vertical
+   hairlines organize; no card boxes. */
+.ov-answers { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0 36px; margin: 26px 0 46px; }
+.ov-answer { min-width: 0; background: none; border: 0; border-radius: 0; padding: 0; }
+.ov-answer:nth-child(2), .ov-answer:nth-child(3) { border-left: 1px solid var(--border); padding-left: 36px; }
+.ov-q { font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 0.18em; color: var(--fg-3); margin-bottom: 9px; }
+.ov-a { font-size: 13.5px; color: var(--fg); line-height: 1.65; }
 .ov-a b { color: var(--accent); font-weight: 600; }
 .ov-a .lnk { color: var(--link); border-bottom: 1px dotted rgba(111,179,227,0.45); cursor: pointer; }
 .ov-a .lnk:hover { color: var(--link-hover); }
 
-/* Feed groups + cards (V3.0-A information hierarchy): the feed reads as an
-   Intelligence Stream — a strong temporal section bar (FRESH/HISTORICAL/
-   UNDATED are cognitive states, not mere filters) above two-cluster cards:
-   identity left (status + institution), aligned data columns right
-   (jurisdiction - sector - date - fact density). The event-type label is
-   removed from the card as a presentation decision (132/147 objects are
-   "Statistical Release" — a 90%-constant column carries no scanning signal;
-   the type remains fully present in the TABLE view, the reader kicker, search
-   and the filters). Dates and fact counts sit in fixed-width, right-aligned
-   mono columns so every row scans on the same vertical rules. */
-.feed-group { margin-bottom: 30px; }
+/* V3.0-A anatomy retained, V3.0-A.1 chrome reset: the feed reads as an
+   Intelligence Stream — a typographic temporal section bar (FRESH/
+   HISTORICAL/UNDATED are cognitive states, not mere filters; opaque so it
+   can stick) over registry rows separated by hairlines and space, not
+   boxes: identity left (status + institution), aligned data columns right
+   (jurisdiction · sector — date — fact density). The event-type label
+   stays retired from feed rows as a presentation decision (132/147 objects
+   are "Statistical Release" — a 90%-constant column carries no scanning
+   signal; the type remains fully present in the TABLE view, the reader
+   kicker, search and the filters). Dates and fact counts sit in
+   fixed-width, right-aligned mono columns so every row scans on the same
+   vertical rules. */
+.feed-group { margin-bottom: 38px; }
 .feed-group:last-child { margin-bottom: 0; }
 .feed-ghead {
   display: flex; align-items: baseline; gap: 12px;
   font-family: var(--mono); font-size: 12px; font-weight: 700; letter-spacing: 0.22em;
-  padding: 13px 16px 12px;
-  margin-bottom: 12px;
-  background: var(--bg-2);
-  border-top: 2px solid var(--border-2);
+  padding: 12px 2px 10px;
+  margin-bottom: 6px;
+  background: var(--bg);
   border-bottom: 1px solid var(--border-2);
-  position: sticky; top: 118px; z-index: 5;
+  position: sticky; top: 46px; z-index: 5;
 }
 .feed-ghead .gname { font-weight: 700; }
 .feed-ghead .gcount { font-size: 15px; font-weight: 600; color: var(--fg); letter-spacing: 0.02em; }
@@ -368,16 +409,11 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; font-vari
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: baseline;
   column-gap: 18px;
-  background: var(--card);
-  border: 1px solid var(--card-border);
-  border-radius: 8px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.35);
-  padding: 14px 20px;
-  margin-bottom: 10px;
+  padding: 13px 2px;
+  border-bottom: 1px solid var(--border);
   cursor: pointer;
 }
-.feed-row:last-child { margin-bottom: 0; }
-.feed-row:hover { background: var(--card-hover); border-color: var(--card-border-hover); }
+.feed-row:hover { background: rgba(239, 234, 224, 0.04); }
 .feed-row .f-left { display: flex; align-items: baseline; gap: 12px; min-width: 0; }
 .feed-row .f-left .si { flex: 0 0 auto; }
 .feed-row .f-inst { color: var(--fg); font-size: 15px; font-weight: 500; min-width: 0; }
@@ -508,15 +544,15 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; font-vari
 .kv-list .v { font-family: var(--mono); color: var(--fg); }
 .kv-list .v.hot { color: var(--accent); }
 
-/* search page */
+/* search page — same registry language as the feed */
 .sr-cat { margin-bottom: 20px; }
 .sr-row {
   display: flex; gap: 12px; align-items: baseline;
-  background: var(--card); border: 1px solid var(--card-border); border-radius: 8px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.35);
-  padding: 12px 16px; margin-bottom: 8px; cursor: pointer;
+  padding: 12px 2px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
 }
-.sr-row:hover { background: var(--card-hover); border-color: var(--card-border-hover); }
+.sr-row:hover { background: rgba(239, 234, 224, 0.04); }
 .sr-row .sr-t { color: var(--fg); font-size: 13.5px; min-width: 0; flex: 1; }
 .sr-row .sr-m { font-family: var(--mono); font-size: 11.5px; color: var(--fg-3); white-space: nowrap; }
 
@@ -778,23 +814,37 @@ details.rd-tech .rd-tech-body { padding: 4px 16px 14px; }
 
 /* =========================================================== responsive */
 
-@media (max-width: 1100px) {
+@media (max-width: 1180px) {
   .col-side { position: static; flex-basis: 230px; }
+  /* rail wraps: nav row, then tools row (search grows, chip beside it) */
+  .rail-inner { flex-wrap: wrap; padding: 0 16px; gap: 0 20px; }
+  .rail-tools { order: 2; width: 100%; margin-left: 0; padding: 8px 0 10px; }
+  .gsearch { flex: 1 1 auto; }
+  .mast-inner { padding: 34px 16px 22px; }
+  .feed-ghead { top: 96px; }
 }
 @media (max-width: 960px) {
   .cols { flex-direction: column; }
-  /* feed cards stack into reading cards: identity line, then data line */
-  .feed-row { grid-template-columns: 1fr; row-gap: 4px; padding: 12px 14px; }
+  /* feed rows stack into reading lines: identity line, then data line */
+  .feed-row { grid-template-columns: 1fr; row-gap: 4px; padding: 12px 2px; }
   .feed-row .f-right { justify-self: start; flex-wrap: wrap; gap: 10px 14px; }
   .feed-row .f-date, .feed-row .f-facts { min-width: 0; text-align: left; }
   .feed-row .f-open { display: none; }
   .sr-row { flex-wrap: wrap; row-gap: 4px; }
   .col-side { flex: 1 1 auto; max-width: none; width: 100%; order: 2; }
-  .ov-answers { grid-template-columns: 1fr; }
+  /* standing brief stacks with hairlines between the questions */
+  .ov-answers { grid-template-columns: 1fr; gap: 0; margin: 22px 0 34px; }
+  .ov-answer:nth-child(2), .ov-answer:nth-child(3) { border-left: 0; padding-left: 0; }
+  .ov-answer + .ov-answer { border-top: 1px solid var(--border); margin-top: 16px; padding-top: 16px; }
   .footer-grid { grid-template-columns: 1fr; }
-  .topbar-main { flex-wrap: wrap; height: auto; padding: 10px 16px; gap: 10px; }
-  .gsearch { order: 3; flex-basis: 100%; max-width: none; }
-  .snapshot-chip { margin-left: 0; }
+  /* arrival adapts: masthead tightens, statement breathes */
+  .mast-inner { padding: 30px 16px 20px; }
+  .mast-brand { font-size: 23px; letter-spacing: 0.18em; }
+  .mast-desc { font-size: 10.5px; letter-spacing: 0.3em; margin-top: 11px; }
+  .sysline { margin-top: 12px; }
+  .arrive-title { font-size: 18px; }
+  /* group bars stop sticking on tablet (rail is two rows tall) */
+  .feed-ghead { position: static; }
   /* reader: single-column measure, fact rows stack into reading cards */
   .rd-title { font-size: 27px; }
   .rd-when { font-size: 14.5px; }
@@ -812,9 +862,13 @@ details.rd-tech .rd-tech-body { padding: 4px 16px 14px; }
   .prov-step:not(:last-child)::after { content: '\2193'; top: auto; bottom: -4px; right: auto; }
 }
 @media (max-width: 640px) {
-  main { padding: 14px 12px 40px; }
+  main { padding: 30px 12px 40px; }
   .topnav { gap: 16px; }
-  .feed-ghead { position: static; }
+  .mast-inner { padding: 26px 12px 18px; }
+  .mast-brand { font-size: 21px; }
+  .mast-desc { font-size: 10px; letter-spacing: 0.26em; }
+  .arrive-title { font-size: 16.5px; }
+  .arrive-sub { display: block; margin-top: 5px; font-size: 13px; }
   .trace-node .tn-k { width: auto; flex-basis: auto; }
   .trace-arrow { margin-left: 24px; }
   .rd-title { font-size: 24px; }

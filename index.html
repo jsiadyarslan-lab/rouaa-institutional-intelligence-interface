@@ -10,27 +10,38 @@
 </head>
 <body>
 
-<header class="topbar">
-  <div class="topbar-row topbar-main">
-    <a class="brand" href="#/">ROUAA<span class="brand-sub">INSTITUTIONAL INTELLIGENCE</span></a>
-    <div class="gsearch" id="gsearch">
-      <input id="gsearch-input" type="text" autocomplete="off" spellcheck="false"
-             placeholder="Search intelligence, facts, documents, institutions...">
-      <div class="gsearch-drop" id="gsearch-drop" hidden></div>
-    </div>
-    <div class="snapshot-chip" id="snapshot-chip" title="Frozen repository production snapshot — not a live feed">SNAPSHOT</div>
+<!-- V3.0-A.1 institutional shell: the masthead is the arrival — brand,
+     independent descriptor, standing provenance line — and scrolls away.
+     The rail below it (navigation + search + snapshot) is the persistent
+     instrument. Same routes, same data, same IDs. -->
+<header class="masthead">
+  <div class="mast-inner">
+    <a class="mast-brand" href="#/">ROUAA</a>
+    <div class="mast-desc">INSTITUTIONAL&nbsp;INTELLIGENCE</div>
+    <div class="sysline" id="sysline">Loading repository production snapshot…</div>
   </div>
-  <nav class="topnav" id="topnav">
-    <a href="#/" data-key="overview">OVERVIEW</a>
-    <a href="#/intelligence" data-key="intelligence">INTELLIGENCE</a>
-    <a href="#/documents" data-key="documents">DOCUMENTS</a>
-    <a href="#/facts" data-key="facts">FACTS</a>
-    <a href="#/sources" data-key="sources">SOURCES</a>
-    <a href="#/production" data-key="production" class="nav-dim">PRODUCTION</a>
-  </nav>
 </header>
 
-<div class="sysline" id="sysline">Loading repository production snapshot…</div>
+<div class="rail" id="rail">
+  <div class="rail-inner">
+    <nav class="topnav" id="topnav">
+      <a href="#/" data-key="overview">OVERVIEW</a>
+      <a href="#/intelligence" data-key="intelligence">INTELLIGENCE</a>
+      <a href="#/documents" data-key="documents">DOCUMENTS</a>
+      <a href="#/facts" data-key="facts">FACTS</a>
+      <a href="#/sources" data-key="sources">SOURCES</a>
+      <a href="#/production" data-key="production" class="nav-dim">PRODUCTION</a>
+    </nav>
+    <div class="rail-tools">
+      <div class="gsearch" id="gsearch">
+        <input id="gsearch-input" type="text" autocomplete="off" spellcheck="false"
+               placeholder="Search intelligence, facts, documents, institutions...">
+        <div class="gsearch-drop" id="gsearch-drop" hidden></div>
+      </div>
+      <div class="snapshot-chip" id="snapshot-chip" title="Frozen repository production snapshot — not a live feed">SNAPSHOT</div>
+    </div>
+  </div>
+</div>
 
 <main id="app">
   <div class="loading">Loading repository production snapshot…</div>
@@ -40,7 +51,7 @@
   <div class="footer-inner">
     <div class="footer-grid">
       <div>
-        <div class="footer-mark">ROUAA <span>INSTITUTIONAL INTELLIGENCE — INTERFACE PROTOTYPE V3.0-A</span></div>
+        <div class="footer-mark">ROUAA <span>INSTITUTIONAL INTELLIGENCE — INTERFACE PROTOTYPE V3.0-A.1</span></div>
         <div class="footer-note">Official-source intelligence for institutional decision environments. Every displayed
         object is traceable through the evidence chain: intelligence object &rarr; fact &rarr; evidence &rarr; document &rarr; official source.</div>
       </div>

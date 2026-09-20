@@ -192,7 +192,7 @@ function renderSysline() {
     ' &nbsp;·&nbsp; Core commit <b>' + esc(m.production_commit.slice(0, 10)) + '</b> on ' + esc(m.production_branch) +
     ' &nbsp;·&nbsp; fresh window ' + esc(m.fresh_window.start) + ' &rarr; ' + esc(m.fresh_window.end) +
     ' &nbsp;·&nbsp; snapshot ' + esc(fmtDate(m.snapshot_date)) +
-    ' &nbsp;·&nbsp; interface V3.0-A · presentation layer only';
+    ' &nbsp;·&nbsp; interface V3.0-A.1 · presentation layer only';
   document.getElementById('snapshot-chip').innerHTML = 'SNAPSHOT · ' + esc(m.wave) + ' · ' + esc(m.snapshot_date);
 }
 
@@ -347,11 +347,15 @@ function viewOverview(app) {
   const topSector = Object.keys(sectors).sort((a, b) => sectors[b] - sectors[a])[0];
   const latest = fresh.slice().sort((a, b) => ioSortDate(b).localeCompare(ioSortDate(a)))[0];
 
+  /* V3.0-A.1: the overview opens as an institutional arrival — a single
+     statement of what the environment holds (same committed counts as
+     always), then the standing brief, then the Intelligence Stream.
+     Data expressions are byte-identical to the previous template. */
   let html = '' +
-    '<div class="view-head">' +
-      '<div class="view-title">OVERVIEW</div>' +
-      '<div class="view-count">' + D.meta.counts.intelligence_objects + ' intelligence objects · ' + D.meta.counts.documents + ' documents · ' +
-        D.meta.counts.facts.toLocaleString('en-GB') + ' facts · ' + D.meta.counts.sources + ' registered sources</div>' +
+    '<div class="arrive">' +
+      '<h1 class="arrive-title">' + D.meta.counts.intelligence_objects + ' intelligence objects' +
+      ' <span class="arrive-sub">&middot; ' + D.meta.counts.documents + ' documents &middot; ' +
+        D.meta.counts.facts.toLocaleString('en-GB') + ' facts &middot; ' + D.meta.counts.sources + ' registered sources</span></h1>' +
     '</div>' +
 
     '<div class="ov-answers">' +
@@ -375,7 +379,7 @@ function viewOverview(app) {
 
     '<div class="view-head"><div class="view-title">INTELLIGENCE FEED</div>' +
       '<div class="view-count">ordered FRESH &rarr; HISTORICAL &rarr; UNDATED — nothing hidden</div>' +
-      '<div class="view-actions"><a class="btn" href="#/intelligence">TABLE VIEW &rarr;</a></div>' +
+      '<div class="view-actions"><a class="feed-link" href="#/intelligence">TABLE VIEW &rarr;</a></div>' +
     '</div>';
 
   const group = (name, cls, def, arr) => {
