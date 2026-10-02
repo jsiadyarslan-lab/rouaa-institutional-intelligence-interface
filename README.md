@@ -4,6 +4,31 @@
 *ROUAA INSTITUTIONAL INTELLIGENCE INTERFACE — V2* executive directive: presentation layer only,
 **better consumption of existing truth — not creation of new truth.**
 
+## OBSERVATORY — live production observation (V1 integration)
+
+The **OBSERVATORY** navigation key is a *live read window* onto the ROUAA Core
+**Production Observation API** (`/production/*`, read-only, GET only, polling V1),
+delivered by *FRONTEND LIVE OBSERVATORY INTEGRATION V1*. It is distinct from the frozen
+snapshot below:
+
+- **Live, not stored.** Every run, metric, source and failure figure is read from the live
+  API response through a single dedicated client layer (`OBS` in `app.js`). No production
+  number is stored in, or hard-coded by, this interface. If the API is unreachable, the
+  surface states **NOT AVAILABLE** — it never fabricates.
+- **Read-only invariant.** The client can only issue `GET`. Starting, stopping or mutating a
+  run is impossible from the interface.
+- **Real run drill-down.** RUN registry → run detail (identity / environment / source,
+  document and intelligence accounting / failure classes / reconciliation status) →
+  sources, documents, facts, events, intelligence and failures ledgers, each row expandable
+  to its verbatim API record.
+- **Failures are honest.** The order's eight failure classes are rendered as served; a zero
+  is displayed as an explicit zero — never hidden, never restyled as "healthy".
+- **Operator configuration.** API base resolves from the `?api=` query parameter, then a
+  persisted setting (in-browser), then the documented default. The Core server grants
+  origins via its per-origin CORS allowlist — deployment operators decide who may read.
+- **Static audit.** The observatory code contains zero production constants; the whole file
+  issues exactly one class of production reads (GET through the OBS client).
+
 ## What you are looking at
 
 A **read-only black institutional intelligence terminal** built exclusively from real ROUAA

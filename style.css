@@ -993,6 +993,101 @@ details.rd-tech .rd-tech-body { padding: 4px 16px 14px; }
   .rd-nav a.next { text-align: left; }
 }
 
+/* =========================================================== OBSERVATORY (live)
+   FRONTEND LIVE OBSERVATORY INTEGRATION V1 — the live read window on
+   ROUAA Core Production Observation API. Same warm ink / ivory / gold
+   institutional language; the live surface is marked by its connection
+   line, never by a second palette. */
+
+.topnav a.nav-live { color: var(--fresh); }
+.topnav a.nav-live:hover { color: var(--fresh); }
+.topnav a.nav-live.on { color: var(--fresh); border-bottom-color: var(--fresh); }
+
+.obs-conn {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  border: 1px solid var(--border); border-left: 3px solid var(--border-2);
+  background: var(--bg-2); padding: 7px 12px; margin: 0 0 12px;
+  font-family: var(--mono); font-size: 11px; color: var(--fg-3);
+}
+.obs-conn.ok  { border-left-color: var(--fresh); }
+.obs-conn.bad { border-left-color: var(--historical); }
+.obs-conn b { color: var(--fg); letter-spacing: 0.08em; font-size: 10.5px; }
+.obs-conn-base { color: var(--link); }
+.obs-conn-ro { margin-left: auto; color: var(--fg-3); letter-spacing: 0.08em; font-size: 10px; border: 1px solid var(--border); padding: 2px 7px; }
+
+.obs-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex: none; }
+.obs-dot.live { background: var(--fresh); box-shadow: 0 0 0 3px rgba(95,190,133,0.15); animation: obs-pulse 2.4s ease-in-out infinite; }
+.obs-dot.idle { background: var(--fg-3); }
+.obs-dot.dead { background: var(--historical); }
+@keyframes obs-pulse { 0%,100% { box-shadow: 0 0 0 2px rgba(95,190,133,0.10); } 50% { box-shadow: 0 0 0 5px rgba(95,190,133,0.22); } }
+@media (prefers-reduced-motion: reduce) { .obs-dot.live { animation: none; } }
+
+.obs-toolbar { display: flex; gap: 8px; flex-wrap: wrap; }
+.obs-toolbar input {
+  flex: 1; min-width: 240px; background: var(--bg-1); border: 1px solid var(--border);
+  color: var(--fg); font-family: var(--mono); font-size: 11.5px; padding: 7px 10px; border-radius: 4px;
+}
+.obs-toolbar input:focus { outline: none; border-color: var(--accent-dim); }
+.obs-toolbar button, .obs-mini {
+  background: var(--bg-3); border: 1px solid var(--border-2); color: var(--fg-2);
+  font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.08em; padding: 7px 12px;
+  border-radius: 4px; cursor: pointer;
+}
+.obs-toolbar button:hover, .obs-mini:hover { color: var(--fg); border-color: var(--accent-dim); }
+
+.obs-qgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; margin-bottom: 14px; }
+.obs-big { font-size: 15px; color: var(--fg); margin: 6px 0 2px; word-break: break-all; }
+.obs-ok { color: var(--fresh); }
+.obs-no  { color: var(--historical); }
+
+.obs-runbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 0 0 12px; }
+.obs-runbar a { color: var(--link); font-family: var(--mono); font-size: 11px; text-decoration: none; }
+.obs-runbar a:hover { color: var(--link-hover); }
+.obs-link { color: var(--link); font-family: var(--mono); font-size: 11px; text-decoration: none; }
+.obs-link:hover { color: var(--link-hover); }
+
+.obs-drill { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 14px; }
+.drill-chip {
+  border: 1px solid var(--border-2); background: var(--bg-2); color: var(--fg-2);
+  font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.06em; padding: 6px 11px;
+  border-radius: 4px; text-decoration: none;
+}
+.drill-chip:hover { color: var(--accent); border-color: var(--accent-dim); }
+
+.obs-funnel { display: flex; flex-direction: column; gap: 4px; }
+.fun-row { display: grid; grid-template-columns: 92px 1fr 76px; align-items: center; gap: 10px; }
+.fun-k { font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; color: var(--fg-3); }
+.fun-barwrap { background: var(--bg-1); border: 1px solid var(--border); height: 14px; border-radius: 2px; overflow: hidden; }
+.fun-bar { display: block; height: 100%; background: var(--accent-dim); }
+.fun-bar.hot { background: var(--fresh); }
+.fun-v { text-align: right; color: var(--fg); font-size: 12px; }
+
+.obs-classes { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin-top: 10px; }
+.cls-card { border: 1px solid var(--border); background: var(--bg-1); border-radius: 4px; padding: 9px 11px; }
+.cls-card.zero { opacity: 0.75; }
+.cls-name { font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; color: var(--fg-3); }
+.cls-count { font-size: 19px; color: var(--fg); margin: 3px 0 1px; }
+.cls-count.hot { color: var(--historical); }
+.cls-src { font-size: 10px; color: var(--link); word-break: break-all; }
+.cls-seen { font-size: 10px; color: var(--fg-3); margin-top: 2px; }
+.cls-zero { font-family: var(--mono); font-size: 9.5px; color: var(--fresh); letter-spacing: 0.05em; min-height: 12px; }
+.obs-failhead { font-family: var(--mono); font-size: 12px; color: var(--fg-2); }
+
+.obs-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.obs-chips .chip { border: 1px solid var(--border-2); background: var(--bg-1); color: var(--fg-2); font-size: 10.5px; padding: 4px 9px; border-radius: 3px; }
+
+.obs-int-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 10px; }
+.int-cell { border: 1px solid var(--border); background: var(--bg-1); border-radius: 4px; padding: 9px 11px; }
+.int-k { font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.1em; color: var(--fg-3); }
+.int-v { font-size: 18px; color: var(--fg); margin-top: 3px; }
+
+.obs-expand td { background: var(--bg-1); padding: 10px 14px; }
+.obsx-line { font-family: var(--mono); font-size: 10px; color: var(--fg-3); margin-bottom: 6px; word-break: break-all; }
+.obsx-json { font-family: var(--mono); font-size: 10.5px; line-height: 1.55; color: var(--fg-2); max-height: 420px; overflow: auto; margin: 0; white-space: pre-wrap; word-break: break-all; }
+
+/* long live values (commit hashes, run ids, counting sources) wrap, never overflow */
+.obs-grid .kv-list .v { word-break: break-all; text-align: right; max-width: 60%; }
+
 /* =========================================================== print (V3.1)
    The reader prints as a document: white paper, ink text, evidence quotes
    and provenance spine intact; interactive chrome (rail, search, actions,
