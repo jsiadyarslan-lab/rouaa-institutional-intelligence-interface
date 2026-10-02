@@ -140,6 +140,19 @@ function obsResolveBase() {
     const saved = localStorage.getItem('rouaa.obs.api');
     if (saved !== null && saved.trim() !== '') return saved.trim().replace(/\/+$/, '');
   } catch (e) { /* storage unavailable — fall through to default */ }
+  /* PUBLIC WEB DELIVERY V1 (deployment configuration — order §10, disclosed
+     in the delivery record): when the interface itself is served from a
+     public non-local origin, that origin IS the publication channel — the
+     delivery layer reverse-proxies /production/* to the real ROUAA Core
+     Production Observation API (read-only, GET-only). Same-origin base.
+     Local development origins keep the local default. No endpoint, view,
+     data or polling change of any kind. */
+  try {
+    if ((location.protocol === 'https:' || location.protocol === 'http:') &&
+        location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+      return location.origin;
+    }
+  } catch (e) { /* fall through to default */ }
   return OBS_DEFAULT_BASE;
 }
 
