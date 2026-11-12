@@ -1,0 +1,7 @@
+{
+  "schema_version": "ROUAA_PROOF_CONTRACT_V1",
+  "data_scope": "R4_ISOLATED_BENCHMARK",
+  "entries": [],
+  "state": "BLOCKED",
+  "reason": "BLOCKED_NO_SUPPORTED_INTELLIGENCE_INPUT"
+}
