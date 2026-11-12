@@ -39,6 +39,10 @@
     if (!manifest.export_files || typeof manifest.export_files !== 'object') {
       throw new Error('Manifest export_files is missing');
     }
+    const r7Snapshot = manifest.data_scope === 'R7_FIRST_VERIFIED_INTELLIGENCE_OBJECT';
+    if (r7Snapshot && (!manifest.core_commit || !manifest.run_id || !manifest.execution_id)) {
+      throw new Error('R7 manifest is missing Core commit / run / execution identity');
+    }
 
     const expected = expectedFiles.slice().sort();
     const declared = Object.keys(manifest.export_files).sort();
