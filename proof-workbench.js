@@ -30,7 +30,7 @@
   ];
 
   const $ = (id) => document.getElementById(id);
-  const state = { data: null, verification: null, route: 'overview', selectedDocument: null, candidateFilter: '', search: '' };
+  const state = { data: null, verification: null, route: 'overview', selectedDocument: null, selectedFact: null, selectedIoId: null, candidateFilter: '', search: '' };
   const main = $('pw-main');
   const nav = $('pw-navigation');
 
@@ -106,6 +106,18 @@
   function noDataNotice(text) {
     return '<div class="pw-callout is-neutral">' + esc(text) + '</div>';
   }
+  function isR7Snapshot() {
+    return !!(state.data && state.data.manifest && state.data.manifest.data_scope === 'R7_FIRST_VERIFIED_INTELLIGENCE_OBJECT');
+  }
+  function r7Fact() {
+    const entries = state.data && state.data.facts && state.data.facts.entries || [];
+    return entries.find(x => x.fact_id === state.selectedFact) || entries[0] || null;
+  }
+  function r7Io() {
+    const entries = state.data && state.data.intelligence && state.data.intelligence.entries || [];
+    return entries.find(x => x.io_id === state.selectedIoId) || entries[0] || null;
+  }
+
   function renderVerificationPanel() {
     const v = state.verification || {};
     const q = state.data.quality || {};
