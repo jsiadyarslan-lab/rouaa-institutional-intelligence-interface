@@ -4,10 +4,11 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
+const path = require('node:path');
 const { webcrypto } = require('node:crypto');
 
 const source = fs.readFileSync(
-  new URL('../proof-workbench-integrity.js', 'file://' + __filename), 'utf8');
+  path.join(__dirname, '..', 'proof-workbench-integrity.js'), 'utf8');
 const sandbox = { crypto: webcrypto, TextDecoder, Uint8Array };
 vm.createContext(sandbox);
 vm.runInContext(source, sandbox);
@@ -59,12 +60,11 @@ test('rejects a missing export file', async () => {
 
 test('rejects a modified export even when the JSON remains parseable', async () => {
   const f = await fixture();
-  const changed = new TextEncoder().encode(
-    JSON.stringify({ schema_version: 'ROUAA_PROOF_CONTRACT_V1',
-      data_scope: 'R4_ISOLATED_BENCHMARK', tampered: true }));
+  const changed = new Uint8Array(f.bytes);
+  changed[changed.length - 2] = changed[changed.length - 2] ^ 1;
   await assert.rejects(
     verifySnapshot(f.manifest, new Map([[f.filename, changed]]), [f.filename]),
-    /byte-length mismatch|SHA-256 mismatch/);
+    /SHA-256 mismatch/);
 });
 
 test('rejects a cross-scope export', async () => {
