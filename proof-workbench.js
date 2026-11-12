@@ -155,6 +155,7 @@
   }
 
   function renderOverview() {
+    if (isR7Snapshot()) return renderR7Overview();
     const s = state.data.summary.r4_isolated_benchmark;
     const p = state.data.summary.production_baseline;
     const funnel = [
@@ -204,6 +205,7 @@
     main.innerHTML = h;
   }
   function renderSources() {
+    if (isR7Snapshot()) return renderR7Sources();
     const entries = state.data.sources.entries.slice();
     if (state.candidateFilter) {
       const exact = state.candidateFilter;
@@ -228,6 +230,7 @@
     bindFilter();
   }
   function renderAcquisition() {
+    if (isR7Snapshot()) return renderR7Acquisition();
     const s = state.data.summary.r4_isolated_benchmark;
     const r = state.data.runs.entries[0];
     const terminal = state.data.sources.entries.reduce((o,x)=>(o[x.terminal_state]=(o[x.terminal_state]||0)+1,o),{});
@@ -255,6 +258,7 @@
     return JSON.stringify(record).toLowerCase().includes(q);
   }
   function renderDocuments() {
+    if (isR7Snapshot()) return renderR7Documents();
     const entries = state.data.documents.entries.slice();
     if (state.candidateFilter) state.search = state.candidateFilter;
     const sortValue = $('pw-sort')?.value || 'publication_date';
@@ -287,6 +291,7 @@
     bindFilter();
   }
   function renderFacts() {
+    if (isR7Snapshot()) return renderR7Facts();
     const f=state.data.facts;
     main.innerHTML=pageHead('05 / FACT LEDGER','Facts',
       'This page distinguishes accepted financial/economic Facts from quarantined test output. Fixture rows are never represented as verified metrics.',
@@ -302,6 +307,7 @@
         '<div class="pw-actions" style="margin-top:12px">'+routeButton('evidence','Inspect fixture evidence scope')+routeButton('quality','Inspect quality and integrity')+'</div>');
   }
   function renderEvidence() {
+    if (isR7Snapshot()) return renderR7Evidence();
     const e=state.data.evidence;
     main.innerHTML=pageHead('06 / EVIDENCE REVIEW','Evidence',
       'Evidence rows must support the exact Fact value, semantic meaning, unit and temporal scope. R4 evidence is attached to fixture output and is not production proof.',
@@ -317,6 +323,7 @@
         'FIXTURE');
   }
   function renderEvents() {
+    if (isR7Snapshot()) return renderR7Events();
     const e=state.data.events;
     main.innerHTML=pageHead('07 / EVENT LEDGER','Events',
       'Only supported economic/financial event types are shown as intelligence. Document arrival is not an economic event.',
@@ -330,6 +337,7 @@
       empty('NO VERIFIED ECONOMIC EVENTS',0,'No R4 document supported a Fact and an Event of an existing Core type after value, meaning and Evidence review.','NOT_PROVEN');
   }
   function renderIntelligence() {
+    if (isR7Snapshot()) return renderR7Intelligence();
     main.innerHTML=pageHead('08 / CANONICAL OUTPUT','Intelligence Objects',
       'A canonical IO must connect an accepted Event, Fact versions, original Evidence, document, source and Provenance. No placeholder object is shown.',
       'CANONICAL CORE CONTRACT')+
@@ -340,6 +348,7 @@
         'BLOCKED');
   }
   function renderDeliveries() {
+    if (isR7Snapshot()) return renderR7Deliveries();
     main.innerHTML=pageHead('09 / CONSUMER DELIVERY','Deliveries',
       'IO creation, delivery record creation, API success and external receipt are different states. This ledger shows only Core delivery records.',
       'READ ONLY')+
@@ -348,6 +357,7 @@
       empty('NO DELIVERY RECORDS',0,'No canonical Intelligence Object exists in the R4 proof scope, so no Delivery was created and no external consumer receipt is claimed.','NOT_PROVEN');
   }
   function renderRuns() {
+    if (isR7Snapshot()) return renderR7Runs();
     const r=state.data.runs.entries[0], p=state.data.summary.production_baseline;
     main.innerHTML=pageHead('10 / EXECUTION HISTORY','Production Runs',
       'Run and execution identity are displayed separately. Historical production counters are not merged into the isolated R4 benchmark.',
@@ -368,6 +378,7 @@
           '<div class="pw-baseline-item"><div class="pw-baseline-value">'+fmtNum(x[1])+'</div><span class="pw-baseline-label">'+esc(x[0])+'</span></div>').join('')+'</div>');
   }
   function renderQuality() {
+    if (isR7Snapshot()) return renderR7Quality();
     const q=state.data.quality;
     main.innerHTML=pageHead('11 / ACCEPTANCE CONTROLS','Quality & Integrity',
       'Integrity controls, document qualification, fixture separation and the independent-review state. Passing storage checks does not prove intelligence semantics.',
