@@ -1,0 +1,33 @@
+{
+  "schema_version": "ROUAA_PROOF_CONTRACT_V1",
+  "data_scope": "R4_ISOLATED_BENCHMARK",
+  "raw_document_sha256": {
+    "checked": 30,
+    "verified": 30,
+    "failed": 0,
+    "state": "EXECUTOR_REPORTED"
+  },
+  "documents_active": 30,
+  "representations": 30,
+  "fixture_facts": 30,
+  "fixture_events": 30,
+  "evidence_rows": 60,
+  "provenance_complete": true,
+  "false_success": 0,
+  "orphan_blobs": 0,
+  "cross_document_duplicate_content": 0,
+  "document_qualification": {
+    "strict": 15,
+    "with_notes": 14,
+    "not_qualified": 1
+  },
+  "op_io_001": {
+    "documents_reviewed": 30,
+    "acquisition_only": 23,
+    "unsupported_content": 6,
+    "insufficient_evidence": 1,
+    "final_eligible": 0,
+    "verdict": "BLOCKED_NO_SUPPORTED_INTELLIGENCE_INPUT"
+  },
+  "human_review_state": "PENDING_HUMAN_REVIEW"
+}
