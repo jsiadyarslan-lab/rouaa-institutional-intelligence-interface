@@ -1,0 +1,119 @@
+{
+  "schema_version": "ROUAA_PROOF_CONTRACT_V1",
+  "generated_at": "2026-11-12T16:27:00+01:00",
+  "snapshot_kind": "ARCHIVED_SNAPSHOT",
+  "data_scope": "R4_ISOLATED_BENCHMARK",
+  "core_commit": "49c8245b369b80fbf1b46723ac07f2ef11bf4ea0",
+  "audit_branch": "p2.8-r5-verified-intelligence-proof",
+  "run_id": "run-p26a-4f4fe268c828",
+  "execution_id": "exec-20261112T080220976958-cc8a4b5fe359",
+  "plan_id": "p28r4-official-same-cohort",
+  "verification_state": "EXECUTOR_REPORTED",
+  "source_artifacts": [
+    {
+      "path": "docs/P2.8-R4-SAME-COHORT-RESULTS.json",
+      "blob_sha": "a25b794480d2534bf2f62d03d1efd6178d63ae64",
+      "state": "OBSERVED"
+    },
+    {
+      "path": "batch-runs/p28r4/acquisition-run.json",
+      "blob_sha": "57156abe4dd5eba10d8a44ebcc2d65573c9fbad0",
+      "state": "OBSERVED"
+    },
+    {
+      "path": "batch-runs/p28r4/source-results.jsonl",
+      "blob_sha": "1907df8313dac6fa4a8fdde0fbd762843d332608",
+      "state": "OBSERVED"
+    },
+    {
+      "path": "batch-runs/p28r4/document-battery.jsonl",
+      "blob_sha": "48bd4a58a73734714df54584ecdd5f5ebfdbf40f",
+      "state": "OBSERVED"
+    },
+    {
+      "path": "docs/P2.8-R4-INTEGRITY.json",
+      "blob_sha": "c63c67bfedbd87db5871c365b50d89ada05467cb",
+      "state": "EXECUTOR_REPORTED"
+    },
+    {
+      "path": "docs/P2.8-R4-DELIVERY-ATTESTATION.json",
+      "blob_sha": "21b2b66cc984f0b82c11acddb350b72d00067e63",
+      "state": "EXECUTOR_REPORTED"
+    },
+    {
+      "path": "batch-runs/p28r5/phase0-baseline.json",
+      "blob_sha": "714c2f6b26e047070d39f597c9936c7a39bd25ca",
+      "state": "EXECUTOR_REPORTED"
+    },
+    {
+      "path": "batch-runs/p28r5/phase0-evidence-recovery.json",
+      "blob_sha": "7d40d33bfc463e8fe48272ea76dad8c7f5473b7d",
+      "state": "EXECUTOR_REPORTED"
+    },
+    {
+      "path": "batch-runs/p28r5/op-io-001-result.json",
+      "blob_sha": "67d482231159848be35f330361e83d74224c9298",
+      "state": "BLOCKED"
+    },
+    {
+      "path": "batch-runs/p28r5/r4-accounting-reconciliation.json",
+      "blob_sha": "22e4687470aa64f97fd6279f5e21cce37d21302f",
+      "state": "OBSERVED"
+    }
+  ],
+  "export_files": {
+    "proof-summary.json": {
+      "path": "proof-export/p28r5/proof-summary.json",
+      "sha256": "08a5b2de2ba329065df6e0ed5933ef88b8974966d1428404579b105f34491243",
+      "bytes": 2239
+    },
+    "proof-sources.json": {
+      "path": "proof-export/p28r5/proof-sources.json",
+      "sha256": "da1665b8a5d59a5c791a3a221c96851b27ad2e2da2ee5307c23b2cb978942cc7",
+      "bytes": 83894
+    },
+    "proof-runs.json": {
+      "path": "proof-export/p28r5/proof-runs.json",
+      "sha256": "214cd10ca64f0936cb1e2318900052010c02ffb265bb8af154e23901f6447e46",
+      "bytes": 973
+    },
+    "proof-documents.json": {
+      "path": "proof-export/p28r5/proof-documents.json",
+      "sha256": "235dfa503966614185959bbc7caa34ada37f1ac8877744beed288e040a54c61e",
+      "bytes": 29311
+    },
+    "proof-facts.json": {
+      "path": "proof-export/p28r5/proof-facts.json",
+      "sha256": "f6287a1745f7a3f4810036ea8a090f4e616b34694e2ee7edd68032e67cd81d58",
+      "bytes": 402
+    },
+    "proof-evidence.json": {
+      "path": "proof-export/p28r5/proof-evidence.json",
+      "sha256": "b23a597b2539c61aafc6f3e54b34d5baaaace6869377ae8955ed074c3f3a65a7",
+      "bytes": 490
+    },
+    "proof-events.json": {
+      "path": "proof-export/p28r5/proof-events.json",
+      "sha256": "36c6e73045323bd51eff2bfded40f93d8080d1711a5c2fffc3f4548e1a9711b4",
+      "bytes": 274
+    },
+    "proof-intelligence-objects.json": {
+      "path": "proof-export/p28r5/proof-intelligence-objects.json",
+      "sha256": "b0965529cbfa63a5f92bed8b3c98a16b60edcd2cb5f98febb5c7a8d1099f2a22",
+      "bytes": 185
+    },
+    "proof-deliveries.json": {
+      "path": "proof-export/p28r5/proof-deliveries.json",
+      "sha256": "542c66045278f271b58a9a2716614c013f580d6beefc5675ca62f1e1e98ac93c",
+      "bytes": 200
+    },
+    "proof-quality.json": {
+      "path": "proof-export/p28r5/proof-quality.json",
+      "sha256": "2bf577112f4d3b383e6f50bed2d824fa1ef0f65cda8fc9e44c49790534fb41e1",
+      "bytes": 818
+    }
+  },
+  "freshness": "ARCHIVED_SNAPSHOT — not live runtime",
+  "io_proof_state": "BLOCKED_NO_SUPPORTED_INTELLIGENCE_INPUT",
+  "note": "Fixture rows and production baseline are segregated; no genuine intelligence rows are exported."
+}
