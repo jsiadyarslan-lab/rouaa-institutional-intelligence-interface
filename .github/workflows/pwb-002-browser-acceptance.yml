@@ -1,0 +1,73 @@
+name: PWB-002 — First Intelligence Object Browser Acceptance
+
+on:
+  push:
+    branches:
+      - pwb-002-first-intelligence-object
+    paths:
+      - ".github/workflows/pwb-002-browser-acceptance.yml"
+      - "proof-workbench.html"
+      - "proof-workbench.js"
+      - "proof-workbench.css"
+      - "proof-workbench-integrity.js"
+      - "proof-data/**"
+      - "tests/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pwb-002-browser-acceptance-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  playwright-visual-acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout exact UI branch commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node 22.16.0
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "22.16.0"
+          check-latest: false
+
+      - name: Install pinned Playwright and Chromium
+        run: |
+          node --version
+          npm install --no-save --ignore-scripts playwright@1.56.1
+          npx playwright install --with-deps chromium
+
+      - name: Verify Proof Workbench integrity tests
+        run: node --test tests/proof-workbench-integrity.test.cjs
+
+      - name: Start static Workbench
+        shell: bash
+        run: |
+          mkdir -p artifacts/pwb-002
+          python3 -m http.server 4173 --bind 127.0.0.1 >artifacts/pwb-002/static-server.log 2>&1 &
+          echo $! > artifacts/pwb-002/static-server.pid
+          for attempt in $(seq 1 40); do
+            if curl -fsS http://127.0.0.1:4173/proof-workbench.html >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat artifacts/pwb-002/static-server.log
+          exit 1
+
+      - name: Run 11-route viewport, interaction, overflow and integrity QA
+        run: node tests/pwb-002-browser-acceptance.cjs
+
+      - name: Upload browser screenshots, route logs and integrity report
+        if: always()
+        uses: actions/upload-artifact@615b319bd27bb32c3d64dca6b6ed6974d5fbe653
+        with:
+          name: pwb-002-browser-acceptance-${{ github.sha }}
+          path: artifacts/pwb-002/
+          if-no-files-found: warn
+          retention-days: 90
