@@ -1,0 +1,11 @@
+{
+  "schema_version": "ROUAA_PROOF_CONTRACT_V1",
+  "data_scope": "R4_ISOLATED_BENCHMARK",
+  "inventory_rows": 60,
+  "fixture_bound_rows": 60,
+  "evidence_items": [],
+  "excerpt_exported": false,
+  "original_documents_fingerprint_verified": "30/30 (recorded in Phase 0 evidence recovery)",
+  "note": "The 60 R4 Evidence rows bind fixture Facts/Events; they are not acceptable evidence for production intelligence. No row-level excerpts are exposed in this snapshot.",
+  "state": "FIXTURE"
+}
