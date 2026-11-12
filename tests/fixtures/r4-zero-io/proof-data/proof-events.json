@@ -1,0 +1,11 @@
+{
+  "schema_version": "ROUAA_PROOF_CONTRACT_V1",
+  "data_scope": "R4_ISOLATED_BENCHMARK",
+  "verified_events": [],
+  "fixture_outputs": {
+    "count": 30,
+    "event_type": "DOCUMENT_INGESTED",
+    "classification": "FIXTURE_NOT_INTELLIGENCE"
+  },
+  "state": "NOT_PROVEN"
+}
