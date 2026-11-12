@@ -39,7 +39,11 @@
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
-  function fmtNum(v) { return v == null ? 'NOT MEASURED' : Number(v).toLocaleString('en-US'); }
+  function fmtNum(v) {
+    if (v == null) return 'NOT MEASURED';
+    const n = Number(v);
+    return Number.isFinite(n) ? n.toLocaleString('en-US') : String(v);
+  }
   function dateLabel(v) {
     if (!v) return 'NOT AVAILABLE';
     const d = new Date(v);
@@ -371,7 +375,15 @@
       if(count) count.textContent=visible+' / '+rows.length+' ROWS';
     };
     input?.addEventListener('input',update);
-    sort?.addEventListener('change',()=>{state.search=input?.value||'';const route=state.route;render();const newInput=$('pw-filter');if(newInput){newInput.value=state.search;bindFilter();}});
+    sort?.addEventListener('change',()=>{
+      const query = input?.value || '';
+      render();
+      const newInput = $('pw-filter');
+      if (newInput) {
+        newInput.value = query;
+        newInput.dispatchEvent(new Event('input'));
+      }
+    });
     update();
   }
   function renderNav(){
