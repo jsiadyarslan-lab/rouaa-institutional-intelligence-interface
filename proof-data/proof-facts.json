@@ -1,0 +1,12 @@
+{
+  "schema_version": "ROUAA_PROOF_CONTRACT_V1",
+  "data_scope": "R4_ISOLATED_BENCHMARK",
+  "verified_financial_facts": [],
+  "fixture_outputs": {
+    "count": 30,
+    "metric": "fixture_word_count",
+    "classification": "FIXTURE_NOT_INTELLIGENCE",
+    "note": "All R4 Fact rows are deterministic fixture outputs derived from text length, not financial/economic facts."
+  },
+  "state": "NOT_PROVEN"
+}
