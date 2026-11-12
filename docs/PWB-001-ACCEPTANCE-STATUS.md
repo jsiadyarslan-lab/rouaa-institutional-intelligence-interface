@@ -23,3 +23,31 @@ The snapshot is archived, not live. OP-IO-001 is `BLOCKED_NO_SUPPORTED_INTELLIGE
 No browser session was available to execute screenshots at 1440, 1280, 1024, 768 and 390 pixels; no automated console, horizontal-overflow, route-interaction or visual-regression run was made. The branch and files are committed, but the UI has **not** passed Visual Acceptance.
 
 No changes were merged to `main`; no deployment was made.
+
+
+## R6 — Snapshot trust controls (2026-11-12)
+
+### Implemented on this branch
+
+- Added `proof-workbench-integrity.js`, loaded before the Workbench controller.
+- Before a snapshot is rendered, the browser now checks all ten declared `proof-*.json` exports against the manifest: exact export inventory, byte length, SHA-256, UTF-8/JSON validity, Proof Contract version and `data_scope`; optional `snapshot_kind` and `generated_at` fields are cross-checked when present.
+- Missing, modified, malformed, cross-scope or wrong-contract exports fail closed to `DATA SOURCE UNAVAILABLE`. No partial snapshot or mock data is rendered.
+- Overview and Quality now distinguish local verification of mirrored JSON export files from upstream attestation states.
+- The prior claim “Raw document SHA verified” was replaced. The original 30-document hashes remain `EXECUTOR_REPORTED`; independent reread of original raw blobs is explicitly `NOT_PROVEN` by this Workbench.
+- Manifest source-artifact states are displayed as recorded; `EXECUTOR_REPORTED` is never represented as `VERIFIED`.
+- Added Node test cases for valid, missing, byte-mutated, cross-scope, wrong-contract and extra-manifest-export snapshots.
+
+### Targeted checks and remaining acceptance
+
+A local Node 22.16.0 smoke harness exercised the verifier logic in six scenarios and all six behaved as expected. This was not execution of the committed repository test file from a branch checkout. The committed tests remain pending.
+
+No real browser session was available. Screenshots at 1440 / 1280 / 1024 / 768 / 390 pixels, console capture, horizontal-overflow checks, eleven-route interaction checks and stale-state acceptance remain **NOT RUN**. The snapshot contract exposes an archived snapshot, but no TTL/freshness threshold was found; the Workbench does not invent one.
+
+### R6 data/acceptance boundary
+
+- `VERIFIED`: the mirrored JSON files pass local SHA-256, byte-length and contract/scope checks in the current browser session.
+- `EXECUTOR_REPORTED`: the manifest-level attestation and the prior 30 original-document SHA claim.
+- `OBSERVED` / `BLOCKED`: carried source-artifact states, shown as reported in the manifest.
+- `NOT_PROVEN`: independent byte reread of the 30 original raw documents and visual/browser acceptance.
+
+This implementation improves snapshot integrity controls; it does not establish a live Core API connection or prove an Intelligence Object. The Workbench remains an archived, read-only R4 snapshot.
