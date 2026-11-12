@@ -112,3 +112,27 @@ presentation files only (`index.html`, `style.css`, `app.js`); data files are un
 
 Acceptance-tested against all three personas (executive 10 s / analyst 30 s / forensic
 60 s). Desktop-first; tablet-responsive.
+
+
+## P2.8-R5 — PROOF WORKBENCH (separate archived surface)
+
+The **PROOF WORKBENCH** is an additive, read-only workspace at `proof-workbench.html`.
+It is separate from the existing production Observatory and does not replace the
+V3.1 institutional terminal. Its inputs are mirrored Core-owned files under
+`proof-data/`, produced under `ROUAA_PROOF_CONTRACT_V1` from the archived R4
+isolated benchmark.
+
+- Scope is explicitly `ARCHIVED_SNAPSHOT` / `R4_ISOLATED_BENCHMARK`; it is **not Live**.
+- The separate historical Production Baseline remains in its own scope and is
+  never added to R4 counters.
+- R4's 30 `fixture_word_count` Facts and 30 `DOCUMENT_INGESTED` Events are
+  labelled `FIXTURE_NOT_INTELLIGENCE` and excluded from intelligence production.
+- The OP-IO-001 result is `BLOCKED_NO_SUPPORTED_INTELLIGENCE_INPUT`: no canonical
+  IO or Delivery is displayed as if one existed.
+- Missing records remain explicit empty states; a failed snapshot read shows
+  `DATA SOURCE UNAVAILABLE`. The browser only reads static proof-data files.
+
+**Acceptance limitation:** the page and archived data files are committed, but
+browser visual QA, viewport screenshots (1440/1280/1024/768/390), console-error
+checks, and automated UI interaction tests have not yet been executed in this
+session. This surface is therefore not visually accepted or marked production-ready.
