@@ -92,3 +92,64 @@ test('rejects manifests that omit or add export declarations', async () => {
     verifySnapshot(f.manifest, new Map([[f.filename, f.bytes]]), [f.filename]),
     /expected snapshot files/);
 });
+
+async function fixtureR7(payloadOverrides = {}) {
+  const identity = {
+    snapshot_kind: 'ARCHIVED_SNAPSHOT',
+    generated_at: '2026-11-12T22:00:00Z',
+    core_commit: 'core-commit-r7',
+    run_id: 'run-p28r7',
+    execution_id: 'exec-p28r7-001'
+  };
+  const payload = {
+    schema_version: 'ROUAA_PROOF_CONTRACT_V1',
+    data_scope: 'R7_FIRST_VERIFIED_INTELLIGENCE_OBJECT',
+    ...identity,
+    ...payloadOverrides
+  };
+  const bytes = new TextEncoder().encode(JSON.stringify(payload));
+  const digest = Array.from(new Uint8Array(
+    await webcrypto.subtle.digest('SHA-256', bytes)
+  )).map(v => v.toString(16).padStart(2, '0')).join('');
+  const filename = 'proof-summary.json';
+  const manifest = {
+    schema_version: 'ROUAA_PROOF_CONTRACT_V1',
+    data_scope: 'R7_FIRST_VERIFIED_INTELLIGENCE_OBJECT',
+    verification_state: 'OBSERVED',
+    export_files: {
+      [filename]: {
+        path: 'proof-export/p28r7/' + filename,
+        sha256: digest,
+        bytes: bytes.byteLength
+      }
+    },
+    ...identity
+  };
+  return { manifest, filename, bytes, payload };
+}
+
+test('accepts R7 only when Core commit, run and execution identity are bound', async () => {
+  const f = await fixtureR7();
+  const result = await verifySnapshot(
+    f.manifest, new Map([[f.filename, f.bytes]]), [f.filename]);
+  assert.equal(result.coreCommit, 'core-commit-r7');
+  assert.equal(result.runId, 'run-p28r7');
+  assert.equal(result.executionId, 'exec-p28r7-001');
+  assert.equal(result.snapshotKind, 'ARCHIVED_SNAPSHOT');
+  assert.equal(result.manifestState, 'OBSERVED');
+});
+
+test('rejects an R7 export whose run identity differs from its manifest', async () => {
+  const f = await fixtureR7({ run_id: 'different-run' });
+  await assert.rejects(
+    verifySnapshot(f.manifest, new Map([[f.filename, f.bytes]]), [f.filename]),
+    /run_id does not match manifest/);
+});
+
+test('rejects an R7 manifest missing execution identity', async () => {
+  const f = await fixtureR7();
+  delete f.manifest.execution_id;
+  await assert.rejects(
+    verifySnapshot(f.manifest, new Map([[f.filename, f.bytes]]), [f.filename]),
+    /missing Core commit \/ run \/ execution identity/);
+});
