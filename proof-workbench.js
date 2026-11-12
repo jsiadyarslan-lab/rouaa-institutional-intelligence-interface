@@ -854,6 +854,18 @@
     }
     const docButton=event.target.closest('[data-document]');
     if(docButton){state.selectedDocument=docButton.dataset.document;renderDocuments();return;}
+    const factButton=event.target.closest('[data-fact]');
+    if(factButton){
+      state.selectedFact=factButton.dataset.fact;
+      state.route='facts';location.hash='facts';render();
+      return;
+    }
+    const ioButton=event.target.closest('[data-io]');
+    if(ioButton){
+      state.selectedIoId=ioButton.dataset.io;
+      state.route='intelligence';location.hash='intelligence';render();
+      return;
+    }
     const candidateButton=event.target.closest('[data-candidate]');
     if(candidateButton){state.route='documents';state.candidateFilter=candidateButton.dataset.candidate;location.hash='documents';renderDocuments();const input=$('pw-filter');if(input){input.value=state.candidateFilter;bindFilter();}return;}
   });
