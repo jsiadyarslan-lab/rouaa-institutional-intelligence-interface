@@ -124,6 +124,11 @@
       totalFiles: expected.length,
       dataScope: manifest.data_scope,
       manifestState: manifest.verification_state,
+      snapshotKind: manifest.snapshot_kind,
+      coreCommit: manifest.core_commit || null,
+      runId: manifest.run_id || null,
+      executionId: manifest.execution_id || null,
+      generatedAt: manifest.generated_at || null,
       artifactStateCounts
     };
   }
