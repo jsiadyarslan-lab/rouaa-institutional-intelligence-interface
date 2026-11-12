@@ -97,6 +97,16 @@
           payload.generated_at !== manifest.generated_at) {
         throw new Error(filename + ': generated_at does not match manifest');
       }
+      if (r7Snapshot) {
+        for (const key of ['core_commit', 'run_id', 'execution_id']) {
+          if (payload[key] !== manifest[key]) {
+            throw new Error(filename + ': ' + key + ' does not match manifest');
+          }
+        }
+        if (payload.snapshot_kind !== manifest.snapshot_kind) {
+          throw new Error(filename + ': snapshot_kind does not match manifest');
+        }
+      }
       payloads[filename] = payload;
     }
 
