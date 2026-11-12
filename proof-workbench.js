@@ -128,15 +128,29 @@
     const cell = (label, valueHtml) =>
       '<div><span class="pw-detail-label">' + esc(label) +
       '</span><div class="pw-detail-value">' + valueHtml + '</div></div>';
+    const r7 = isR7Snapshot();
+    const integrityNote = r7
+      ? '<div class="pw-callout is-neutral"><strong>JSON export integrity and original-source integrity are separate checks.</strong> All mirrored JSON exports passed browser SHA-256, byte-length and identity checks. Core also rehashed the one original Istat HTML blob against its Representation. This does not constitute independent human review of the metric semantics.</div>'
+      : '<div class="pw-callout is-neutral"><strong>VERIFIED applies only to the mirrored JSON snapshot files.</strong> It does not upgrade the original-document byte checks. The manifest reports those checks as EXECUTOR_REPORTED; this workbench has not independently re-read the 30 original raw blobs.</div>';
+    const rawLabel = r7 ? 'Original document SHA-256' : 'Original-document SHA report';
+    const rawDetail = r7
+      ? tag(raw.state || 'NOT_PROVEN') + ' · ' + fmtNum(raw.verified) + '/' + fmtNum(raw.checked) + ' original bytes rehashed in Core Proof run'
+      : tag(raw.state || 'NOT_PROVEN') + ' · ' + fmtNum(raw.verified) + '/' + fmtNum(raw.checked) + ' executor-reported matches';
+    const humanReview = q.independent_review_state || (r7 ? 'PENDING_HUMAN_REVIEW' : 'NOT_PROVEN');
     return panel('VERIFICATION BOUNDARIES',
-      '<div class="pw-callout is-neutral"><strong>VERIFIED applies only to the mirrored JSON snapshot files.</strong> It does not upgrade the original-document byte checks. The manifest reports those checks as EXECUTOR_REPORTED; this workbench has not independently re-read the 30 original raw blobs.</div>' +
+      integrityNote +
       '<div class="pw-detail-grid" style="margin-top:12px">' +
       cell('Mirrored JSON exports', tag('VERIFIED') + ' · ' + fmtNum(v.verifiedFiles) + '/' + fmtNum(v.totalFiles) + ' SHA-256 + byte length') +
       cell('Manifest verification_state', tag(v.manifestState || 'NOT_PROVEN')) +
-      cell('Original-document SHA report', tag(raw.state || 'NOT_PROVEN') + ' · ' + fmtNum(raw.verified) + '/' + fmtNum(raw.checked) + ' reported matches') +
-      cell('Independent raw-byte re-read', tag('NOT_PROVEN') + ' · 0 original files re-read here') +
+      cell(rawLabel, rawDetail) +
+      cell(r7 ? 'Independent semantic review' : 'Independent raw-byte re-read',
+        r7 ? tag(humanReview) : tag('NOT_PROVEN') + ' · 0 original files re-read here') +
       cell('Manifest source-artifact states', esc(artifactStates)) +
       cell('Snapshot data_scope', esc(v.dataScope || 'NOT PROVEN')) +
+      (r7 ? cell('Core commit', '<span class="pw-mono">' + esc(v.coreCommit || 'NOT PROVEN') + '</span>') : '') +
+      (r7 ? cell('Run ID', '<span class="pw-mono">' + esc(v.runId || 'NOT PROVEN') + '</span>') : '') +
+      (r7 ? cell('Execution ID', '<span class="pw-mono">' + esc(v.executionId || 'NOT PROVEN') + '</span>') : '') +
+      cell('Snapshot kind', esc(v.snapshotKind || 'NOT PROVEN')) +
       '</div>');
   }
 
