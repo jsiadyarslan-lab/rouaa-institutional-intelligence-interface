@@ -30,7 +30,7 @@
   ];
 
   const $ = (id) => document.getElementById(id);
-  const state = { data: null, route: 'overview', selectedDocument: null, candidateFilter: '', search: '' };
+  const state = { data: null, verification: null, route: 'overview', selectedDocument: null, candidateFilter: '', search: '' };
   const main = $('pw-main');
   const nav = $('pw-navigation');
 
@@ -106,6 +106,28 @@
   function noDataNotice(text) {
     return '<div class="pw-callout is-neutral">' + esc(text) + '</div>';
   }
+  function renderVerificationPanel() {
+    const v = state.verification || {};
+    const q = state.data.quality || {};
+    const raw = q.raw_document_sha256 || {};
+    const artifactStates = Object.entries(v.artifactStateCounts || {})
+      .sort((a,b) => a[0].localeCompare(b[0]))
+      .map(([name,count]) => name + ': ' + fmtNum(count)).join(' · ') || 'NOT PROVEN';
+    const cell = (label, valueHtml) =>
+      '<div><span class="pw-detail-label">' + esc(label) +
+      '</span><div class="pw-detail-value">' + valueHtml + '</div></div>';
+    return panel('VERIFICATION BOUNDARIES',
+      '<div class="pw-callout is-neutral"><strong>VERIFIED applies only to the mirrored JSON snapshot files.</strong> It does not upgrade the original-document byte checks. The manifest reports those checks as EXECUTOR_REPORTED; this workbench has not independently re-read the 30 original raw blobs.</div>' +
+      '<div class="pw-detail-grid" style="margin-top:12px">' +
+      cell('Mirrored JSON exports', tag('VERIFIED') + ' · ' + fmtNum(v.verifiedFiles) + '/' + fmtNum(v.totalFiles) + ' SHA-256 + byte length') +
+      cell('Manifest verification_state', tag(v.manifestState || 'NOT_PROVEN')) +
+      cell('Original-document SHA report', tag(raw.state || 'NOT_PROVEN') + ' · ' + fmtNum(raw.verified) + '/' + fmtNum(raw.checked) + ' reported matches') +
+      cell('Independent raw-byte re-read', tag('NOT_PROVEN') + ' · 0 original files re-read here') +
+      cell('Manifest source-artifact states', esc(artifactStates)) +
+      cell('Snapshot data_scope', esc(v.dataScope || 'NOT PROVEN')) +
+      '</div>');
+  }
+
   function renderOverview() {
     const s = state.data.summary.r4_isolated_benchmark;
     const p = state.data.summary.production_baseline;
@@ -135,6 +157,7 @@
     let h = pageHead('01 / EXECUTIVE VIEW', 'Overview',
       'Did Core produce verified intelligence, or did it only acquire and qualify documents? R4 acquisition and historical production are separated below.',
       'ARCHIVED SNAPSHOT · ' + dateLabel(state.data.manifest.generated_at));
+    h += renderVerificationPanel();
     h += '<div class="pw-overline">R4 ISOLATED BENCHMARK · NOT PRODUCTION</div><div class="pw-grid pw-metric-grid">';
     h += metric('Sources configured', s.sources_configured, 'R4 cohort', 'sources');
     h += metric('Sources qualified', s.sources_qualified, 'Source-level QUALIFIED', 'sources');
@@ -261,7 +284,8 @@
       metric('Recorded Evidence rows',e.inventory_rows,'Raw R4 metadata count',null)+
       metric('Fixture-bound Evidence',e.fixture_bound_rows,'Evidence attached to fixture Fact/Event rows',null)+
       metric('Production Evidence excerpts',0,'No accepted intelligence evidence',null,'is-blocked')+
-      metric('Original documents fingerprinted',30,'30 of 30 in Phase 0 audit',null)+'</div>'+
+      metric('Original document SHA claims',state.data.quality.raw_document_sha256.checked,'EXECUTOR_REPORTED · not independently re-read here',null,'is-warning')+
+      metric('Independent raw-byte re-reads',0,'NOT_PROVEN in this workbench',null,'is-blocked')+'</div>'+
       empty('NO PRODUCTION EVIDENCE AVAILABLE', '60 FIXTURE-BOUND ROWS',
         'The 60 recorded Evidence rows support quarantined fixture outputs. This snapshot does not expose them as evidence for a financial Fact. Original document SHA-256 fingerprints are recorded separately.',
         'FIXTURE');
@@ -323,10 +347,11 @@
       'Integrity controls, document qualification, fixture separation and the independent-review state. Passing storage checks does not prove intelligence semantics.',
       'R4 INTEGRITY + R5 OP-IO-001')+
       '<div class="pw-grid pw-metric-grid">'+
-      metric('Raw document SHA verified',q.raw_document_sha256.verified,'30 checked · 0 failed',null)+
-      metric('Orphan blobs',q.orphan_blobs,'Measured R4 integrity',null)+
-      metric('False SUCCESS',q.false_success,'Measured R4 integrity',null)+
-      metric('Duplicate content',q.cross_document_duplicate_content,'Cross-document identical rows',null)+'</div>'+
+      metric('Raw document SHA claims',q.raw_document_sha256.checked,'EXECUTOR_REPORTED · '+q.raw_document_sha256.verified+' reported matches',null,'is-warning')+
+      metric('Independent raw-byte re-reads',0,'NOT_PROVEN in this workbench',null,'is-blocked')+
+      metric('Orphan blobs',q.orphan_blobs,'Executor-reported R4 integrity',null)+
+      metric('False SUCCESS',q.false_success,'Executor-reported R4 integrity',null)+'</div>'+
+      renderVerificationPanel()+
       panel('DOCUMENT BATTERY',keyValue('Strict qualified',q.document_qualification.strict)+
         keyValue('Qualified with notes',q.document_qualification.with_notes)+
         keyValue('Not qualified',q.document_qualification.not_qualified)+
@@ -390,27 +415,52 @@
     nav.innerHTML=NAV.map((x,i)=>'<a class="pw-nav-link" href="#'+esc(x[0])+'" data-route="'+esc(x[0])+'"><span class="pw-nav-index">'+String(i+1).padStart(2,'0')+'</span><span>'+esc(x[1])+'</span></a>').join('');
   }
   async function loadSnapshot(){
+    state.data = null;
+    state.verification = null;
     try{
-      const pairs=await Promise.all(Object.entries(FILES).map(async ([k,file])=>{
-        const response=await fetch('./proof-data/'+file,{credentials:'same-origin'});
+      const fetched = await Promise.all(Object.entries(FILES).map(async ([key,file])=>{
+        const response=await fetch('./proof-data/'+file,{
+          credentials:'same-origin',
+          cache:'no-store'
+        });
         if(!response.ok) throw new Error(file+' → HTTP '+response.status);
-        return [k,await response.json()];
+        return {key,file,bytes:new Uint8Array(await response.arrayBuffer())};
       }));
-      state.data=Object.fromEntries(pairs);
-      const m=state.data.manifest;
-      if(m.schema_version!=='ROUAA_PROOF_CONTRACT_V1') throw new Error('Unexpected Proof Contract version');
-      $('pw-snapshot-time').textContent='SNAPSHOT '+dateLabel(m.generated_at);
-      $('pw-source-state').textContent='ARCHIVED SNAPSHOT · READ ONLY';
+      const manifestBytes=fetched.find(x=>x.key==='manifest')?.bytes;
+      if(!manifestBytes) throw new Error('Proof manifest is missing');
+      const manifest=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(manifestBytes));
+      const exportFiles=fetched.filter(x=>x.key!=='manifest');
+      const exportBytes=new Map(exportFiles.map(x=>[x.file,x.bytes]));
+      const expectedFiles=Object.entries(FILES)
+        .filter(([key])=>key!=='manifest').map(([,file])=>file);
+      if(!globalThis.ROUAAProofIntegrity ||
+         typeof globalThis.ROUAAProofIntegrity.verifySnapshot!=='function'){
+        throw new Error('Snapshot integrity verifier is unavailable');
+      }
+      const verification=await globalThis.ROUAAProofIntegrity.verifySnapshot(
+        manifest,exportBytes,expectedFiles);
+      const payloads={};
+      for(const [key,file] of Object.entries(FILES)){
+        if(key!=='manifest') payloads[key]=verification.payloads[file];
+      }
+      state.data={manifest,...payloads};
+      state.verification=verification;
+      $('pw-snapshot-time').textContent='SNAPSHOT '+dateLabel(manifest.generated_at)+' · '+manifest.data_scope;
+      $('pw-source-state').textContent='SNAPSHOT HASHES VERIFIED · SOURCE: '+manifest.verification_state;
+      $('pw-source-state').classList.remove('is-error');
       $('pw-source-state').classList.add('is-ready');
       render();
     }catch(error){
+      state.data=null;
+      state.verification=null;
       $('pw-source-state').textContent='DATA SOURCE UNAVAILABLE';
+      $('pw-source-state').classList.remove('is-ready');
       $('pw-source-state').classList.add('is-error');
       main.innerHTML='<div class="pw-unavailable">'+
-        '<div class="pw-section-kicker">PROOF SOURCE ERROR</div>'+
+        '<div class="pw-section-kicker">PROOF SOURCE / INTEGRITY ERROR</div>'+
         '<div class="pw-unavailable-title">DATA SOURCE UNAVAILABLE</div>'+
-        '<h1 class="pw-page-title" style="margin:8px 0 12px">Core proof snapshot could not be read.</h1>'+
-        '<div class="pw-callout is-error">The workbench will not substitute mock data or infer missing values. Verify the Core-owned proof-data files and reload.</div>'+
+        '<h1 class="pw-page-title" style="margin:8px 0 12px">Core proof snapshot failed integrity validation.</h1>'+
+        '<div class="pw-callout is-error">The workbench will not render a partial or unverified snapshot, and will not substitute mock data. Verify the Core-owned manifest and every declared JSON export, then reload.</div>'+
         '<p class="pw-page-desc">'+esc(error.message||String(error))+'</p>'+
         '<button class="pw-action" id="pw-retry">RETRY</button></div>';
       $('pw-retry')?.addEventListener('click',()=>loadSnapshot());
