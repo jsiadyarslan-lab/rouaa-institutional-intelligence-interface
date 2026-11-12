@@ -144,7 +144,7 @@ async function main() {
     await badPage.goto('http://127.0.0.1:4173/proof-workbench.html', {
       waitUntil: 'networkidle'
     });
-    await badPage.getByText('DATA SOURCE UNAVAILABLE', { exact: true }).waitFor();
+    await badPage.locator('#pw-source-state').filter({ hasText: 'DATA SOURCE UNAVAILABLE' }).waitFor();
     report.integrity_failure = {
       fail_closed: true,
       unavailable_text: await badPage.locator('#pw-source-state').innerText()
