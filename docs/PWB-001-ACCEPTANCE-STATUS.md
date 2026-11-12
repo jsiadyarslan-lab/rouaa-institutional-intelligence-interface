@@ -51,3 +51,8 @@ No real browser session was available. Screenshots at 1440 / 1280 / 1024 / 768 /
 - `NOT_PROVEN`: independent byte reread of the 30 original raw documents and visual/browser acceptance.
 
 This implementation improves snapshot integrity controls; it does not establish a live Core API connection or prove an Intelligence Object. The Workbench remains an archived, read-only R4 snapshot.
+
+
+### Additional static verification (GitHub branch contents)
+
+The ten `proof-*.json` export files currently mirrored under `proof-data/` were independently read from this branch and checked against `proof-manifest.json`. All ten matched the declared SHA-256 and byte length; all ten also matched the manifest's `schema_version` and `data_scope`. Result: **10/10 export files matched**. This validates the current GitHub branch file contents against the manifest; it does not replace browser execution of the committed verifier, nor does it independently verify the original 30 raw document blobs.
