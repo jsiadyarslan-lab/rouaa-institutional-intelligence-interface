@@ -1,0 +1,30 @@
+{
+  "schema_version": "ROUAA_PROOF_CONTRACT_V1",
+  "data_scope": "R4_ISOLATED_BENCHMARK",
+  "entries": [
+    {
+      "run_id": "run-p26a-4f4fe268c828",
+      "execution_id": "exec-20261112T080220976958-cc8a4b5fe359",
+      "plan_id": "p28r4-official-same-cohort",
+      "branch": "p2.8-r4-official-same-cohort",
+      "core_commit": "49c8245b369b80fbf1b46723ac07f2ef11bf4ea0",
+      "status": "COMPLETED",
+      "data_scope": "R4_ISOLATED_BENCHMARK",
+      "sources_configured": 100,
+      "sources_attempted": 91,
+      "sources_qualified": 17,
+      "documents_committed": 30,
+      "fixture_facts": 30,
+      "fixture_events": 30,
+      "verified_facts": 0,
+      "verified_events": 0,
+      "intelligence_objects": 0,
+      "deliveries": 0,
+      "acquisition_attempts": 54,
+      "acquisition_retries": 12,
+      "sweep_network_ledger_retries": 1,
+      "retry_accounting_state": "SEPARATE_LEDGER_COUNTERS",
+      "verification_state": "EXECUTOR_REPORTED"
+    }
+  ]
+}
