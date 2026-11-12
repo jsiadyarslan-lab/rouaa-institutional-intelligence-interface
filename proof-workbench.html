@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ROUAA — Intelligence Production & Evidence Workbench</title>
+  <meta name="description" content="Read-only institutional proof workbench backed by an archived ROUAA Core evidence snapshot.">
+  <link rel="stylesheet" href="proof-workbench.css">
+</head>
+<body>
+  <header class="pw-masthead">
+    <div class="pw-brand-lockup">
+      <a class="pw-brand" href="./index.html">ROUAA</a>
+      <span class="pw-brand-divider"></span>
+      <div>
+        <div class="pw-eyebrow">INSTITUTIONAL INTELLIGENCE</div>
+        <div class="pw-product-name">PRODUCTION &amp; EVIDENCE WORKBENCH</div>
+      </div>
+    </div>
+    <div class="pw-header-actions">
+      <span class="pw-scope">ARCHIVED SNAPSHOT</span>
+      <span class="pw-readonly">READ ONLY</span>
+      <a class="pw-terminal-link" href="./index.html">INSTITUTIONAL TERMINAL ↗</a>
+    </div>
+  </header>
+
+  <div class="pw-context-line" id="pw-context-line">
+    <span>CORE EVIDENCE SNAPSHOT</span>
+    <span class="pw-context-separator">/</span>
+    <span>CONTRACT V1</span>
+    <span class="pw-context-separator">/</span>
+    <span id="pw-snapshot-time">Loading snapshot identity…</span>
+    <span class="pw-context-spacer"></span>
+    <span id="pw-source-state" class="pw-state-indicator">CONNECTING TO ARCHIVE</span>
+  </div>
+
+  <div class="pw-shell">
+    <aside class="pw-sidebar">
+      <div class="pw-sidebar-label">WORKSPACE</div>
+      <nav id="pw-navigation" aria-label="Proof workbench navigation"></nav>
+      <div class="pw-sidebar-foot">
+        <div class="pw-sidebar-label">DATA GOVERNANCE</div>
+        <div class="pw-foot-row"><span class="pw-dot pw-dot-gold"></span> Core-owned snapshot</div>
+        <div class="pw-foot-row"><span class="pw-dot pw-dot-muted"></span> No browser writes</div>
+        <div class="pw-foot-note">Missing data remains missing. Fixture rows never count as intelligence.</div>
+      </div>
+    </aside>
+
+    <main id="pw-main" class="pw-main" tabindex="-1">
+      <div class="pw-loading">
+        <div class="pw-loading-mark">ROUAA</div>
+        <div>Reading Core proof snapshot…</div>
+        <div class="pw-loading-sub">No sample data will be substituted.</div>
+      </div>
+    </main>
+  </div>
+
+  <footer class="pw-footer">
+    <span>ROUAA INTELLIGENCE PRODUCTION &amp; EVIDENCE WORKBENCH</span>
+    <span>CORE IS THE SOURCE OF TRUTH · SNAPSHOT IS READ ONLY</span>
+  </footer>
+  <script src="proof-workbench.js" defer></script>
+</body>
+</html>
