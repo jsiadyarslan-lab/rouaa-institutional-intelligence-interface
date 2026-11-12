@@ -406,6 +406,339 @@
         keyValue('Verdict',q.op_io_001.verdict))+
       '<div class="pw-callout is-error"><strong>HUMAN REVIEW PENDING.</strong> The machine audit is an eligibility decision, not an independent human acceptance of a future Fact/Event/IO chain.</div>';
   }
+  function r7Rows(section) {
+    return (state.data && state.data[section] && state.data[section].entries) || [];
+  }
+  function r7Document() {
+    const docs = r7Rows('documents');
+    return docs.find(d => d.document_id === state.selectedDocument) || docs[0] || null;
+  }
+  function r7EvidenceForFact(fact) {
+    if (!fact) return [];
+    return (state.data.evidence.evidence_items || []).filter(e =>
+      e.event_or_fact_id === fact.fact_id || e.evidence_id === fact.evidence_id);
+  }
+  function r7SourceLink(doc) {
+    const url = doc && (doc.canonical_url || doc.source_url);
+    return url ? '<a class="pw-table-link" href="' + esc(url) +
+      '" target="_blank" rel="noopener noreferrer">OPEN OFFICIAL SOURCE ↗</a>' : 'NOT AVAILABLE';
+  }
+  function r7FactValue(fact) {
+    if (!fact) return 'NOT AVAILABLE';
+    return fmtNum(fact.value) + (fact.unit ? ' ' + esc(fact.unit) : '') +
+      (fact.currency ? ' ' + esc(fact.currency) : '');
+  }
+  function r7ChainStep(label, value, stateLabel, route) {
+    return '<button class="pw-baseline-item" ' + (route ? 'data-route="' + esc(route) + '"' : 'disabled') +
+      '><div class="pw-baseline-value">' + esc(value) + '</div>' +
+      '<span class="pw-baseline-label">' + esc(label) + '</span>' +
+      '<div style="margin-top:7px">' + tag(stateLabel || 'OBSERVED') + '</div></button>';
+  }
+  function renderR7Overview() {
+    const c = state.data.summary.r7_first_verified_intelligence_object || {};
+    const fact = r7Fact();
+    const io = r7Io();
+    const pending = fact && fact.quality_state || state.data.quality.independent_review_state || 'NOT_PROVEN';
+    const metrics =
+      metric('Acquisition source', c.sources_attempted, 'One existing statistical agency source', 'sources') +
+      metric('Official documents', c.documents_committed, 'One original Istat release', 'documents') +
+      metric('Facts with direct Evidence', c.verified_financial_facts, 'Semantic reviewer acceptance pending', 'facts', 'is-warning') +
+      metric('Economic Events', c.verified_economic_events, 'statistical_release', 'events') +
+      metric('Canonical Intelligence Objects', c.verified_intelligence_objects, 'Core API readback observed', 'intelligence') +
+      metric('Deliveries', c.verified_deliveries, 'Consumer API readback observed', 'deliveries');
+    const chain = '<div class="pw-baseline-grid">' +
+      r7ChainStep('Official Source', c.sources_attempted || 0, 'OBSERVED', 'sources') +
+      r7ChainStep('Original Document', c.documents_committed || 0, 'OBSERVED', 'documents') +
+      r7ChainStep('Fact', fact ? fact.value + ' ' + (fact.unit || '') : 'NOT AVAILABLE', pending, 'facts') +
+      r7ChainStep('Evidence', (state.data.evidence.evidence_items || []).length, 'DIRECT', 'evidence') +
+      r7ChainStep('Event', c.verified_economic_events || 0, 'OBSERVED', 'events') +
+      r7ChainStep('Intelligence Object', io ? io.io_id : 'NOT AVAILABLE', 'OBSERVED', 'intelligence') +
+      r7ChainStep('Delivery', c.verified_deliveries || 0, 'OBSERVED', 'deliveries') +
+      '</div>';
+    return pageHead('01 / R7 EXECUTIVE VIEW', 'First Intelligence Object',
+      'One official Istat release processed by Core. Acquisition, Fact/Evidence, Event, IO and Delivery remain separate acceptance states.',
+      'ARCHIVED PROOF SNAPSHOT · ONE DOCUMENT') +
+      '<div class="pw-callout is-neutral"><strong>Machine pipeline observed; independent semantic review remains pending.</strong> The Core pipeline selected a direct structural Evidence segment for the annual NIC inflation Fact. This page does not promote that Fact to human-verified intelligence.</div>' +
+      '<div class="pw-grid pw-metric-grid">' + metrics + '</div>' +
+      panel('CANONICAL PROVENANCE CHAIN', chain) +
+      panel('SELECTED FINANCIAL METRIC',
+        fact ? '<div class="pw-baseline-value">' + esc(r7FactValue(fact)) + '</div>' +
+          '<div class="pw-page-desc">' + esc(fact.entity) + ' · ' + esc(fact.reference_period) +
+          ' · Published ' + esc(fact.publication_date) + '</div>' +
+          '<div style="margin-top:12px">' + tag(fact.quality_state) + '</div>' +
+          '<div class="pw-actions" style="margin-top:12px">' +
+          '<button class="pw-action" data-fact="' + esc(fact.fact_id) + '">Inspect Fact and Evidence</button>' +
+          '<button class="pw-action" data-io="' + esc(io && io.io_id || '') + '">Inspect Canonical IO</button></div>'
+          : empty('NO FACT IN THIS SNAPSHOT', null, 'The Core export contains no Fact row.', 'NOT_PROVEN'));
+  }
+  function renderR7Sources() {
+    const rows = r7Rows('sources').map(x => row([
+      '<span class="pw-mono">' + esc(x.candidate_id) + '</span>',
+      esc(x.institution || 'NOT AVAILABLE'),
+      esc(x.institution_id || 'NOT AVAILABLE'),
+      esc(x.source_class || 'NOT AVAILABLE'),
+      esc(x.domain || 'NOT AVAILABLE'),
+      tag(x.qualification_status || x.terminal_state),
+      '<a class="pw-table-link" href="' + esc(x.official_endpoint || '') +
+        '" target="_blank" rel="noopener noreferrer">OPEN FEED ↗</a>'
+    ]));
+    return pageHead('02 / SOURCE REGISTRY', 'Source Universe',
+      'Only the existing src-istat registry record is represented in the R7 proof scope. No source expansion was performed.',
+      '1 EXISTING SOURCE') +
+      table(['Source ID','Institution','Institution ID','Source Class','Official Domain','Qualification','Endpoint'], rows,
+        'The R7 Core export has no source record.');
+  }
+  function renderR7Acquisition() {
+    const run = r7Rows('runs')[0] || {};
+    const ex = state.data.manifest;
+    const api = run.api_readback || {};
+    return pageHead('03 / ACQUISITION LEDGER', 'Acquisition',
+      'A single existing RSS source and a single selected document URL. Representation changes caused by request instrumentation are tracked separately from the stable semantic Fact.',
+      'ONE SOURCE · ONE DOCUMENT') +
+      panel('BOUNDED EXECUTION',
+        keyValue('Source ID', 'src-istat') +
+        keyValue('Run ID', ex.run_id) +
+        keyValue('Execution ID', ex.execution_id) +
+        keyValue('Core commit', ex.core_commit) +
+        keyValue('Run status', run.status) +
+        keyValue('Sources configured / attempted / qualified',
+          [run.sources_configured,run.sources_attempted,run.sources_qualified].join(' / ')) +
+        keyValue('Documents committed', run.documents_committed) +
+        keyValue('Canonical IO / Deliveries',
+          [run.intelligence_objects,run.deliveries].join(' / ')) +
+        keyValue('API readback state', api.io_id || 'NOT AVAILABLE')) +
+      panel('SCOPE GUARDRAILS',
+        '<div class="pw-callout is-neutral">No R4 replay, batch acquisition, new source registration, production Store write or live deployment is represented in this R7 snapshot.</div>');
+  }
+  function renderR7Documents() {
+    const docs = r7Rows('documents');
+    const selected = r7Document();
+    const rows = docs.map(d => row([
+      '<button class="pw-table-link pw-mono" data-document="' + esc(d.document_id) + '">' + esc(d.document_id) + '</button>',
+      esc(d.title || 'NOT AVAILABLE'),
+      esc(d.institution || d.source_id || 'NOT AVAILABLE'),
+      esc(d.publication_date || 'NOT AVAILABLE'),
+      tag(d.qualification_status || 'OBSERVED'),
+      '<span class="pw-mono">' + esc((d.content_sha256 || '').slice(0,16)) + '…</span>'
+    ]));
+    const detail = selected ? panel('ORIGINAL DOCUMENT DETAIL',
+      keyValue('Title', selected.title) +
+      keyValue('Publisher', selected.institution) +
+      keyValue('Source ID', selected.source_id) +
+      keyValue('Publication Date', selected.publication_date) +
+      keyValue('Canonical URL', selected.canonical_url) +
+      keyValue('Content Type', selected.content_type) +
+      keyValue('Reuse Licence', selected.reuse_license) +
+      keyValue('Original SHA-256', selected.content_sha256) +
+      keyValue('Fact reference period', (r7Fact() || {}).reference_period) +
+      '<div class="pw-actions" style="margin-top:12px">' + r7SourceLink(selected) +
+      '<button class="pw-action" data-route="facts">Open extracted Fact</button></div>')
+      : empty('NO DOCUMENT', null, 'No document record is present.', 'NOT_PROVEN');
+    return pageHead('04 / DOCUMENT LEDGER', 'Official Documents',
+      'The original Istat publication is retained in the isolated Core Proof Store. The published period and source publication date are kept distinct.',
+      docs.length + ' DOCUMENT') +
+      detail + table(['Document ID','Title','Publisher','Publication Date','Qualification','Original SHA-256'], rows,
+        'No document row was exported by Core.');
+  }
+  function renderR7Facts() {
+    const facts = r7Rows('facts');
+    const selected = r7Fact();
+    const rows = facts.map(f => row([
+      '<button class="pw-table-link pw-mono" data-fact="' + esc(f.fact_id) + '">' + esc(f.fact_id) + '</button>',
+      esc(f.metric),
+      '<strong>' + esc(f.value) + '</strong> ' + esc(f.unit || ''),
+      esc(f.entity || 'NOT AVAILABLE'),
+      esc(f.reference_period || 'NOT AVAILABLE'),
+      tag(f.quality_state || 'NOT_PROVEN')
+    ]));
+    let detail = '';
+    if (selected) {
+      const ev = r7EvidenceForFact(selected);
+      detail = panel('CANONICAL FACT DETAIL',
+        keyValue('Metric', selected.metric) +
+        keyValue('Normalized Value', selected.value) +
+        keyValue('Raw Value', selected.raw_value) +
+        keyValue('Unit', selected.unit) +
+        keyValue('Currency', selected.currency || 'NOT APPLICABLE') +
+        keyValue('Entity', selected.entity) +
+        keyValue('Reference Period', selected.reference_period) +
+        keyValue('Publication Date', selected.publication_date) +
+        keyValue('Source / Document', selected.source_id + ' / ' + selected.document_id) +
+        keyValue('Fact ID / Version', selected.fact_id + ' / ' + selected.fact_version) +
+        keyValue('Evidence ID', selected.evidence_id) +
+        keyValue('Pattern ID / Version', selected.pattern_id + ' / ' + selected.pattern_version) +
+        keyValue('Extraction Version', selected.extraction_version) +
+        keyValue('Evidence records', ev.length) +
+        '<div style="margin-top:12px">' + tag(selected.quality_state || 'NOT_PROVEN') + '</div>' +
+        '<div class="pw-actions" style="margin-top:12px">' +
+        '<button class="pw-action" data-route="evidence">Inspect supporting Evidence</button>' +
+        '<button class="pw-action" data-route="intelligence">Inspect linked IO</button></div>');
+    }
+    return pageHead('05 / FACT LEDGER', 'Financial Facts',
+      'The annual inflation Fact is an observed Core extraction with direct Evidence selected. Independent human semantic acceptance is still pending.',
+      facts.length + ' FACT') + detail +
+      table(['Fact ID','Metric','Value / Unit','Entity','Reference Period','Quality State'], rows,
+        'No Fact rows were produced by Core.');
+  }
+  function renderR7Evidence() {
+    const evidence = state.data.evidence.evidence_items || [];
+    const fact = r7Fact();
+    const doc = r7Document();
+    const selected = evidence.filter(e => !fact || e.event_or_fact_id === fact.fact_id || e.evidence_id === fact.evidence_id);
+    const cards = selected.map(e =>
+      '<section class="pw-detail" style="margin-bottom:12px">' +
+      '<div class="pw-panel-kicker">ORIGINAL STRUCTURAL EVIDENCE · ' + esc(e.segment_type || 'NOT AVAILABLE') + '</div>' +
+      '<div style="margin:10px 0">' + tag('DIRECT') + ' ' + tag(state.data.evidence.state || 'OBSERVED') + '</div>' +
+      '<blockquote class="pw-evidence-quote">' + esc(e.excerpt || 'NO EXCERPT EXPORTED') + '</blockquote>' +
+      '<div class="pw-detail-grid">' +
+      '<div><span class="pw-detail-label">Evidence ID</span><div class="pw-detail-value">' + esc(e.evidence_id) + '</div></div>' +
+      '<div><span class="pw-detail-label">Fact ID</span><div class="pw-detail-value">' + esc(e.event_or_fact_id) + '</div></div>' +
+      '<div><span class="pw-detail-label">Segment ID</span><div class="pw-detail-value">' + esc(e.segment_id) + '</div></div>' +
+      '<div><span class="pw-detail-label">Representation ID</span><div class="pw-detail-value">' + esc(e.representation_id) + '</div></div>' +
+      '<div><span class="pw-detail-label">Location</span><div class="pw-detail-value">' + esc(e.location) + '</div></div>' +
+      '<div><span class="pw-detail-label">Provenance</span><div class="pw-detail-value">' + esc(e.provenance_ref) + '</div></div>' +
+      '</div><div class="pw-actions" style="margin-top:12px">' +
+      '<button class="pw-action" data-fact="' + esc(e.event_or_fact_id) + '">Back to Fact</button>' +
+      (doc ? r7SourceLink(doc) : '') +
+      '</div></section>').join('');
+    return pageHead('06 / EVIDENCE REVIEW', 'Original Evidence',
+      'Evidence excerpt is taken from the selected primary structural segment of the original Istat HTML. The excerpt contains the exact captured value and its annual CPI context.',
+      evidence.length + ' EVIDENCE RECORD') +
+      '<div class="pw-callout is-neutral">No excerpt was authored in the UI. The text below is carried verbatim from the Core Evidence record.</div>' +
+      (cards || empty('NO EVIDENCE', null, 'Core did not export an Evidence segment for the selected Fact.', 'NOT_PROVEN'));
+  }
+  function renderR7Events() {
+    const events = r7Rows('events');
+    const rows = events.map(e => row([
+      '<span class="pw-mono">' + esc(e.event_id) + '</span>',
+      tag(e.event_type),
+      esc(e.event_version),
+      esc(e.document_id),
+      esc((e.fact_version_snapshot || []).map(x => x.fact_id + ':v' + x.fact_version).join(', ')),
+      tag(e.status || 'OBSERVED')
+    ]));
+    return pageHead('07 / EVENT LEDGER', 'Statistical Release Events',
+      'The Event is generated by Core Event Detection from the accepted Fact. Document ingestion is not treated as an economic Event.',
+      events.length + ' EVENT') +
+      table(['Event ID','Event Type','Version','Document ID','Fact Snapshot','State'], rows,
+        'No statistical_release Event was exported by Core.');
+  }
+  function renderR7Intelligence() {
+    const io = r7Io();
+    if (!io) return pageHead('08 / CANONICAL OUTPUT','Intelligence Objects',
+      'Canonical Core Intelligence Objects with original Fact/Evidence/Document/Source provenance.',
+      '0 IO') + empty('NO CANONICAL IO', 0, 'Core did not export an Intelligence Object.', 'NOT_PROVEN');
+    const links = io.chain || [];
+    const link = links[0] || {};
+    const fact = link.fact || {};
+    const evs = link.evidence || [];
+    const doc = link.document || {};
+    const source = link.source || {};
+    return pageHead('08 / CANONICAL OUTPUT', 'Intelligence Object',
+      'This is the canonical IO returned by Core API readback. Its metric semantics are taken from the nested Fact chain, not a UI-authored summary.',
+      io.io_id) +
+      panel('CANONICAL INTELLIGENCE OBJECT',
+        keyValue('IO ID / Version', io.io_id + ' / ' + io.version) +
+        keyValue('Headline', io.headline) +
+        keyValue('Event Type', io.event_type) +
+        keyValue('Event ID / Version', io.event_id + ' / ' + io.event_version) +
+        keyValue('Created At', io.created_at) +
+        keyValue('Metric', fact.metric) +
+        keyValue('Value / Unit', (fact.value || 'NOT AVAILABLE') + ' ' + (fact.unit || '')) +
+        keyValue('Entity', fact.entity) +
+        keyValue('Reference Period', fact.reference_period) +
+        keyValue('Publication Date', fact.publication_date) +
+        keyValue('Pattern / Extraction', fact.pattern_id + ' / ' + fact.extraction_version) +
+        keyValue('Human Review State', fact.quality_state || 'PENDING_HUMAN_REVIEW') +
+        '<div style="margin-top:10px">' + tag(fact.quality_state || 'PENDING_HUMAN_REVIEW') + '</div>') +
+      panel('PROVENANCE CHAIN',
+        keyValue('Source', source.source_id + ' / ' + source.institution_id) +
+        keyValue('Document ID', doc.document_id) +
+        keyValue('Canonical Source URL', doc.canonical_url) +
+        keyValue('Fact ID', fact.fact_id + ' / v' + fact.fact_version) +
+        keyValue('Evidence ID', fact.evidence_id) +
+        keyValue('Evidence rows', evs.length) +
+        keyValue('Representation ID', link.representation && link.representation.representation_id) +
+        keyValue('Content SHA-256', link.representation && link.representation.content_sha256) +
+        '<div class="pw-actions" style="margin-top:12px">' +
+        '<button class="pw-action" data-fact="' + esc(fact.fact_id || '') + '">Inspect Fact</button>' +
+        '<button class="pw-action" data-route="evidence">Inspect Evidence</button>' +
+        '<button class="pw-action" data-route="deliveries">Inspect Delivery</button></div>') +
+      panel('API READBACK',
+        keyValue('API list count', state.data.summary.r7_isolated_benchmark.verified_intelligence_objects) +
+        keyValue('Readback', state.data.summary.classification || 'OBSERVED') +
+        keyValue('Snapshot kind', state.data.manifest.snapshot_kind));
+  }
+  function renderR7Deliveries() {
+    const deliveries = r7Rows('deliveries');
+    const rows = deliveries.map(d => row([
+      '<span class="pw-mono">' + esc(d.delivery_id) + '</span>',
+      esc(d.intelligence_object_id),
+      esc(d.destination),
+      tag(d.status),
+      esc(d.idempotency_key),
+      esc(d.created_at)
+    ]));
+    return pageHead('09 / CONSUMER DELIVERY', 'Deliveries',
+      'Core Delivery record and separate consumer readback status. A ledger entry alone is not treated as external receipt.',
+      deliveries.length + ' DELIVERY') +
+      panel('CONSUMER READBACK',
+        keyValue('Consumer API readback', state.data.deliveries.consumer_readback) +
+        keyValue('Delivery state', state.data.deliveries.state)) +
+      table(['Delivery ID','IO ID','Destination','Status','Idempotency Key','Created At'], rows,
+        'No Delivery record was exported by Core.');
+  }
+  function renderR7Runs() {
+    const run = r7Rows('runs')[0] || {};
+    const summary = state.data.summary.r7_first_verified_intelligence_object || {};
+    const io = r7Io();
+    return pageHead('10 / EXECUTION HISTORY', 'R7 Proof Run',
+      'One source, one selected original document, isolated Core Proof Store, bounded rerun and actual Core API readback.',
+      run.run_id || 'NOT AVAILABLE') +
+      panel('EXECUTION IDENTITY',
+        keyValue('Run ID', run.run_id) +
+        keyValue('Execution ID', run.execution_id) +
+        keyValue('Core Commit', run.core_commit) +
+        keyValue('Branch', run.branch) +
+        keyValue('Plan', run.plan_id) +
+        keyValue('Status', run.status) +
+        keyValue('Data Scope', state.data.manifest.data_scope) +
+        keyValue('Snapshot Kind', state.data.manifest.snapshot_kind)) +
+      panel('IDEMPOTENCY / API',
+        keyValue('Fact / Evidence / Event / IO / Delivery counts',
+          [summary.verified_financial_facts, state.data.evidence.inventory_rows,
+           summary.verified_economic_events, summary.verified_intelligence_objects,
+           summary.verified_deliveries].join(' / ')) +
+        keyValue('API list IO', io && io.io_id) +
+        keyValue('API readback', (run.api_readback || {}).io_id) +
+        keyValue('ETag', (run.api_readback || {}).etag) +
+        keyValue('If-None-Match', (run.api_readback || {}).if_none_match_status) +
+        keyValue('Second-run Delivery created', false));
+  }
+  function renderR7Quality() {
+    const q = state.data.quality || {};
+    const raw = q.raw_document_sha256 || {};
+    return pageHead('11 / ACCEPTANCE CONTROLS', 'R7 Quality & Integrity',
+      'Cryptographic integrity, original Fact/Evidence binding, API readback, idempotency and independent semantic review are displayed as separate claims.',
+      'R7 ONE-DOCUMENT PROOF') +
+      '<div class="pw-grid pw-metric-grid">' +
+      metric('Original document SHA-256', raw.verified, 'One original blob rehashed against Representation', null, raw.state === 'VERIFIED' ? '' : 'is-warning') +
+      metric('Direct Evidence', q.direct_evidence, 'Selected primary structural segment', 'evidence') +
+      metric('IO API readback', q.api_readback ? 1 : 0, 'ProductionTransportHandler', 'intelligence') +
+      metric('Idempotency', q.idempotency ? 1 : 0, 'Semantic Fact/Evidence/IO/Delivery counts stable', 'runs') +
+      '</div>' +
+      renderVerificationPanel() +
+      panel('QUALITY BOUNDARIES',
+        keyValue('Raw SHA state', raw.state) +
+        keyValue('Raw SHA method', raw.method) +
+        keyValue('Independent review', q.independent_review_state) +
+        keyValue('Fact quality state', q.quality_state) +
+        keyValue('Fixture Facts / Events', q.fixture_facts + ' / ' + q.fixture_events) +
+        keyValue('API ETag 304', q.etag_304) +
+        keyValue('Idempotency accepted', q.idempotency)) +
+      '<div class="pw-callout is-error"><strong>INDEPENDENT HUMAN REVIEW PENDING.</strong> Machine extraction and API delivery have not been promoted to a human-verified intelligence claim.</div>';
+  }
+
   function render() {
     nav.querySelectorAll('[data-route]').forEach(a => a.classList.toggle('is-active',a.dataset.route===state.route));
     state.search = '';
