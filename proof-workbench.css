@@ -140,7 +140,9 @@ button { cursor: pointer; }
 }
 .pw-search { min-width: min(320px, 100%); flex: 1; }
 .pw-search:focus, .pw-select:focus { border-color: var(--pw-gold); }
-.pw-table-wrap { overflow-x: auto; width: 100%; border: 1px solid var(--pw-line); }
+.pw-table-wrap { min-width: 0; max-width: 100%; overflow-x: auto; width: 100%; border: 1px solid var(--pw-line); }
+.pw-split > * { min-width: 0; }
+.pw-panel-body > .pw-table-wrap { min-width: 0; }
 .pw-table { border-collapse: collapse; width: 100%; min-width: 740px; font-size: 10px; }
 .pw-table th {
   text-align: left; color: var(--pw-muted); background: #11100d; font: 9px var(--pw-mono);
