@@ -234,7 +234,7 @@ async function main() {
         const globalSearch = page.locator('#pw-global-search');
         await globalSearch.fill('fact-25a1a2a5b4a35c10');
         let searchText = await page.locator('#pw-main').innerText();
-        const countLine = searchText.split('\\n').find(line => line.trim().endsWith('MATCHING RECORDS')) || '0 MATCHING RECORDS';
+        const countLine = searchText.split(String.fromCharCode(10)).find(line => line.trim().endsWith('MATCHING RECORDS')) || '0 MATCHING RECORDS';
         const factSearchCount = Number(countLine.trim().split(' ')[0]) || 0;
         recordCheck(report, 'global_search_finds_fact',
           searchText.includes('fact-25a1a2a5b4a35c10') &&
@@ -242,7 +242,7 @@ async function main() {
           { matchingRecords: factSearchCount, excerpt: searchText.slice(0, 900) });
         await globalSearch.fill('');
         searchText = await page.locator('#pw-main').innerText();
-        const allSearchLine = searchText.split('\\n').find(line => line.trim().endsWith('MATCHING RECORDS')) || '0 MATCHING RECORDS';
+        const allSearchLine = searchText.split(String.fromCharCode(10)).find(line => line.trim().endsWith('MATCHING RECORDS')) || '0 MATCHING RECORDS';
         const allSearchCount = Number(allSearchLine.trim().split(' ')[0]) || 0;
         recordCheck(report, 'global_search_filters_results', factSearchCount > 0 && factSearchCount < allSearchCount,
           { filtered: factSearchCount, all: allSearchCount });
