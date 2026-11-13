@@ -516,7 +516,8 @@
   }
   function renderR7Documents() {
     const docs = r7Rows('documents');
-    const selected = r7Document();
+    // Keep the document detail collapsed until an operator selects a row.
+    const selected = docs.find(d => d.document_id === state.selectedDocument) || null;
     const rows = docs.map(d => row([
       '<button class="pw-table-link pw-mono" data-document="' + esc(d.document_id) + '">' + esc(d.document_id) + '</button>',
       esc(d.title || 'NOT AVAILABLE'),
