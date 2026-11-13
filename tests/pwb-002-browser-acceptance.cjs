@@ -19,6 +19,23 @@ function readManifest() {
     path.join(ROOT, 'proof-data', 'proof-manifest.json'), 'utf8'));
 }
 
+function contrastRatio(foreground, background) {
+  const parse = value => {
+    const match = /^#?([0-9a-f]{6})$/i.exec(value || '');
+    if (!match) return null;
+    return [0,2,4].map(index => parseInt(match[1].slice(index,index+2),16) / 255);
+  };
+  const luminance = hex => {
+    const rgb = parse(hex);
+    if (!rgb) return NaN;
+    const linear = rgb.map(channel =>
+      channel <= 0.04045 ? channel / 12.92 : Math.pow((channel + 0.055) / 1.055, 2.4));
+    return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
+  };
+  const a = luminance(foreground), b = luminance(background);
+  return (Math.max(a,b) + 0.05) / (Math.min(a,b) + 0.05);
+}
+
 function recordCheck(report, name, passed, detail) {
   report.interaction_checks[name] = { passed: !!passed, detail: detail || null };
   if (!passed) report.functional_failures.push({ check: name, detail: detail || null });
@@ -260,6 +277,27 @@ async function main() {
           keyboardTarget === 'pw-global-search' &&
           focusStyle.outlineStyle !== 'none' && focusStyle.outlineWidth !== '0px',
           { keyboardTarget, ...focusStyle });
+
+        const palette = await page.locator('html').evaluate(el => {
+          const style = getComputedStyle(el);
+          return {
+            ink: style.getPropertyValue('--pw-ink').trim(),
+            bg: style.getPropertyValue('--pw-bg').trim(),
+            secondary: style.getPropertyValue('--pw-ink-2').trim(),
+            panel: style.getPropertyValue('--pw-panel').trim(),
+            muted: style.getPropertyValue('--pw-muted').trim(),
+            gold: style.getPropertyValue('--pw-gold').trim()
+          };
+        });
+        const ratios = {
+          primary_text: contrastRatio(palette.ink, palette.bg),
+          secondary_text: contrastRatio(palette.secondary, palette.panel),
+          muted_text: contrastRatio(palette.muted, palette.panel),
+          accent_text: contrastRatio(palette.gold, palette.bg)
+        };
+        recordCheck(report, 'color_contrast_wcag_aa',
+          Object.values(ratios).every(ratio => Number.isFinite(ratio) && ratio >= 4.5),
+          ratios);
       }
 
       await context.close();
