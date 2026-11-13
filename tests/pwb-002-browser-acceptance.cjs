@@ -87,8 +87,21 @@ async function main() {
         const docButton = page.locator('#pw-main [data-document]').first();
         if (await docButton.count()) {
           await docButton.click();
-          await page.locator('#pw-main .pw-detail').waitFor();
-          report.interaction_checks.document_detail = true;
+          if (isR7) {
+            const detail = page.locator('#pw-main .pw-panel').filter({
+              hasText: 'ORIGINAL DOCUMENT DETAIL'
+            });
+            await detail.waitFor();
+            const detailText = await detail.innerText();
+            report.interaction_checks.document_detail =
+              detailText.includes('Consumer prices (provisional data) — October 2026') &&
+              detailText.includes('2026-10-30') &&
+              detailText.includes('CC BY 4.0') &&
+              detailText.includes('cac41dcabd4c797a5e437e921cbfc3fdb591cffaf0a27218ae0f2cd4ef85f6f8');
+          } else {
+            await page.locator('#pw-main .pw-detail').waitFor();
+            report.interaction_checks.document_detail = true;
+          }
         } else {
           report.interaction_checks.document_detail = false;
         }
