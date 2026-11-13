@@ -750,6 +750,29 @@
     nav.querySelectorAll('[data-route]').forEach(a => a.classList.toggle('is-active',a.dataset.route===state.route));
     state.search = '';
     state.selectedDocument = state.route==='documents' ? state.selectedDocument : null;
+
+    // R7 renderers return HTML strings (they do not mutate #pw-main).
+    // Keep the snapshot-scope dispatch centralized so every R7 route is
+    // actually mounted into the Workbench instead of leaving the loading view.
+    if (isR7Snapshot()) {
+      const r7Views = {
+        overview: renderR7Overview,
+        sources: renderR7Sources,
+        acquisition: renderR7Acquisition,
+        documents: renderR7Documents,
+        facts: renderR7Facts,
+        evidence: renderR7Evidence,
+        events: renderR7Events,
+        intelligence: renderR7Intelligence,
+        deliveries: renderR7Deliveries,
+        runs: renderR7Runs,
+        quality: renderR7Quality
+      };
+      const view = r7Views[state.route] || r7Views.overview;
+      main.innerHTML = view();
+      return;
+    }
+
     switch(state.route){
       case 'sources': renderSources(); break;
       case 'acquisition': renderAcquisition(); break;
@@ -860,7 +883,12 @@
       return;
     }
     const docButton=event.target.closest('[data-document]');
-    if(docButton){state.selectedDocument=docButton.dataset.document;renderDocuments();return;}
+    if(docButton){
+      state.selectedDocument=docButton.dataset.document;
+      if(isR7Snapshot()) main.innerHTML=renderR7Documents();
+      else renderDocuments();
+      return;
+    }
     const factButton=event.target.closest('[data-fact]');
     if(factButton){
       state.selectedFact=factButton.dataset.fact;
