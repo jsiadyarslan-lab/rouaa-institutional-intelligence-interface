@@ -241,10 +241,13 @@ async function main() {
         const rawFiles = await page.locator('#pw-raw-file option').count();
         recordCheck(report, 'raw_export_selector_includes_manifest', rawFiles === 11, String(rawFiles));
 
-        await page.locator('#pw-global-search').focus();
+        await page.locator('body').click({ position: { x: 2, y: 2 } });
+        await page.keyboard.press('Tab');
+        await page.keyboard.press('Tab');
+        const keyboardTarget = await page.evaluate(() => document.activeElement && document.activeElement.id);
         const focusStyle = await page.locator('#pw-global-search').evaluate(el => {
           const style = getComputedStyle(el);
-          return { outlineStyle: style.outlineStyle, outlineWidth: style.outlineWidth };
+          return { outlineStyle: style.outlineStyle, outlineWidth: style.outlineWidth, keyboardTarget };
         });
         recordCheck(report, 'keyboard_focus_is_visible',
           focusStyle.outlineStyle !== 'none' && focusStyle.outlineWidth !== '0px', focusStyle);
