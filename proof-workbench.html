@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ROUAA — Intelligence Production & Evidence Workbench</title>
-  <meta name="description" content="Read-only institutional proof workbench backed by an archived ROUAA Core evidence snapshot.">
+  <meta name="description" content="Read-only institutional intelligence workbench backed by the hash-verified R7 Core proof snapshot.">
   <link rel="stylesheet" href="proof-workbench.css">
 </head>
 <body>
@@ -18,11 +18,18 @@
       </div>
     </div>
     <div class="pw-header-actions">
-      <span class="pw-scope">ARCHIVED SNAPSHOT</span>
+      <label class="pw-global-search-label" for="pw-global-search">SEARCH</label>
+      <input id="pw-global-search" class="pw-global-search" type="search" aria-label="Search all exported R7 records" placeholder="Search R7 records…" autocomplete="off">
+      <span class="pw-scope">R7 ARCHIVED SNAPSHOT</span>
       <span class="pw-readonly">READ ONLY</span>
       <a class="pw-terminal-link" href="./index.html">INSTITUTIONAL TERMINAL ↗</a>
     </div>
   </header>
+
+  <div id="pw-snapshot-banner" class="pw-snapshot-banner" role="status" aria-live="polite">
+    <strong>R7 PROOF SNAPSHOT — NOT A LIVE FEED</strong>
+    <span>Manifest and export hashes are being checked. This archive does not represent a live Core service.</span>
+  </div>
 
   <div class="pw-context-line" id="pw-context-line">
     <span>CORE EVIDENCE SNAPSHOT</span>

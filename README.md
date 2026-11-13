@@ -114,25 +114,66 @@ Acceptance-tested against all three personas (executive 10 s / analyst 30 s / fo
 60 s). Desktop-first; tablet-responsive.
 
 
-## P2.8-R5 — PROOF WORKBENCH (separate archived surface)
+## P2.8-R8 — COMPLETE INSTITUTIONAL WORKBENCH
 
-The **PROOF WORKBENCH** is an additive, read-only workspace at `proof-workbench.html`.
-It is separate from the existing production Observatory and does not replace the
-V3.1 institutional terminal. Its inputs are mirrored Core-owned files under
-`proof-data/`, produced under `ROUAA_PROOF_CONTRACT_V1` from the archived R4
-isolated benchmark.
+The R8 Workbench is an additive, read-only institutional explorer on the isolated
+branch `p2.8-r8-complete-institutional-workbench`. It is not a replacement for
+the existing Institutional Terminal or Observatory, and this branch is not a
+Railway deployment record.
 
-- Scope is explicitly `ARCHIVED_SNAPSHOT` / `R4_ISOLATED_BENCHMARK`; it is **not Live**.
-- The separate historical Production Baseline remains in its own scope and is
-  never added to R4 counters.
-- R4's 30 `fixture_word_count` Facts and 30 `DOCUMENT_INGESTED` Events are
-  labelled `FIXTURE_NOT_INTELLIGENCE` and excluded from intelligence production.
-- The OP-IO-001 result is `BLOCKED_NO_SUPPORTED_INTELLIGENCE_INPUT`: no canonical
-  IO or Delivery is displayed as if one existed.
-- Missing records remain explicit empty states; a failed snapshot read shows
-  `DATA SOURCE UNAVAILABLE`. The browser only reads static proof-data files.
+### Data scope and trust boundary
 
-**Acceptance limitation:** the page and archived data files are committed, but
-browser visual QA, viewport screenshots (1440/1280/1024/768/390), console-error
-checks, and automated UI interaction tests have not yet been executed in this
-session. This surface is therefore not visually accepted or marked production-ready.
+- The current R7 dataset is an `ARCHIVED_SNAPSHOT`, generated from Core commit
+  `5d7b76feed6215673da800d5b60e9690477970ce` and run
+  `p28r7-src-istat-october-2026`.
+- The browser verifies the manifest-declared byte lengths, SHA-256 digests,
+  schema version, data scope and run/execution identity before rendering.
+  `VERIFIED` in the snapshot banner refers to this archive-integrity check only.
+- The Istat annual NIC inflation fact is `+5.4%` for October 2026 and remains
+  `DIRECT_EVIDENCE_SELECTED_PENDING_INDEPENDENT_REVIEW`. The selected release
+  is explicitly provisional/preliminary. It is not promoted to an independently
+  reviewed or final financial-intelligence claim.
+- The Workbench reads only the committed `proof-data/` exports. It makes no
+  Core API calls, does not initiate runs, and does not write to Core.
+- The historical API readback (list count, IO ID, trace links, ETag and 304)
+  is displayed as R7 run evidence; it is not presented as current API health.
+
+### Institutional modules
+
+Executive Overview · Production Runs · Source Intelligence · Acquisition & Access ·
+Document Intelligence · Representations & Retrievals · Fact Explorer ·
+Evidence & Provenance · Event Registry · Intelligence Objects ·
+Delivery & Distribution · Quality & Governance · Failures & Rejections ·
+Lineage Explorer · API & System Readback · Production Accounting ·
+Audit & Raw Records · Global Search.
+
+The modules expose the data that is present in the R7 snapshot and label the
+rest honestly. In particular, the package does not contain a complete
+Representation or RetrievalEvent ledger, per-attempt failure/rejection ledger,
+Core audit export, raw document blob, or a live health measurement. These are
+shown as `UNAVAILABLE` or `NOT SUPPORTED`, never converted into zero counts.
+
+### Core API contract boundary
+
+The R7 `ProductionTransportHandler` exposes `GET /health`, `GET /metrics`,
+`GET /v1/intelligence`, `GET /v1/intelligence/{io_id}`,
+`GET /v1/intelligence/{io_id}/trace`, and owner-mode-only
+`GET /v1/ops/registry*`. It does not expose the older Observatory
+`/production/*` contract. The Workbench does not assume these contracts are
+interchangeable. No Core endpoint or schema was modified by the R8 UI work.
+
+### Deployment status
+
+The repository's historical public-deployment documentation describes GitHub Pages
+for the Institutional Terminal. It does not establish that this R8 Workbench is
+hosted by Railway. Railway project/service/domain ownership must be identified
+and verified before a Preview deployment is attempted. No service replacement,
+production-domain change, merge or deployment is implied by this branch.
+
+### QA
+
+The R8 acceptance workflow captures all 18 modules at 1440/1280/1024/768/390px,
+tests lineage and global search, verifies explicit unavailable states and snapshot
+tamper fail-closed behavior, and records console, page, overflow, request-method
+and accessibility checks. A passing build alone is not acceptance; the exact
+GitHub Actions run and its screenshot/report artifact are the evidence of QA.
