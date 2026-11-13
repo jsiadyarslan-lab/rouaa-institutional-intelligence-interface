@@ -432,7 +432,10 @@
   }
   function r7FactValue(fact) {
     if (!fact) return 'NOT AVAILABLE';
-    return fmtNum(fact.value) + (fact.unit ? ' ' + esc(fact.unit) : '') +
+    // Prefer Core's preserved raw value for display (e.g. +5.4%);
+    // normalized value and unit remain separately visible in Fact detail.
+    return fact.raw_value ? esc(fact.raw_value) :
+      fmtNum(fact.value) + (fact.unit ? ' ' + esc(fact.unit) : '') +
       (fact.currency ? ' ' + esc(fact.currency) : '');
   }
   function r7ChainStep(label, value, stateLabel, route) {
@@ -560,7 +563,7 @@
     const rows = facts.map(f => row([
       '<button class="pw-table-link pw-mono" data-fact="' + esc(f.fact_id) + '">' + esc(f.fact_id) + '</button>',
       esc(f.metric),
-      '<strong>' + esc(f.value) + '</strong> ' + esc(f.unit || ''),
+      '<strong>' + esc(f.raw_value || f.value) + '</strong>',
       esc(f.entity || 'NOT AVAILABLE'),
       esc(f.reference_period || 'NOT AVAILABLE'),
       tag(f.quality_state || 'NOT_PROVEN')
