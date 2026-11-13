@@ -16,21 +16,28 @@
   };
 
   const NAV = [
-    ['overview', 'Overview'],
-    ['sources', 'Source Universe'],
-    ['acquisition', 'Acquisition'],
-    ['documents', 'Documents'],
-    ['facts', 'Facts'],
-    ['evidence', 'Evidence'],
-    ['events', 'Events'],
-    ['intelligence', 'Intelligence Objects'],
-    ['deliveries', 'Deliveries'],
+    ['overview', 'Executive Overview'],
     ['runs', 'Production Runs'],
-    ['quality', 'Quality & Integrity']
+    ['sources', 'Source Intelligence'],
+    ['acquisition', 'Acquisition & Access'],
+    ['documents', 'Document Intelligence'],
+    ['representations', 'Representations & Retrievals'],
+    ['facts', 'Fact Explorer'],
+    ['evidence', 'Evidence & Provenance'],
+    ['events', 'Event Registry'],
+    ['intelligence', 'Intelligence Objects'],
+    ['deliveries', 'Delivery & Distribution'],
+    ['quality', 'Quality & Governance'],
+    ['failures', 'Failures & Rejections'],
+    ['provenance', 'Lineage Explorer'],
+    ['runtime', 'API & System Readback'],
+    ['accounting', 'Production Accounting'],
+    ['audit', 'Audit & Raw Records'],
+    ['search', 'Global Search']
   ];
 
   const $ = (id) => document.getElementById(id);
-  const state = { data: null, verification: null, route: 'overview', selectedDocument: null, selectedFact: null, selectedIoId: null, candidateFilter: '', search: '' };
+  const state = { data: null, verification: null, route: 'overview', selectedDocument: null, selectedFact: null, selectedIoId: null, candidateFilter: '', search: '', searchQuery: '', searchLayer: 'ALL', searchSort: 'layer', searchPage: 1, rawFile: 'proof-facts.json' };
   const main = $('pw-main');
   const nav = $('pw-navigation');
 
@@ -494,7 +501,7 @@
     const ex = state.data.manifest;
     const api = run.api_readback || {};
     return pageHead('03 / ACQUISITION LEDGER', 'Acquisition',
-      'A single existing RSS source and a single selected document URL. Representation changes caused by request instrumentation are tracked separately from the stable semantic Fact.',
+      'This R7 run summary reports one source attempt and one selected official document. The full per-attempt RetrievalEvent ledger is not included in the archived export.',
       'ONE SOURCE · ONE DOCUMENT') +
       panel('BOUNDED EXECUTION',
         keyValue('Source ID', 'src-istat') +
@@ -745,34 +752,255 @@
         keyValue('Fixture Facts / Events', q.fixture_facts + ' / ' + q.fixture_events) +
         keyValue('API ETag 304', q.etag_304) +
         keyValue('Idempotency accepted', q.idempotency)) +
-      '<div class="pw-callout is-error"><strong>INDEPENDENT HUMAN REVIEW PENDING.</strong> Machine extraction and API delivery have not been promoted to a human-verified intelligence claim.</div>';
+      '<div class="pw-callout is-error"><strong>INDEPENDENT HUMAN REVIEW PENDING.</strong> Snapshot integrity and machine extraction do not equal independent semantic approval. The Fact remains pending review.</div>';
+  }
+
+  function r7RepresentationRows() {
+    const ios = r7Rows('intelligence');
+    const map = new Map();
+    ios.forEach(io => (io.chain || []).forEach(link => {
+      const rep = link.representation;
+      if (rep && rep.representation_id) map.set(rep.representation_id, {
+        ...rep, document_id: (link.document || {}).document_id,
+        source_id: (link.source || {}).source_id,
+        fact_id: (link.fact || {}).fact_id
+      });
+    }));
+    return Array.from(map.values());
+  }
+  function renderR7Representations() {
+    const reps = r7RepresentationRows();
+    const q = state.data.quality || {};
+    const rows = reps.map(r => row([
+      '<span class="pw-mono">' + esc(r.representation_id) + '</span>',
+      esc(r.document_id || 'NOT AVAILABLE'),
+      esc(r.fact_id || 'NOT AVAILABLE'),
+      '<span class="pw-mono">' + esc(r.content_sha256 || 'NOT AVAILABLE') + '</span>',
+      tag('SNAPSHOT')
+    ]));
+    return pageHead('06 / CONTENT & RETRIEVAL', 'Representations & Retrievals',
+      'A Representation row is shown only when it is embedded in the exported canonical IO chain. The quality export reports the total representation count separately; the complete Representation and RetrievalEvent ledgers are not exported in this R7 snapshot.',
+      'SNAPSHOT · NO LIVE RETRIEVAL') +
+      panel('REPRESENTATION INVENTORY',
+        keyValue('Representation count reported by Core quality export', q.representations) +
+        keyValue('Distinct representations linked from exported IO chains', reps.length) +
+        keyValue('RetrievalEvent ledger', 'UNAVAILABLE — not included as an R7 export') +
+        keyValue('Raw content-addressed blob', 'NOT EXPORTED IN THIS WORKBENCH PACKAGE')) +
+      table(['Representation ID','Document ID','Fact ID','Content SHA-256','Data Class'], rows,
+        'No Representation object is embedded in the exported Intelligence Object chain.');
+  }
+  function renderR7Failures() {
+    const run = r7Rows('runs')[0] || {};
+    const quality = state.data.quality || {};
+    return pageHead('13 / EXCEPTIONS & REJECTIONS', 'Failures & Rejections',
+      'The R7 evidence package does not include a per-attempt failure or rejection ledger. Absence of such an export is not evidence that the engine had zero failures.',
+      'UNAVAILABLE · NOT ZERO') +
+      panel('RUN-LEVEL EVIDENCE',
+        keyValue('Run status', run.status) +
+        keyValue('Fixture Facts / Events', (quality.fixture_facts == null ? 'NOT AVAILABLE' : quality.fixture_facts) + ' / ' + (quality.fixture_events == null ? 'NOT AVAILABLE' : quality.fixture_events)) +
+        keyValue('Failure classes', 'UNAVAILABLE — no failure ledger in R7 export') +
+        keyValue('Rejections', 'UNAVAILABLE — no rejection ledger in R7 export') +
+        keyValue('Retry / rollback history', 'NOT SUPPORTED by the R7 snapshot contract')) +
+      '<div class="pw-callout is-neutral">No failure count is inferred from an empty file or missing field. A separate Core export or read endpoint is required to inspect production failures and rejections.</div>';
+  }
+  function renderR7Provenance() {
+    const source = r7Rows('sources')[0] || {};
+    const doc = r7Rows('documents')[0] || {};
+    const fact = r7Fact() || {};
+    const evidence = (state.data.evidence.evidence_items || [])[0] || {};
+    const event = r7Rows('events')[0] || {};
+    const io = r7Io() || {};
+    const delivery = r7Rows('deliveries')[0] || {};
+    const rep = r7RepresentationRows()[0] || {};
+    const node = (n, title, id, route, note) =>
+      '<button type="button" class="pw-lineage-node" data-route="' + esc(route) + '">' +
+      '<span class="pw-lineage-step">' + esc(n) + '</span><strong>' + esc(title) + '</strong>' +
+      '<span class="pw-lineage-id">' + esc(id || 'NOT AVAILABLE') + '</span>' +
+      '<span class="pw-lineage-note">' + esc(note || 'SNAPSHOT') + '</span></button>';
+    return pageHead('14 / END-TO-END TRACE', 'Provenance & Lineage',
+      'The linked path below is assembled from the R7 export records and the canonical IO chain. Each node opens its corresponding Workbench view; missing independent ledgers remain explicitly unavailable.',
+      'R7 SNAPSHOT · READ ONLY') +
+      '<div class="pw-lineage">' +
+      node('01','Official Source',source.candidate_id,'sources','SNAPSHOT') +
+      '<div class="pw-lineage-connector"></div>' +
+      node('02','Original Document',doc.document_id,'documents','SNAPSHOT') +
+      '<div class="pw-lineage-connector"></div>' +
+      node('03','Document Representation',rep.representation_id,'representations','Embedded IO reference') +
+      '<div class="pw-lineage-connector"></div>' +
+      node('04','Extracted Fact',fact.fact_id,'facts',fact.quality_state) +
+      '<div class="pw-lineage-connector"></div>' +
+      node('05','Direct Evidence',evidence.evidence_id,'evidence','Source excerpt') +
+      '<div class="pw-lineage-connector"></div>' +
+      node('06','Detected Event',event.event_id,'events',event.event_type) +
+      '<div class="pw-lineage-connector"></div>' +
+      node('07','Intelligence Object',io.io_id,'intelligence','Canonical Core output') +
+      '<div class="pw-lineage-connector"></div>' +
+      node('08','Delivery',delivery.delivery_id,'deliveries',delivery.status) +
+      '</div>' +
+      panel('TRACE BOUNDARY',
+        keyValue('Human semantic review', (state.data.quality || {}).independent_review_state || 'NOT PROVEN') +
+        keyValue('Representation / Retrieval raw ledgers', 'NOT EXPORTED') +
+        keyValue('Audit event ledger', 'NOT EXPORTED') +
+        keyValue('Live API connection', 'NOT ESTABLISHED BY THIS SNAPSHOT'));
+  }
+  function renderR7Runtime() {
+    const run = r7Rows('runs')[0] || {};
+    const api = run.api_readback || {};
+    return pageHead('15 / TRANSPORT OBSERVABILITY', 'API & System Readback',
+      'This page reports only the historical API readback evidence captured during R7 execution. It does not ping a current Core service and must not be interpreted as live health.',
+      'SNAPSHOT · NOT LIVE') +
+      panel('R7 API READBACK EVIDENCE',
+        keyValue('Readback state', api.state || 'UNAVAILABLE') +
+        keyValue('Returned Intelligence Object', api.io_id) +
+        keyValue('List count', api.list_count) +
+        keyValue('Trace links', api.trace_links) +
+        keyValue('ETag', api.etag) +
+        keyValue('If-None-Match response', api.if_none_match_status) +
+        keyValue('Core service /health now', 'NOT CHECKED — no live API call was made') +
+        keyValue('API latency', 'UNAVAILABLE — not recorded in the R7 snapshot')) +
+      panel('SUPPORTED CORE TRANSPORT ROUTES',
+        keyValue('Public', 'GET /health; GET /metrics; static /console') +
+        keyValue('Authenticated', 'GET /v1/intelligence; GET /v1/intelligence/{io_id}; GET /v1/intelligence/{io_id}/trace') +
+        keyValue('Owner Mode only', 'GET /v1/ops/registry; /summary; /{source_id}') +
+        keyValue('Mutation verbs', 'POST / PUT / PATCH / DELETE return 405 READ_ONLY') +
+        keyValue('Observation API /production/*', 'NOT SUPPORTED by the R7 ProductionTransportHandler'));
+  }
+  function renderR7Accounting() {
+    const s = state.data.summary.r7_first_verified_intelligence_object || {};
+    const run = r7Rows('runs')[0] || {};
+    const rows = [
+      ['Sources configured', run.sources_configured],
+      ['Sources attempted', s.sources_attempted],
+      ['Sources qualified', s.sources_qualified],
+      ['Documents committed', s.documents_committed],
+      ['Documents qualified', s.documents_qualified],
+      ['Facts with direct Evidence', s.verified_financial_facts],
+      ['Economic Events', s.verified_economic_events],
+      ['Intelligence Objects', s.verified_intelligence_objects],
+      ['Deliveries', s.verified_deliveries]
+    ].map(x => row([esc(x[0]), esc(x[1] == null ? 'NOT AVAILABLE' : x[1]), tag('R7 SNAPSHOT')]));
+    return pageHead('16 / SCOPED COUNTERS', 'Production Accounting',
+      'Counters below belong only to the isolated R7 one-source / one-document execution. They are not combined with the historical LSE-V4 dataset or any other production wave.',
+      'R7 ONLY · ISOLATED PROOF STORE') +
+      table(['R7 accounting field','Recorded value','Scope'], rows, 'No R7 accounting rows were exported.') +
+      panel('EXCLUSIONS & RECONCILIATION',
+        keyValue('Fixture Facts / Events', (run.fixture_facts == null ? 'NOT AVAILABLE' : run.fixture_facts) + ' / ' + (run.fixture_events == null ? 'NOT AVAILABLE' : run.fixture_events)) +
+        keyValue('Production baseline', 'NOT INCLUDED — explicit in proof-summary.json') +
+        keyValue('Run ID', run.run_id) +
+        keyValue('Run status', run.status) +
+        keyValue('Snapshot generated', state.data.manifest.generated_at));
+  }
+  function renderR7Audit() {
+    const keys = Object.keys(FILES).filter(k => k !== 'manifest');
+    const options = keys.map(k => '<option value="' + esc(FILES[k]) + '"' +
+      (state.rawFile === FILES[k] ? ' selected' : '') + '>' + esc(FILES[k]) + '</option>').join('');
+    const payload = state.data[keys.find(k => FILES[k] === state.rawFile)] || {};
+    return pageHead('17 / FORENSIC INSPECTION', 'Audit & Raw Records',
+      'Inspect the exact JSON exports whose byte length and SHA-256 were validated against the R7 manifest. The underlying Core audit collection is not part of this export and cannot be shown here.',
+      'RAW SNAPSHOT EXPORTS') +
+      panel('RAW EXPORT SELECTOR',
+        '<label class="pw-control-label" for="pw-raw-file">Verified export file</label>' +
+        '<select id="pw-raw-file" class="pw-select" aria-label="Choose raw snapshot export">' + options + '</select>' +
+        '<div class="pw-raw-meta">' + keyValue('Manifest contract', state.data.manifest.schema_version) +
+        keyValue('Data scope', state.data.manifest.data_scope) +
+        keyValue('Core commit', state.data.manifest.core_commit) +
+        keyValue('Generated at', state.data.manifest.generated_at) + '</div>') +
+      panel('RAW JSON',
+        '<pre class="pw-raw-json" tabindex="0" aria-label="Raw JSON record">' + esc(JSON.stringify(payload, null, 2)) + '</pre>') +
+      panel('AUDIT LIMIT',
+        keyValue('Core audit collection', 'NOT EXPORTED') +
+        keyValue('Standalone audit GET endpoint', 'NOT SUPPORTED by the R7 Core transport') +
+        keyValue('Export integrity', tag('HASH VERIFIED') + ' ' + esc(state.verification.verifiedFiles + ' / ' + state.verification.totalFiles + ' files')));
+  }
+  function r7SearchRecords() {
+    const output = [];
+    const add = (layer, id, title, status, route, record, action) =>
+      output.push({layer, id: id || 'NOT AVAILABLE', title: title || id || layer, status: status || 'SNAPSHOT', route, record, action});
+    r7Rows('sources').forEach(x => add('SOURCE',x.source_id || x.candidate_id,x.institution,x.qualification_status,'sources',x));
+    r7Rows('documents').forEach(x => add('DOCUMENT',x.document_id,x.title,x.qualification_status,'documents',x));
+    r7Rows('facts').forEach(x => add('FACT',x.fact_id,x.metric + ' · ' + x.value + ' ' + (x.unit || ''),x.quality_state,'facts',x,{fact:x.fact_id}));
+    (state.data.evidence.evidence_items || []).forEach(x => add('EVIDENCE',x.evidence_id,x.excerpt,'DIRECT','evidence',x));
+    r7Rows('events').forEach(x => add('EVENT',x.event_id,x.event_type,x.status,'events',x));
+    r7Rows('intelligence').forEach(x => add('INTELLIGENCE OBJECT',x.io_id,x.headline,x.status,'intelligence',x,{io:x.io_id}));
+    r7Rows('deliveries').forEach(x => add('DELIVERY',x.delivery_id,x.destination,x.status,'deliveries',x));
+    r7Rows('runs').forEach(x => add('PRODUCTION RUN',x.run_id,x.plan_id,x.status,'runs',x));
+    return output;
+  }
+  function renderR7Search() {
+    const query = (state.searchQuery || '').trim().toLowerCase();
+    let records = r7SearchRecords().filter(x =>
+      (state.searchLayer === 'ALL' || x.layer === state.searchLayer) &&
+      (!query || (x.layer + ' ' + x.id + ' ' + x.title + ' ' + x.status + ' ' + JSON.stringify(x.record)).toLowerCase().includes(query)));
+    records.sort((a,b) => {
+      const av = String(a[state.searchSort] || '').toLowerCase();
+      const bv = String(b[state.searchSort] || '').toLowerCase();
+      return av.localeCompare(bv);
+    });
+    const pageSize = 5;
+    const pages = Math.max(1, Math.ceil(records.length / pageSize));
+    state.searchPage = Math.min(Math.max(1, state.searchPage), pages);
+    const start = (state.searchPage - 1) * pageSize;
+    const shown = records.slice(start, start + pageSize);
+    const rows = shown.map(x => {
+      const action = x.action && x.action.fact
+        ? '<button type="button" class="pw-table-link" data-fact="' + esc(x.action.fact) + '">INSPECT</button>'
+        : (x.action && x.action.io
+          ? '<button type="button" class="pw-table-link" data-io="' + esc(x.action.io) + '">INSPECT</button>'
+          : '<button type="button" class="pw-table-link" data-route="' + esc(x.route) + '">OPEN</button>');
+      return row([tag(x.layer),'<span class="pw-mono">' + esc(x.id) + '</span>',esc(x.title),tag(x.status),action]);
+    });
+    const layers = ['ALL','SOURCE','DOCUMENT','FACT','EVIDENCE','EVENT','INTELLIGENCE OBJECT','DELIVERY','PRODUCTION RUN'];
+    return pageHead('18 / CROSS-LEDGER QUERY', 'Global Search',
+      'Search every exported R7 entity ledger. Results are limited to the archived R7 snapshot; no Core query or live API request is made.',
+      records.length + ' MATCHING RECORDS') +
+      '<div class="pw-toolbar">' +
+      '<label class="pw-control-label" for="pw-search-layer">Layer</label>' +
+      '<select class="pw-select" id="pw-search-layer" aria-label="Filter search by data layer">' +
+      layers.map(x => '<option value="' + esc(x) + '"' + (state.searchLayer === x ? ' selected' : '') + '>' + esc(x) + '</option>').join('') +
+      '</select>' +
+      '<label class="pw-control-label" for="pw-search-sort">Sort</label>' +
+      '<select class="pw-select" id="pw-search-sort" aria-label="Sort search results">' +
+      [['layer','Layer'],['id','Record ID'],['title','Title'],['status','Status']].map(x => '<option value="' + x[0] + '"' + (state.searchSort === x[0] ? ' selected' : '') + '>' + x[1] + '</option>').join('') +
+      '</select><span class="pw-panel-note">Page size ' + pageSize + ' · ' + records.length + ' total exported records</span></div>' +
+      table(['Layer','Record ID','Title / Value','State','Action'],rows,'No exported record matches this query.') +
+      '<div class="pw-pagination"><span class="pw-page-count">Page ' + state.searchPage + ' of ' + pages + ' · ' + records.length + ' records</span>' +
+      '<div class="pw-actions"><button type="button" class="pw-action" data-search-page="-1"' + (state.searchPage <= 1 ? ' disabled' : '') + '>PREVIOUS</button>' +
+      '<button type="button" class="pw-action" data-search-page="1"' + (state.searchPage >= pages ? ' disabled' : '') + '>NEXT</button></div></div>' +
+      '<div class="pw-callout is-neutral">Search covers Sources, Documents, Facts, Evidence, Events, Intelligence Objects, Deliveries and the R7 Run export. Representation details are searchable through the linked IO chain, but no independent Representation ledger is included.</div>';
   }
 
   function render() {
     nav.querySelectorAll('[data-route]').forEach(a => a.classList.toggle('is-active',a.dataset.route===state.route));
-    state.search = '';
     state.selectedDocument = state.route==='documents' ? state.selectedDocument : null;
 
-    // R7 renderers return HTML strings (they do not mutate #pw-main).
-    // Keep the snapshot-scope dispatch centralized so every R7 route is
-    // actually mounted into the Workbench instead of leaving the loading view.
+    // R7 is an archived, hash-verified export. Missing ledgers remain explicit;
+    // this dispatch never substitutes historical data or invents API rows.
     if (isR7Snapshot()) {
       const r7Views = {
         overview: renderR7Overview,
         sources: renderR7Sources,
         acquisition: renderR7Acquisition,
         documents: renderR7Documents,
+        representations: renderR7Representations,
         facts: renderR7Facts,
         evidence: renderR7Evidence,
         events: renderR7Events,
         intelligence: renderR7Intelligence,
         deliveries: renderR7Deliveries,
         runs: renderR7Runs,
-        quality: renderR7Quality
+        quality: renderR7Quality,
+        failures: renderR7Failures,
+        provenance: renderR7Provenance,
+        runtime: renderR7Runtime,
+        accounting: renderR7Accounting,
+        audit: renderR7Audit,
+        search: renderR7Search
       };
       const view = r7Views[state.route] || r7Views.overview;
       main.innerHTML = view();
-      if (state.route === 'sources') bindFilter();
+      if (state.route === 'sources' || state.route === 'documents') bindFilter();
+      if (state.route === 'search') bindSearchControls();
+      if (state.route === 'audit') bindRawControls();
       return;
     }
 
@@ -792,9 +1020,22 @@
   }
   function bindFilter() {
     const input=$('pw-filter'), sort=$('pw-sort'), count=$('pw-row-count');
+    const sortColumns = {
+      candidate_id: 0, institution: 1, terminal_state: 5, domain: 4,
+      publication_date: 3, title: 1, qualification_status: 4
+    };
     const update=()=> {
       state.search=input?.value||'';
-      const rows=Array.from(main.querySelectorAll('.pw-table tbody tr'));
+      const tableEl=main.querySelector('.pw-table tbody');
+      if (!tableEl) return;
+      const rows=Array.from(tableEl.querySelectorAll('tr'));
+      const col=sortColumns[sort?.value];
+      if (col != null) rows.sort((a,b) => {
+        const av=(a.children[col]?.textContent||'').toLowerCase();
+        const bv=(b.children[col]?.textContent||'').toLowerCase();
+        return av.localeCompare(bv);
+      });
+      rows.forEach(r=>tableEl.appendChild(r));
       let visible=0;
       rows.forEach(r=>{
         const show=r.textContent.toLowerCase().includes(state.search.toLowerCase());
@@ -803,16 +1044,21 @@
       if(count) count.textContent=visible+' / '+rows.length+' ROWS';
     };
     input?.addEventListener('input',update);
-    sort?.addEventListener('change',()=>{
-      const query = input?.value || '';
-      render();
-      const newInput = $('pw-filter');
-      if (newInput) {
-        newInput.value = query;
-        newInput.dispatchEvent(new Event('input'));
-      }
-    });
+    sort?.addEventListener('change',update);
     update();
+  }
+  function bindSearchControls() {
+    $('pw-search-layer')?.addEventListener('change',event=>{
+      state.searchLayer=event.target.value;state.searchPage=1;main.innerHTML=renderR7Search();bindSearchControls();
+    });
+    $('pw-search-sort')?.addEventListener('change',event=>{
+      state.searchSort=event.target.value;state.searchPage=1;main.innerHTML=renderR7Search();bindSearchControls();
+    });
+  }
+  function bindRawControls() {
+    $('pw-raw-file')?.addEventListener('change',event=>{
+      state.rawFile=event.target.value;main.innerHTML=renderR7Audit();bindRawControls();
+    });
   }
   function renderNav(){
     nav.innerHTML=NAV.map((x,i)=>'<a class="pw-nav-link" href="#'+esc(x[0])+'" data-route="'+esc(x[0])+'"><span class="pw-nav-index">'+String(i+1).padStart(2,'0')+'</span><span>'+esc(x[1])+'</span></a>').join('');
@@ -871,14 +1117,37 @@
   }
 
   renderNav();
+  const globalSearch = $('pw-global-search');
+  globalSearch?.addEventListener('input',event=>{
+    state.searchQuery=event.target.value;
+    state.searchPage=1;
+    if (state.route !== 'search') {
+      state.route='search';
+      location.hash='search';
+    }
+    if (isR7Snapshot()) {
+      main.innerHTML=renderR7Search();
+      bindSearchControls();
+      nav.querySelectorAll('[data-route]').forEach(a => a.classList.toggle('is-active',a.dataset.route==='search'));
+    }
+  });
   nav.addEventListener('click',event=>{
     const a=event.target.closest('[data-route]');
     if(!a)return;
     event.preventDefault();
     const route=a.dataset.route;
-    if(route && NAV.some(x=>x[0]===route)){state.route=route;state.selectedDocument=null;state.candidateFilter='';location.hash=route;render();}
+    if(route && NAV.some(x=>x[0]===route)){
+      state.route=route;state.selectedDocument=null;state.candidateFilter='';
+      if(route==='search') state.searchPage=1;
+      location.hash=route;render();
+    }
   });
   main.addEventListener('click',event=>{
+    const searchPageButton=event.target.closest('[data-search-page]');
+    if(searchPageButton){
+      state.searchPage=Math.max(1,state.searchPage+Number(searchPageButton.dataset.searchPage||0));
+      main.innerHTML=renderR7Search();bindSearchControls();return;
+    }
     const routeButtonEl=event.target.closest('[data-route]');
     if(routeButtonEl && !routeButtonEl.closest('#pw-navigation')){
       const route=routeButtonEl.dataset.route;
