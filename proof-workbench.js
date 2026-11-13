@@ -466,6 +466,7 @@
       'One official Istat release processed by Core. Acquisition, Fact/Evidence, Event, IO and Delivery remain separate acceptance states.',
       'ARCHIVED PROOF SNAPSHOT · ONE DOCUMENT') +
       '<div class="pw-callout is-neutral"><strong>Machine pipeline observed; independent semantic review remains pending.</strong> The Core pipeline selected a direct structural Evidence segment for the annual NIC inflation Fact. This page does not promote that Fact to human-verified intelligence.</div>' +
+      '<div class="pw-callout is-warning" role="note"><strong>PROVISIONAL / PRELIMINARY RELEASE.</strong> The Istat title labels October 2026 as provisional and the selected evidence states “According to preliminary estimates”. The +5.4% NIC annual figure must not be presented as final.</div>' +
       '<div class="pw-grid pw-metric-grid">' + metrics + '</div>' +
       panel('CANONICAL PROVENANCE CHAIN', chain) +
       panel('SELECTED FINANCIAL METRIC',
@@ -892,9 +893,12 @@
   }
   function renderR7Audit() {
     const keys = Object.keys(FILES).filter(k => k !== 'manifest');
-    const options = keys.map(k => '<option value="' + esc(FILES[k]) + '"' +
+    const options = '<option value="proof-manifest.json"' + (state.rawFile === 'proof-manifest.json' ? ' selected' : '') + '>proof-manifest.json</option>' +
+      keys.map(k => '<option value="' + esc(FILES[k]) + '"' +
       (state.rawFile === FILES[k] ? ' selected' : '') + '>' + esc(FILES[k]) + '</option>').join('');
-    const payload = state.data[keys.find(k => FILES[k] === state.rawFile)] || {};
+    const payload = state.rawFile === 'proof-manifest.json'
+      ? state.data.manifest
+      : (state.data[keys.find(k => FILES[k] === state.rawFile)] || {});
     return pageHead('17 / FORENSIC INSPECTION', 'Audit & Raw Records',
       'Inspect the exact JSON exports whose byte length and SHA-256 were validated against the R7 manifest. The underlying Core audit collection is not part of this export and cannot be shown here.',
       'RAW SNAPSHOT EXPORTS') +
@@ -923,6 +927,7 @@
     r7Rows('events').forEach(x => add('EVENT',x.event_id,x.event_type,x.status,'events',x));
     r7Rows('intelligence').forEach(x => add('INTELLIGENCE OBJECT',x.io_id,x.headline,x.status,'intelligence',x,{io:x.io_id}));
     r7Rows('deliveries').forEach(x => add('DELIVERY',x.delivery_id,x.destination,x.status,'deliveries',x));
+    r7RepresentationRows().forEach(x => add('REPRESENTATION',x.representation_id,x.content_sha256,'SNAPSHOT','representations',x));
     r7Rows('runs').forEach(x => add('PRODUCTION RUN',x.run_id,x.plan_id,x.status,'runs',x));
     return output;
   }
@@ -949,7 +954,7 @@
           : '<button type="button" class="pw-table-link" data-route="' + esc(x.route) + '">OPEN</button>');
       return row([tag(x.layer),'<span class="pw-mono">' + esc(x.id) + '</span>',esc(x.title),tag(x.status),action]);
     });
-    const layers = ['ALL','SOURCE','DOCUMENT','FACT','EVIDENCE','EVENT','INTELLIGENCE OBJECT','DELIVERY','PRODUCTION RUN'];
+    const layers = ['ALL','SOURCE','DOCUMENT','REPRESENTATION','FACT','EVIDENCE','EVENT','INTELLIGENCE OBJECT','DELIVERY','PRODUCTION RUN'];
     return pageHead('18 / CROSS-LEDGER QUERY', 'Global Search',
       'Search every exported R7 entity ledger. Results are limited to the archived R7 snapshot; no Core query or live API request is made.',
       records.length + ' MATCHING RECORDS') +
@@ -966,7 +971,7 @@
       '<div class="pw-pagination"><span class="pw-page-count">Page ' + state.searchPage + ' of ' + pages + ' · ' + records.length + ' records</span>' +
       '<div class="pw-actions"><button type="button" class="pw-action" data-search-page="-1"' + (state.searchPage <= 1 ? ' disabled' : '') + '>PREVIOUS</button>' +
       '<button type="button" class="pw-action" data-search-page="1"' + (state.searchPage >= pages ? ' disabled' : '') + '>NEXT</button></div></div>' +
-      '<div class="pw-callout is-neutral">Search covers Sources, Documents, Facts, Evidence, Events, Intelligence Objects, Deliveries and the R7 Run export. Representation details are searchable through the linked IO chain, but no independent Representation ledger is included.</div>';
+      '<div class="pw-callout is-neutral">Search covers every exported Source, Document, linked Representation reference, Fact, Evidence, Event, Intelligence Object, Delivery and R7 Run record. It searches only this archived snapshot and makes no Core API request.</div>';
   }
 
   function render() {
@@ -1095,6 +1100,8 @@
       state.data={manifest,...payloads};
       state.verification=verification;
       $('pw-snapshot-time').textContent='SNAPSHOT '+dateLabel(manifest.generated_at)+' · '+manifest.data_scope;
+      $('pw-snapshot-banner').innerHTML='<strong>R7 VERIFIED PROOF SNAPSHOT — NOT A LIVE FEED</strong><span>VERIFIED means the archived manifest and declared export bytes passed integrity checks. Independent semantic review of the inflation Fact remains pending.</span>';
+      $('pw-snapshot-banner').classList.add('is-verified');
       $('pw-source-state').textContent='SNAPSHOT HASHES VERIFIED · SOURCE: '+manifest.verification_state;
       $('pw-source-state').classList.remove('is-error');
       $('pw-source-state').classList.add('is-ready');
@@ -1103,6 +1110,9 @@
       state.data=null;
       state.verification=null;
       $('pw-source-state').textContent='DATA SOURCE UNAVAILABLE';
+      $('pw-snapshot-banner').innerHTML='<strong>R7 SNAPSHOT INTEGRITY UNAVAILABLE — NOT A LIVE FEED</strong><span>Integrity validation failed. No partial or fallback data is rendered.</span>';
+      $('pw-snapshot-banner').classList.remove('is-verified');
+      $('pw-snapshot-banner').classList.add('is-error');
       $('pw-source-state').classList.remove('is-ready');
       $('pw-source-state').classList.add('is-error');
       main.innerHTML='<div class="pw-unavailable">'+
