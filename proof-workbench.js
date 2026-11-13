@@ -485,6 +485,7 @@
     return pageHead('02 / SOURCE REGISTRY', 'Source Universe',
       'Only the existing src-istat registry record is represented in the R7 proof scope. No source expansion was performed.',
       '1 EXISTING SOURCE') +
+      toolbar('Filter source ID, institution, domain or qualification…') +
       table(['Source ID','Institution','Institution ID','Source Class','Official Domain','Qualification','Endpoint'], rows,
         'The R7 Core export has no source record.');
   }
@@ -771,6 +772,7 @@
       };
       const view = r7Views[state.route] || r7Views.overview;
       main.innerHTML = view();
+      if (state.route === 'sources') bindFilter();
       return;
     }
 
