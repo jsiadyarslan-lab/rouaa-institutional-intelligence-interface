@@ -1,11 +1,12 @@
-name: PWB-002 — First Intelligence Object Browser Acceptance
+name: P2.8-R8 — Complete Institutional Workbench Acceptance
 
 on:
   push:
     branches:
-      - pwb-002-first-intelligence-object
+      - p2.8-r8-complete-institutional-workbench
     paths:
       - ".github/workflows/pwb-002-browser-acceptance.yml"
+  workflow_dispatch:
       - "proof-workbench.html"
       - "proof-workbench.js"
       - "proof-workbench.css"
@@ -23,7 +24,7 @@ concurrency:
 jobs:
   playwright-visual-acceptance:
     runs-on: ubuntu-24.04
-    timeout-minutes: 35
+    timeout-minutes: 45
     steps:
       - name: Checkout exact UI branch commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -49,7 +50,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p artifacts/pwb-002
-          python3 -m http.server 4173 --bind 127.0.0.1 >artifacts/pwb-002/static-server.log 2>&1 &
+          python3 -m http.server 4173 --bind 127.0.0.1 >artifacts/pwb-002-r8/static-server.log 2>&1 &
           echo $! > artifacts/pwb-002/static-server.pid
           for attempt in $(seq 1 40); do
             if curl -fsS http://127.0.0.1:4173/proof-workbench.html >/dev/null; then
@@ -60,14 +61,14 @@ jobs:
           cat artifacts/pwb-002/static-server.log
           exit 1
 
-      - name: Run 11-route viewport, interaction, overflow and integrity QA
+      - name: Run 18-module viewport, interaction, API read-only, accessibility and integrity QA
         run: node tests/pwb-002-browser-acceptance.cjs
 
       - name: Upload browser screenshots, route logs and integrity report
         if: always()
         uses: actions/upload-artifact@615b319bd27bb32c3d64dca6b6ed6974d5fbe653
         with:
-          name: pwb-002-browser-acceptance-${{ github.sha }}
+          name: p2.8-r8-browser-acceptance-${{ github.sha }}
           path: artifacts/pwb-002/
           if-no-files-found: warn
           retention-days: 90
