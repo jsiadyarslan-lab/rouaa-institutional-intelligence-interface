@@ -217,13 +217,18 @@ async function main() {
         const globalSearch = page.locator('#pw-global-search');
         await globalSearch.fill('fact-25a1a2a5b4a35c10');
         let searchText = await page.locator('#pw-main').innerText();
-        const factSearchCount = Number((searchText.match(/(\\d+) MATCHING RECORDS/) || [])[1] || 0);
+        const countLine = searchText.split('\\n').find(line => line.trim().endsWith('MATCHING RECORDS')) || '0 MATCHING RECORDS';
+        const factSearchCount = Number(countLine.trim().split(' ')[0]) || 0;
         recordCheck(report, 'global_search_finds_fact',
           searchText.includes('fact-25a1a2a5b4a35c10') &&
           searchText.includes('FACT') && factSearchCount >= 1,
           { matchingRecords: factSearchCount, excerpt: searchText.slice(0, 900) });
         await globalSearch.fill('');
         searchText = await page.locator('#pw-main').innerText();
+        const allSearchLine = searchText.split('\\n').find(line => line.trim().endsWith('MATCHING RECORDS')) || '0 MATCHING RECORDS';
+        const allSearchCount = Number(allSearchLine.trim().split(' ')[0]) || 0;
+        recordCheck(report, 'global_search_filters_results', factSearchCount > 0 && factSearchCount < allSearchCount,
+          { filtered: factSearchCount, all: allSearchCount });
         const nextPage = page.locator('#pw-main [data-search-page="1"]');
         const hasNextPage = await nextPage.count();
         if (hasNextPage) await nextPage.click();
