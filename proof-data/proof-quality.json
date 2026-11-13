@@ -1,33 +1,29 @@
 {
-  "schema_version": "ROUAA_PROOF_CONTRACT_V1",
-  "data_scope": "R4_ISOLATED_BENCHMARK",
+  "api_readback": true,
+  "core_commit": "5d7b76feed6215673da800d5b60e9690477970ce",
+  "data_scope": "R7_FIRST_VERIFIED_INTELLIGENCE_OBJECT",
+  "deliveries": 1,
+  "direct_evidence": 1,
+  "etag_304": true,
+  "events": 1,
+  "execution_id": "exec-p28r7-0b1dd673df77581ebd878f58",
+  "facts": 1,
+  "fixture_events": 0,
+  "fixture_facts": 0,
+  "generated_at": "2026-11-13T07:18:08+00:00",
+  "idempotency": true,
+  "independent_review_state": "PENDING_HUMAN_REVIEW",
+  "intelligence_objects": 1,
+  "quality_state": "DIRECT_EVIDENCE_SELECTED_PENDING_INDEPENDENT_REVIEW",
   "raw_document_sha256": {
-    "checked": 30,
-    "verified": 30,
+    "checked": 1,
     "failed": 0,
-    "state": "EXECUTOR_REPORTED"
+    "method": "sha256(raw bytes) independently compared with Core Representation.content_sha256",
+    "state": "VERIFIED",
+    "verified": 1
   },
-  "documents_active": 30,
-  "representations": 30,
-  "fixture_facts": 30,
-  "fixture_events": 30,
-  "evidence_rows": 60,
-  "provenance_complete": true,
-  "false_success": 0,
-  "orphan_blobs": 0,
-  "cross_document_duplicate_content": 0,
-  "document_qualification": {
-    "strict": 15,
-    "with_notes": 14,
-    "not_qualified": 1
-  },
-  "op_io_001": {
-    "documents_reviewed": 30,
-    "acquisition_only": 23,
-    "unsupported_content": 6,
-    "insufficient_evidence": 1,
-    "final_eligible": 0,
-    "verdict": "BLOCKED_NO_SUPPORTED_INTELLIGENCE_INPUT"
-  },
-  "human_review_state": "PENDING_HUMAN_REVIEW"
+  "representations": 2,
+  "run_id": "p28r7-src-istat-october-2026",
+  "schema_version": "ROUAA_PROOF_CONTRACT_V1",
+  "snapshot_kind": "ARCHIVED_SNAPSHOT"
 }

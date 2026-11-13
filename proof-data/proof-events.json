@@ -1,11 +1,32 @@
 {
-  "schema_version": "ROUAA_PROOF_CONTRACT_V1",
-  "data_scope": "R4_ISOLATED_BENCHMARK",
-  "verified_events": [],
+  "core_commit": "5d7b76feed6215673da800d5b60e9690477970ce",
+  "data_scope": "R7_FIRST_VERIFIED_INTELLIGENCE_OBJECT",
+  "entries": [
+    {
+      "derived_at": "2026-11-13T07:18:04+00:00",
+      "document_id": "doc-6f4ad50d00c7af64",
+      "event_id": "evt-b5413fb26d1542e9",
+      "event_type": "statistical_release",
+      "event_version": 1,
+      "fact_version_snapshot": [
+        {
+          "fact_id": "fact-25a1a2a5b4a35c10",
+          "fact_version": 1
+        }
+      ],
+      "occurrence": 0,
+      "status": "ACTIVE"
+    }
+  ],
+  "execution_id": "exec-p28r7-0b1dd673df77581ebd878f58",
   "fixture_outputs": {
-    "count": 30,
-    "event_type": "DOCUMENT_INGESTED",
-    "classification": "FIXTURE_NOT_INTELLIGENCE"
+    "classification": "NONE",
+    "count": 0
   },
-  "state": "NOT_PROVEN"
+  "generated_at": "2026-11-13T07:18:08+00:00",
+  "run_id": "p28r7-src-istat-october-2026",
+  "schema_version": "ROUAA_PROOF_CONTRACT_V1",
+  "snapshot_kind": "ARCHIVED_SNAPSHOT",
+  "state": "OBSERVED",
+  "verified_events": 1
 }
