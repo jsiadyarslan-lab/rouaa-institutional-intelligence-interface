@@ -6,19 +6,20 @@ on:
       - p2.8-r8-complete-institutional-workbench
     paths:
       - ".github/workflows/pwb-002-browser-acceptance.yml"
-  workflow_dispatch:
       - "proof-workbench.html"
       - "proof-workbench.js"
       - "proof-workbench.css"
       - "proof-workbench-integrity.js"
       - "proof-data/**"
       - "tests/**"
+      - "README.md"
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: pwb-002-browser-acceptance-${{ github.sha }}
+  group: p2.8-r8-browser-acceptance-${{ github.sha }}
   cancel-in-progress: false
 
 jobs:
@@ -49,16 +50,16 @@ jobs:
       - name: Start static Workbench
         shell: bash
         run: |
-          mkdir -p artifacts/pwb-002
+          mkdir -p artifacts/pwb-002-r8
           python3 -m http.server 4173 --bind 127.0.0.1 >artifacts/pwb-002-r8/static-server.log 2>&1 &
-          echo $! > artifacts/pwb-002/static-server.pid
+          echo $! > artifacts/pwb-002-r8/static-server.pid
           for attempt in $(seq 1 40); do
             if curl -fsS http://127.0.0.1:4173/proof-workbench.html >/dev/null; then
               exit 0
             fi
             sleep 1
           done
-          cat artifacts/pwb-002/static-server.log
+          cat artifacts/pwb-002-r8/static-server.log
           exit 1
 
       - name: Run 18-module viewport, interaction, API read-only, accessibility and integrity QA
@@ -69,6 +70,6 @@ jobs:
         uses: actions/upload-artifact@615b319bd27bb32c3d64dca6b6ed6974d5fbe653
         with:
           name: p2.8-r8-browser-acceptance-${{ github.sha }}
-          path: artifacts/pwb-002/
+          path: artifacts/pwb-002-r8/
           if-no-files-found: warn
           retention-days: 90
