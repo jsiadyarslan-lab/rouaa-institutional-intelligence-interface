@@ -249,10 +249,12 @@ async function main() {
         const keyboardTarget = await page.evaluate(() => document.activeElement && document.activeElement.id);
         const focusStyle = await page.locator('#pw-global-search').evaluate(el => {
           const style = getComputedStyle(el);
-          return { outlineStyle: style.outlineStyle, outlineWidth: style.outlineWidth, keyboardTarget };
+          return { outlineStyle: style.outlineStyle, outlineWidth: style.outlineWidth };
         });
         recordCheck(report, 'keyboard_focus_is_visible',
-          focusStyle.outlineStyle !== 'none' && focusStyle.outlineWidth !== '0px', focusStyle);
+          keyboardTarget === 'pw-global-search' &&
+          focusStyle.outlineStyle !== 'none' && focusStyle.outlineWidth !== '0px',
+          { keyboardTarget, ...focusStyle });
       }
 
       await context.close();
