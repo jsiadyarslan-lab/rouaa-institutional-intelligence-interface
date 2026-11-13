@@ -506,7 +506,11 @@
         keyValue('Documents committed', run.documents_committed) +
         keyValue('Canonical IO / Deliveries',
           [run.intelligence_objects,run.deliveries].join(' / ')) +
-        keyValue('API readback state', api.io_id || 'NOT AVAILABLE')) +
+        keyValue('API readback state', api.state || 'NOT AVAILABLE') +
+        keyValue('API returned IO', api.io_id || 'NOT AVAILABLE') +
+        keyValue('API list count', api.list_count) +
+        keyValue('API trace links', api.trace_links) +
+        keyValue('If-None-Match status', api.if_none_match_status)) +
       panel('SCOPE GUARDRAILS',
         '<div class="pw-callout is-neutral">No R4 replay, batch acquisition, new source registration, production Store write or live deployment is represented in this R7 snapshot.</div>');
   }
@@ -665,8 +669,11 @@
         '<button class="pw-action" data-route="evidence">Inspect Evidence</button>' +
         '<button class="pw-action" data-route="deliveries">Inspect Delivery</button></div>') +
       panel('API READBACK',
-        keyValue('API list count', state.data.summary.r7_isolated_benchmark.verified_intelligence_objects) +
-        keyValue('Readback', state.data.summary.classification || 'OBSERVED') +
+        keyValue('API list count', (state.data.summary.r7_first_verified_intelligence_object || {}).verified_intelligence_objects) +
+        keyValue('API returned IO', (state.data.runs.entries[0] || {}).api_readback?.io_id || io.io_id) +
+        keyValue('Readback state', (state.data.runs.entries[0] || {}).api_readback?.state || state.data.intelligence.state || 'NOT PROVEN') +
+        keyValue('Trace links', (state.data.runs.entries[0] || {}).api_readback?.trace_links) +
+        keyValue('Conditional request', (state.data.runs.entries[0] || {}).api_readback?.if_none_match_status) +
         keyValue('Snapshot kind', state.data.manifest.snapshot_kind));
   }
   function renderR7Deliveries() {
