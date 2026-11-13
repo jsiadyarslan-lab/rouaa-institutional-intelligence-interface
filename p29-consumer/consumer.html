@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ROUAA — Verified Intelligence Vertical Slice (Isolated Test Consumer)</title>
+<link rel="stylesheet" href="./consumer.css">
+</head>
+<body>
+<header class="cx-masthead">
+  <div class="cx-brand-lockup">
+    <span class="cx-brand">ROUAA</span>
+    <span class="cx-divider"></span>
+    <div>
+      <div class="cx-eyebrow">INSTITUTIONAL INTELLIGENCE</div>
+      <div class="cx-product">VERIFIED INTELLIGENCE VERTICAL SLICE</div>
+    </div>
+  </div>
+  <div class="cx-header-actions">
+    <span class="cx-state cx-state-live" id="cx-data-mode" data-mode="ISOLATED TEST">ISOLATED TEST</span>
+    <span class="cx-readonly">READ ONLY</span>
+  </div>
+</header>
+
+<div class="cx-banner" id="cx-banner" role="status" aria-live="polite">
+  <strong>P2.9 ISOLATED TEST — REAL CORE API CONSUMPTION</strong>
+  <span>This surface reads the real isolated ROUAA Core API through an authorized server-side integration layer. The Core credential is held server-side only; this page never holds, transmits, or stores it. All write attempts are rejected.</span>
+</div>
+
+<div class="cx-context" id="cx-context">
+  <span>SLICE</span><span class="cx-sep">/</span>
+  <span id="cx-route-label">EXECUTIVE OVERVIEW</span>
+  <span class="cx-spacer"></span>
+  <span id="cx-source-state" class="cx-state-indicator">CONNECTING TO ISOLATED CORE…</span>
+</div>
+
+<div class="cx-shell">
+  <aside class="cx-sidebar">
+    <div class="cx-sidebar-label">VERIFIED CHAIN</div>
+    <nav class="cx-nav" id="cx-nav">
+      <a href="#overview" data-route="overview">Executive Overview</a>
+      <a href="#intelligence" data-route="intelligence">Intelligence Object</a>
+      <a href="#fact" data-route="fact">Fact Detail</a>
+      <a href="#evidence" data-route="evidence">Evidence &amp; Provenance</a>
+      <a href="#run" data-route="run">Production Run</a>
+      <a href="#document" data-route="document">Official Document</a>
+    </nav>
+    <div class="cx-sidebar-note">FACT → EVIDENCE → REPRESENTATION → DOCUMENT → OFFICIAL SOURCE</div>
+  </aside>
+  <main class="cx-main" id="cx-main">
+    <div class="cx-loading">CONNECTING TO THE ISOLATED CORE…</div>
+  </main>
+</div>
+
+<script src="./consumer.js"></script>
+</body>
+</html>
