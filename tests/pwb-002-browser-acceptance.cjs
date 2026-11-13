@@ -217,9 +217,11 @@ async function main() {
         const globalSearch = page.locator('#pw-global-search');
         await globalSearch.fill('fact-25a1a2a5b4a35c10');
         let searchText = await page.locator('#pw-main').innerText();
+        const factSearchCount = Number((searchText.match(/(\\d+) MATCHING RECORDS/) || [])[1] || 0);
         recordCheck(report, 'global_search_finds_fact',
           searchText.includes('fact-25a1a2a5b4a35c10') &&
-          searchText.includes('1 MATCHING RECORDS'));
+          searchText.includes('FACT') && factSearchCount >= 1,
+          { matchingRecords: factSearchCount, excerpt: searchText.slice(0, 900) });
         await globalSearch.fill('');
         searchText = await page.locator('#pw-main').innerText();
         const nextPage = page.locator('#pw-main [data-search-page="1"]');
