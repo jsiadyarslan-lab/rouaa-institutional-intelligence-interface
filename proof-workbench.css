@@ -118,6 +118,7 @@ button { cursor: pointer; }
 .pw-funnel-value { text-align: right; color: var(--pw-ink); font: 11px var(--pw-mono); }
 .pw-baseline-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .pw-baseline-item { min-width: 0; overflow-wrap: anywhere; padding: 9px 10px; border: 1px solid var(--pw-line); background: #14120e; }
+.pw-baseline-item .pw-status { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
 .pw-baseline-value { min-width: 0; overflow-wrap: anywhere; }
 .pw-baseline-value { color: var(--pw-ink); font: 17px var(--pw-mono); }
 .pw-baseline-label { display: block; color: var(--pw-muted); font-size: 9px; margin-top: 3px; }
