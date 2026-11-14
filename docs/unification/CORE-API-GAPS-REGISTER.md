@@ -1,0 +1,16 @@
+# CORE-API-GAPS-REGISTER
+Requirements for a separate Core task (no Core change was made here). Common rules for every gap: read-only GET; each record carries source_id, document_id/canonical_url, representation_id + content_sha256, evidence ids; pagination (`limit`, `cursor`); 401 without token; errors as `{error:{code, message}}`; acceptance test = live response matches schema and every record resolves to its source via the trace.
+
+| Gap | Needed data | Endpoint (proposed) | Response shape (proposed) | Acceptance test |
+|---|---|---|---|---|
+| Documents | document list/filter by source, date | GET /v1/documents | `{documents:[{document_id, source_id, canonical_url, retrieved_at, representation_ids[]}], next_cursor}` | every document_id resolves to ≥1 representation and its source |
+| Representations | representation metadata | GET /v1/representations[/{id}] | `{representation_id, document_id, content_sha256, media_type, size, retrieved_at}` | recomputed sha256 of served blob equals content_sha256 |
+| Evidence | evidence rows | GET /v1/evidence[/{id}] | `{evidence_id, fact_id, representation_id, locator}` | locator resolves inside the representation |
+| Facts | facts list/filter | GET /v1/facts[/{id}] | `{fact_id, event_id, evidence_ids[], version}` | each fact lists ≥1 evidence |
+| Events | events list | GET /v1/events[/{id}] | `{event_id, event_type, fact_ids[], io_ids[]}` | event ↔ IO link round-trips |
+| Source traceability | reverse lookup source → objects | GET /v1/sources/{id}/objects | `{source_id, io_ids[]}` | forward trace and reverse lookup agree |
+| Search | text search over objects | GET /v1/search?q= | `{results:[{type,id,snippet}]}` | known object returned by its headline |
+| Production runs/accounting/audit | run registry, counts, cost, audit log | GET /v1/runs, /v1/accounting, /v1/audit | to be specified | owner-mode only; figures reconcile with /metrics |
+| Owner routes via UI | credentialed read for registry | server-side channel (see blockers); never a browser token | — | no secret reaches the browser |
+| Intelligence feed ordering (R2C §6) | newest-first analyst view without breaking cursor semantics | `order` parameter on `GET /v1/intelligence` (e.g. `order=oldest\|newest`), cursor semantics defined per order | `{objects, next_cursor}` unchanged; the cursor must encode the active order | pages under `order=newest` stay mutually consistent (no overlaps/skips across cursors); the UI labels the active order; client-side reversal is NOT an acceptable substitute (it corrupts cross-page cursor ordering). Current Core transport sorts ascending by (derived_at, event_id, event_version) = oldest first, and the UI states this explicitly. |
+| CORE-PROXY-ORIGIN-ATTESTATION (R2D §8) | verifiable proof that a response on the /core channel originated from ROUAA Core via the approved proxy | Core emits a documented origin identifier; proxy attests/verifies it; contract documented for both sides | response carries the attestation in a documented, non-spoofable form | client cannot be convinced by response shape, Content-Type or HTTP status alone (impersonation tests stay in the suite); only then may LIVE_RESPONSE (and Core-attributed error states) become reachable. Registered as a future requirement — NOT implemented in R2D; no Core, proxy or Railway change was made. |
