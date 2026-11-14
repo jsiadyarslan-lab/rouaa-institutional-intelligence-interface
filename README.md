@@ -1,3 +1,5 @@
+> **Unified Terminal (R1):** the runtime is now `index.html` + `unified/`. Snapshot-era content below is historical and lives in `quarantine/legacy-snapshot-ui/`. See `docs/unification/`.
+
 # ROUAA INSTITUTIONAL INTELLIGENCE — INTERFACE PROTOTYPE V2 (BLACK INSTITUTIONAL TERMINAL)
 
 **Public deployment (GitHub Pages)** of the institutional consumption interface, evolved per
