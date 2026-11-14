@@ -2,6 +2,8 @@ name: Unified UI acceptance
 on:
   push:
     branches: ["unify/**"]
+  pull_request:
+    branches: ["p2.9-interface-verified-intelligence-consumer"]
   workflow_dispatch:
 permissions:
   contents: read

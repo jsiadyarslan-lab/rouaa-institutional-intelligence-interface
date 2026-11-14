@@ -8,7 +8,9 @@ The single institutional interface for ROUAA. **ROUAA Core is the only source of
 Runtime files: `index.html`, `brand-tokens.css`, `style.css`, `unified/` (`capabilities.js`, `core-client.js`, `app.js`, `unified.css`).
 
 ## Data flow
-Browser → `unified/core-client.js` → same-origin `GET /core/...` → Core. The client sends GET only, to an allow-list (`/health`, `/metrics`, `/v1/intelligence`, `/v1/intelligence/{id}`, `/v1/intelligence/{id}/trace`), with no credentials and no base-URL override. There is no snapshot fallback, no sample data and no call to `/production/*`.
+Browser → `unified/core-client.js` → same-origin `GET /core/...` → Core. The client sends GET only, to an allow-list (`/health`, `/metrics`, `/v1/intelligence`, `/v1/intelligence/{id}`, `/v1/intelligence/{id}/trace`), with no base-URL override. There is no snapshot fallback, no sample data and no call to `/production/*`.
+
+**Credentials.** There is no Core token in the JavaScript, in `localStorage` or in `sessionStorage`, and the client never adds `Authorization` or `X-API-Key` headers. Requests use `credentials: 'same-origin'`, so same-origin cookies (if a deployment sets any) would be sent; the browser itself holds no Core credential. If a server-side proxy ever needs a Core token, that token stays on the server side and is not part of this repository.
 
 **This repository does not provide the `/core` channel, and no deployment has been verified to serve it.** Wherever `/core` does not answer with JSON, contracted modules show `CHANNEL_NOT_PROVISIONED`. A temporary connection failure is shown separately (`TEMPORARY_FAILURE`) and is not a statement about Core's capabilities.
 
