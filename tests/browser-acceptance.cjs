@@ -17,9 +17,13 @@ const MIME = { '.html': 'text/html; charset=utf-8', '.css': 'text/css', '.js': '
 const FIX = {
   health: { status: 'ok' },
   metrics: { source_count: 3, document_count: 9, fact_count: 42, event_count: 5, io_count: 5 },
-  feed: { objects: [{ io_id: 'io-test-1', headline: 'SYNTHETIC TEST ROW', event_type: 'test_event', status: 'active', created_at: '2026-01-01T00:00:00Z' }, { io_id: 'io-test-2', headline: 'SYNTHETIC ROW WITHOUT OTHER FIELDS' }] },
+  /* Intelligence contract V1 shape: {objects:[…], next_cursor:string|null}; cursor is the opaque
+     "derived_at|event_id|event_version" tuple, URL-encoded by the client on the wire. */
+  feed: { objects: [{ io_id: 'io-test-1', headline: 'SYNTHETIC TEST ROW', event_type: 'test_event', status: 'active', created_at: '2026-01-01T00:00:00Z' }, { io_id: 'io-test-2', headline: 'SYNTHETIC ROW WITHOUT OTHER FIELDS' }], next_cursor: '2026-01-01T00:00:00Z|ev-test-2|1' },
+  feedPage2: { objects: [{ io_id: 'io-test-3', headline: 'SYNTHETIC PAGE 2 ROW', event_type: 'test_event', status: 'active', created_at: '2026-01-01T01:00:00Z' }], next_cursor: null },
   obj: { io_id: 'io-test-1', event_id: 'ev-test-1', event_type: 'test_event', event_version: 1, status: 'active', created_at: '2026-01-01T00:00:00Z' },
-  trace: { chain: [{ source: 'src-test', document: { canonical_url: 'https://example.test/doc' }, representation: { representation_id: 'rep-test', content_sha256: '0'.repeat(64) }, evidence: ['ev-1'], fact: 'fact-test' }] }
+  trace: { chain: [{ source: 'src-test', document: { canonical_url: 'https://example.test/doc' }, representation: { representation_id: 'rep-test', content_sha256: '0'.repeat(64) }, evidence: ['ev-1'], fact: 'fact-test' }] },
+  errCore: { error: { code: 'IO_NOT_FOUND', message: 'unknown io_id' } } /* documented Core error envelope */
 };
 const report = { sha: SHA, started: new Date().toISOString(), viewports: VIEWPORTS.map((v) => v.w), checks: [], browser: null };
 const note = (name, ok, detail) => report.checks.push({ name, ok, detail: detail || '' });
@@ -54,10 +58,21 @@ test.after(async () => {
 async function open(vp, mode) {
   const ctx = await browser.newContext({ viewport: { width: vp.w, height: vp.h } });
   const rec = { pageerrors: [], consoleErrors: [], requests: [], badResponses: [] };
-  if (mode === 'synthetic') {
+  if (mode === 'synthetic' || mode === 'nocursor' || mode === 'hang') {
     await ctx.route('**/core/**', (route) => {
-      const p = new URL(route.request().url()).pathname.replace(/^\/core/, '');
-      const map = { '/health': FIX.health, '/metrics': FIX.metrics, '/v1/intelligence': FIX.feed, '/v1/intelligence/io-test-1': FIX.obj, '/v1/intelligence/io-test-1/trace': FIX.trace };
+      const u = new URL(route.request().url());
+      const p = u.pathname.replace(/^\/core/, '');
+      if (p === '/v1/intelligence') {
+        if (mode === 'nocursor') return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ objects: FIX.feed.objects }) });
+        const cur = u.searchParams.get('cursor');
+        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(cur ? FIX.feedPage2 : FIX.feed) });
+      }
+      if (p === '/health' && mode === 'hang') { /* hung connection — the client must abort at its own deadline */
+        return new Promise((done) => setTimeout(() => { route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(FIX.health) }).then(done, done); }, 10500));
+      }
+      if (p === '/v1/intelligence/io-gone') return route.fulfill({ status: 404, contentType: 'application/json', body: JSON.stringify(FIX.errCore) });
+      if (p === '/v1/intelligence/io-ambiguous') return route.fulfill({ status: 404, contentType: 'application/json', body: '{}' });
+      const map = { '/health': FIX.health, '/metrics': FIX.metrics, '/v1/intelligence/io-test-1': FIX.obj, '/v1/intelligence/io-test-1/trace': FIX.trace };
       if (map[p]) return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(map[p]) });
       return route.fulfill({ status: 404, contentType: 'application/json', body: '{}' });
     });
@@ -97,6 +112,7 @@ rt('synthetic Core: overview, feed, detail, evidence, matrix (functional, 1440)'
   assert.doesNotMatch(t, /Live response received.*LIVE_VERIFIED/s);
   await go(page, 'intelligence', () => document.querySelector('.u-table'));
   t = await text(page); assert.match(t, /SYNTHETIC TEST ROW/); assert.match(t, /Not provided by Core/);
+  assert.match(t, /Showing 2 record\(s\) — page limit 50 per Core request\./); assert.match(t, /Next page →/);
   await page.locator('a', { hasText: 'io-test-1' }).first().click();
   await page.waitForSelector('.u-chain');
   t = await text(page); assert.match(t, /example\.test\/doc/); assert.match(t, /rep-test/); assert.match(t, /Evidence chain/);
@@ -139,6 +155,63 @@ rt('footer and visible text make no absolute traceability claim', async () => {
   assert.doesNotMatch(all, /every displayed object is traceable/i); assert.match(all, /only where Core successfully returns a trace/);
   assert.doesNotMatch(all, /production[- ]ready|EVIDENCE_TRACEABILITY_PASS|prototype/i);
   note('wording', true); await ctx.close();
+});
+
+rt('feed pagination follows the documented cursor contract (functional, 1440)', async () => {
+  const { ctx, page, rec } = await open(VIEWPORTS[0], 'synthetic');
+  await go(page, 'intelligence', () => document.querySelector('.u-table'));
+  let t = await text(page);
+  assert.match(t, /Showing 2 record\(s\) — page limit 50 per Core request\./);
+  assert.match(t, /Next page →/); assert.doesNotMatch(t, /Previous page/);
+  await page.getByRole('button', { name: /Next page/ }).click();
+  await page.waitForFunction(() => document.body.innerText.includes('SYNTHETIC PAGE 2 ROW'), null, { timeout: 15000 });
+  t = await text(page);
+  assert.match(t, /Showing 1 record\(s\)/); assert.match(t, /Previous page/); assert.doesNotMatch(t, /Next page →/);
+  assert.match(t, /next_cursor is null/); /* page 2 is stated as the last page — no silent drop */
+  const curReq = rec.requests.find((r) => /cursor=/.test(r.url));
+  assert.ok(curReq, 'a cursor continuation request was issued');
+  assert.match(curReq.url, /limit=50&cursor=2026-01-01T00%3A00%3A00Z%7Cev-test-2%7C1/, 'cursor sent URL-encoded, allow-list accepted');
+  await page.getByRole('button', { name: /Previous page/ }).click();
+  await page.waitForFunction(() => document.body.innerText.includes('SYNTHETIC TEST ROW'), null, { timeout: 15000 });
+  assert.doesNotMatch(await text(page), /SYNTHETIC PAGE 2 ROW/);
+  assert.deepEqual(rec.pageerrors, []); assert.deepEqual(rec.consoleErrors, []); assert.deepEqual(rec.badResponses, []);
+  note('feed-pagination', true); await ctx.close();
+});
+
+rt('feed without a continuation field states the 50-record bound explicitly', async () => {
+  const { ctx, page, rec } = await open(VIEWPORTS[0], 'nocursor');
+  await go(page, 'intelligence', () => document.querySelector('.u-table'));
+  const t = await text(page);
+  assert.match(t, /Showing 2 record\(s\)/);
+  assert.match(t, /may be showing only the first 50 records/);
+  assert.doesNotMatch(t, /Next page →/); assert.doesNotMatch(t, /Previous page/);
+  assert.doesNotMatch(t, /next_cursor is null/);
+  assert.deepEqual(rec.pageerrors, []);
+  note('feed-bounded-no-contract', true); await ctx.close();
+});
+
+rt('404 origin classification rendered: Core-attributed vs undetermined (functional, 1440)', async () => {
+  const { ctx, page, rec } = await open(VIEWPORTS[0], 'synthetic');
+  await go(page, 'intelligence/io-gone', () => document.querySelector('.u-state'));
+  let t = await text(page);
+  assert.match(t, /NOT_FOUND_BY_CORE/); assert.match(t, /Core answered 404 for this resource/);
+  await go(page, 'intelligence/io-ambiguous', () => document.querySelector('.u-state'));
+  t = await text(page);
+  assert.match(t, /UNDETERMINED_404/); assert.match(t, /not attributable to Core/);
+  assert.doesNotMatch(t, /Core answered 404 for this resource/);
+  assert.deepEqual(rec.pageerrors, []); assert.deepEqual(rec.consoleErrors, []); assert.deepEqual(rec.badResponses, []);
+  note('404-origin-classification', true); await ctx.close();
+});
+
+rt('timeout: a hung /core request cannot leave the UI in Reading Core… (functional, 1440)', async () => {
+  const { ctx, page, rec } = await open(VIEWPORTS[0], 'hang');
+  await go(page, 'overview'); /* health hangs; the client must abort at 10s and render the failure */
+  const t = await text(page);
+  assert.match(t, /TEMPORARY_FAILURE/); assert.match(t, /timeout after 10000ms/);
+  assert.equal(await page.locator('.u-load').count(), 0);
+  assert.match(t, /document_count/); /* metrics answered; only the hung call degraded */
+  assert.deepEqual(rec.pageerrors, []);
+  note('request-timeout', true); await ctx.close();
 });
 
 rt('network audit: GET only, same-origin, no snapshot/production/credential traffic', async () => {

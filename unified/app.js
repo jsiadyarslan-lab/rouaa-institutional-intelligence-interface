@@ -6,6 +6,7 @@
   const STATE_TEXT = {
     LIVE_RESPONSE: 'Live response received — contract not production-verified',
     NOT_FOUND_BY_CORE: 'Core answered 404 for this resource',
+    UNDETERMINED_404: '404 on the /core channel — origin not attributable to Core (no documented Core error envelope)',
     UNAUTHORIZED: 'Core rejected the request (unauthorized)',
     DEGRADED: 'Core reported a degraded store (503)',
     CHANNEL_NOT_PROVISIONED: 'Core read channel (/core) is not provisioned in this deployment — nothing was verified',
@@ -30,6 +31,7 @@
     const b = el('div', 'u-state st-' + res.state);
     b.appendChild(el('strong', '', res.state));
     b.appendChild(el('span', '', ' — ' + STATE_TEXT[res.state] + (res.status ? ' (HTTP ' + res.status + ')' : '')));
+    if (res.detail) b.appendChild(el('span', 'u-detail mono', ' [' + res.detail + ']'));
     if (res.state === 'DEGRADED' && res.body) b.appendChild(raw(res.body));
     return b;
   }
@@ -56,11 +58,22 @@
       box.appendChild(raw(m.body));
     }
   }
+  /* Feed pagination state (R2B) — in-memory only; nothing is persisted anywhere in the browser.
+     Cursors come only from Core's own next_cursor (or the previous-page stack), never from user input. */
+  let feedCursor = null;
+  const feedStack = [];
+  function feedNav() { window.dispatchEvent(new Event('hashchange')); }
+
   async function feed(mod, box) {
-    const r = await coreGet('/v1/intelligence?limit=50');
+    const path = '/v1/intelligence?limit=50' + (feedCursor ? '&cursor=' + encodeURIComponent(feedCursor) : '');
+    const r = await coreGet(path);
     if (r.state !== 'LIVE_RESPONSE') { box.appendChild(stateBox(r)); return; }
-    const list = r.body && Array.isArray(r.body.objects) ? r.body.objects : null;
+    const body = r.body && typeof r.body === 'object' ? r.body : null;
+    const list = body && Array.isArray(body.objects) ? body.objects : null;
     if (!list) { box.appendChild(el('p', 'u-warn', 'Response schema not recognized (no objects[]). Shown verbatim, not interpreted.')); box.appendChild(raw(r.body)); return; }
+    const hasNextField = !!(body && 'next_cursor' in body); /* documented contract: {objects, next_cursor:string|null} */
+    const next = hasNextField && typeof body.next_cursor === 'string' && body.next_cursor ? body.next_cursor : null;
+    box.appendChild(el('p', 'u-sub', 'Showing ' + list.length + ' record(s) — page limit 50 per Core request.'));
     if (!list.length) { box.appendChild(el('p', '', 'Core returned zero intelligence objects.')); box.appendChild(raw(r.body)); return; }
     const t = el('table', 'u-table'); const hr = el('tr');
     ['io_id', 'headline', 'event_type', 'status', 'created_at'].forEach((k) => hr.appendChild(el('th', 'mono', k))); t.appendChild(hr);
@@ -73,7 +86,27 @@
       });
       t.appendChild(tr);
     });
-    box.appendChild(wrapTable(t)); box.appendChild(raw(r.body));
+    box.appendChild(wrapTable(t));
+    /* Pagination controls — shown only when the response carries the documented continuation contract. */
+    if (hasNextField && (next || feedStack.length)) {
+      const pages = el('div', 'u-pages');
+      if (feedStack.length) {
+        const pb = el('button', '', '← Previous page'); pb.type = 'button';
+        pb.addEventListener('click', () => { feedCursor = feedStack.pop() || null; feedNav(); });
+        pages.appendChild(pb);
+      }
+      if (next) {
+        const nb = el('button', '', 'Next page →'); nb.type = 'button';
+        nb.addEventListener('click', () => { if (feedStack.length > 200) feedStack.shift(); feedStack.push(feedCursor); feedCursor = next; feedNav(); });
+        pages.appendChild(nb);
+      }
+      box.appendChild(pages);
+    }
+    /* Completeness honesty (R2B): with the contract, next_cursor===null means this IS the last page.
+       If the continuation field is missing entirely, the bound is stated explicitly — no silent truncation. */
+    if (!hasNextField) box.appendChild(el('p', 'u-warn', 'Continuation field next_cursor is absent from this response — the feed may be showing only the first 50 records; completeness beyond this page cannot be stated from this response.'));
+    else if (!next) box.appendChild(el('p', 'u-sub', 'Core reports no further pages for this query (next_cursor is null) — no records are silently dropped.'));
+    box.appendChild(raw(r.body));
   }
   async function objectDetail(id, box) {
     box.appendChild(el('h2', 'mono', id));
