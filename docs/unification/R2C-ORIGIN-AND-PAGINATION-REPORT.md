@@ -5,6 +5,8 @@
 **Implementation head:** `1096b692d2c42e9754708df0a1c6f015bd41fa77` (branch `unify/canonical-ui-r1`)
 **Verdict:** `UPSTREAM_ATTRIBUTION_HONEST — TIMEOUT_FAIL_CLOSED — PAGINATION_EDGE_CASES_PASS — CI_PASS`
 
+> **Superseded in part by R2D (ROUAA-UNIFIED-UI-001-R2D):** this report stopped attributing ERROR responses to Core but still treated contract-conforming HTTP 200 answers as `LIVE_RESPONSE` Core data. R2D closed that boundary: every 2xx payload is now `UNVERIFIED_UPSTREAM_RESPONSE`, rendered only as diagnostics under the UPSTREAM ORIGIN UNVERIFIED banner. See `R2D-UPSTREAM-TRUST-BOUNDARY-REPORT.md`; the table in §2 below describes the pre-R2D client behaviour for errors (still accurate) and the pre-R2D treatment of successes (historical).
+
 ## 1. Upstream-origin marker — the verified fact (§2.4)
 
 **No verified upstream-origin marker exists in the current system.** What was checked, before writing any code:

@@ -25,7 +25,7 @@ Defined in `unified/capabilities.js`; rendered at `#/matrix`.
 | `BLOCKED_NO_SECURE_PATH` | Needs a credentialed server-side channel that is not verified. |
 | `SNAPSHOT_QUARANTINED` | Formerly snapshot-backed; isolated from the runtime in `quarantine/legacy-snapshot-ui/`. |
 
-A response labelled `LIVE_RESPONSE` means Core answered a request; it does not upgrade a module to `LIVE_VERIFIED`.
+Since R2D no state is `LIVE_RESPONSE`: with no verified upstream-origin attestation (see CORE-API-GAPS-REGISTER.md, CORE-PROXY-ORIGIN-ATTESTATION), every 2xx answer on the /core route is `UNVERIFIED_UPSTREAM_RESPONSE` — an HTTP answer arrived, but its upstream source is not verified; the payload is shown only as diagnostics, never as trusted Core data. `LIVE_RESPONSE` stays reserved vocabulary, unreachable until that attestation contract exists, and no response ever upgrades a module to `LIVE_VERIFIED`.
 
 ## Deployment
 Per the recorded evidence (`docs/unification/RAILWAY-LIVE-DEPLOYMENT-MAP.md`), the Railway services are not linked to a GitHub source, so the deployed page cannot be rebuilt from a known commit. The public Railway URL does not serve this interface. No deployment or cutover is part of this change.
