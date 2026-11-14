@@ -18,9 +18,12 @@ const FIX = {
   health: { status: 'ok' },
   metrics: { source_count: 3, document_count: 9, fact_count: 42, event_count: 5, io_count: 5 },
   /* Intelligence contract V1 shape: {objects:[…], next_cursor:string|null}; cursor is the opaque
-     "derived_at|event_id|event_version" tuple, URL-encoded by the client on the wire. */
+     "derived_at|event_id|event_version" tuple, URL-encoded by the client on the wire.
+     Page 3 exists so the UI can be driven through page1 → page2 → page3(null) and, in 'feedfail'
+     mode, through a page-3 transport failure for the recovery path. */
   feed: { objects: [{ io_id: 'io-test-1', headline: 'SYNTHETIC TEST ROW', event_type: 'test_event', status: 'active', created_at: '2026-01-01T00:00:00Z' }, { io_id: 'io-test-2', headline: 'SYNTHETIC ROW WITHOUT OTHER FIELDS' }], next_cursor: '2026-01-01T00:00:00Z|ev-test-2|1' },
-  feedPage2: { objects: [{ io_id: 'io-test-3', headline: 'SYNTHETIC PAGE 2 ROW', event_type: 'test_event', status: 'active', created_at: '2026-01-01T01:00:00Z' }], next_cursor: null },
+  feedPage2: { objects: [{ io_id: 'io-test-3', headline: 'SYNTHETIC PAGE 2 ROW', event_type: 'test_event', status: 'active', created_at: '2026-01-01T01:00:00Z' }], next_cursor: '2026-01-01T01:00:00Z|ev-test-3|1' },
+  feedLast: { objects: [{ io_id: 'io-test-4', headline: 'SYNTHETIC LAST PAGE ROW', event_type: 'test_event', status: 'active', created_at: '2026-01-01T02:00:00Z' }], next_cursor: null },
   obj: { io_id: 'io-test-1', event_id: 'ev-test-1', event_type: 'test_event', event_version: 1, status: 'active', created_at: '2026-01-01T00:00:00Z' },
   trace: { chain: [{ source: 'src-test', document: { canonical_url: 'https://example.test/doc' }, representation: { representation_id: 'rep-test', content_sha256: '0'.repeat(64) }, evidence: ['ev-1'], fact: 'fact-test' }] },
   errCore: { error: { code: 'IO_NOT_FOUND', message: 'unknown io_id' } } /* documented Core error envelope */
@@ -55,17 +58,29 @@ test.after(async () => {
   fs.writeFileSync(path.join(OUT, 'acceptance-report.json'), JSON.stringify(report, null, 2));
 });
 
+const CURSOR_P2 = '2026-01-01T00:00:00Z|ev-test-2|1';
+const CURSOR_P3 = '2026-01-01T01:00:00Z|ev-test-3|1';
+
 async function open(vp, mode) {
   const ctx = await browser.newContext({ viewport: { width: vp.w, height: vp.h } });
   const rec = { pageerrors: [], consoleErrors: [], requests: [], badResponses: [] };
-  if (mode === 'synthetic' || mode === 'nocursor' || mode === 'hang') {
+  if (mode !== 'nochannel') {
+    /* The route below is a synthetic /core frontend. In 'synthetic' mode its 404 answers deliberately
+       include one byte-identical Core error envelope (io-gone) — i.e. the route also plays the role of
+       an IMPERSONATING PROXY, and the client must still not attribute the 404 to Core (R2C §2). */
     await ctx.route('**/core/**', (route) => {
       const u = new URL(route.request().url());
       const p = u.pathname.replace(/^\/core/, '');
       if (p === '/v1/intelligence') {
         if (mode === 'nocursor') return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ objects: FIX.feed.objects }) });
+        if (mode === 'badcursor') return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ objects: FIX.feed.objects, next_cursor: 5 }) });
         const cur = u.searchParams.get('cursor');
-        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(cur ? FIX.feedPage2 : FIX.feed) });
+        if (cur === CURSOR_P2) return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(FIX.feedPage2) });
+        if (cur === CURSOR_P3) {
+          if (mode === 'feedfail') return route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify(FIX.errCore) });
+          return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(FIX.feedLast) });
+        }
+        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(FIX.feed) });
       }
       if (p === '/health' && mode === 'hang') { /* hung connection — the client must abort at its own deadline */
         return new Promise((done) => setTimeout(() => { route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(FIX.health) }).then(done, done); }, 10500));
@@ -113,6 +128,7 @@ rt('synthetic Core: overview, feed, detail, evidence, matrix (functional, 1440)'
   await go(page, 'intelligence', () => document.querySelector('.u-table'));
   t = await text(page); assert.match(t, /SYNTHETIC TEST ROW/); assert.match(t, /Not provided by Core/);
   assert.match(t, /Showing 2 record\(s\) — page limit 50 per Core request\./); assert.match(t, /Next page →/);
+  assert.match(t, /Order: oldest first — Core canonical ordering/);
   await page.locator('a', { hasText: 'io-test-1' }).first().click();
   await page.waitForSelector('.u-chain');
   t = await text(page); assert.match(t, /example\.test\/doc/); assert.match(t, /rep-test/); assert.match(t, /Evidence chain/);
@@ -135,13 +151,15 @@ rt('unavailable and blocked modules state it plainly and show no data', async ()
   note('unavailable-modules', true, NOT_AVAILABLE.length + ' not-exposed + ' + BLOCKED.length + ' blocked'); await ctx.close();
 });
 
-rt('no /core channel: states it, UI keeps working', async () => {
+rt('no /core channel: host HTML 404 proves neither Core origin nor provisioning state, UI keeps working', async () => {
   const { ctx, page, rec } = await open(VIEWPORTS[0], 'nochannel');
   for (const k of ['overview', 'intelligence', 'evidence']) { await go(page, k); }
   await go(page, 'overview'); let t = await text(page);
-  assert.match(t, /CHANNEL_NOT_PROVISIONED/); assert.doesNotMatch(t, /Live response received/); assert.doesNotMatch(t, /\b0\b.*io_count/s);
-  await go(page, 'intelligence'); t = await text(page); assert.match(t, /CHANNEL_NOT_PROVISIONED/); assert.equal(await page.locator('.u-table').count(), 0);
-  await go(page, 'intelligence/io-test-1', () => document.querySelector('.u-state')); assert.match(await text(page), /CHANNEL_NOT_PROVISIONED/);
+  assert.match(t, /UNDETERMINED_404/); assert.match(t, /not attributable to Core/);
+  assert.doesNotMatch(t, /CHANNEL_NOT_PROVISIONED/); /* an HTML 404 alone is not evidence about provisioning */
+  assert.doesNotMatch(t, /Live response received/); assert.doesNotMatch(t, /\b0\b.*io_count/s);
+  await go(page, 'intelligence'); t = await text(page); assert.match(t, /UNDETERMINED_404/); assert.equal(await page.locator('.u-table').count(), 0);
+  await go(page, 'intelligence/io-test-1', () => document.querySelector('.u-state')); assert.match(await text(page), /UNDETERMINED_404/);
   await go(page, 'intelligence/%E0%A4%A', () => document.querySelector('.u-state')); assert.match(await text(page), /REJECTED_PATH/);
   assert.equal(await page.locator('.nav-group').count(), 3);
   assert.deepEqual(rec.pageerrors, []); assert.deepEqual(rec.consoleErrors, []); assert.deepEqual(rec.badResponses, []);
@@ -161,21 +179,66 @@ rt('feed pagination follows the documented cursor contract (functional, 1440)', 
   const { ctx, page, rec } = await open(VIEWPORTS[0], 'synthetic');
   await go(page, 'intelligence', () => document.querySelector('.u-table'));
   let t = await text(page);
+  assert.match(t, /Order: oldest first — Core canonical ordering/); /* R2C §6: actual Core order is stated */
   assert.match(t, /Showing 2 record\(s\) — page limit 50 per Core request\./);
   assert.match(t, /Next page →/); assert.doesNotMatch(t, /Previous page/);
   await page.getByRole('button', { name: /Next page/ }).click();
   await page.waitForFunction(() => document.body.innerText.includes('SYNTHETIC PAGE 2 ROW'), null, { timeout: 15000 });
   t = await text(page);
-  assert.match(t, /Showing 1 record\(s\)/); assert.match(t, /Previous page/); assert.doesNotMatch(t, /Next page →/);
-  assert.match(t, /next_cursor is null/); /* page 2 is stated as the last page — no silent drop */
+  assert.match(t, /Showing 1 record\(s\)/); assert.match(t, /Previous page/); assert.match(t, /Next page →/);
   const curReq = rec.requests.find((r) => /cursor=/.test(r.url));
   assert.ok(curReq, 'a cursor continuation request was issued');
   assert.match(curReq.url, /limit=50&cursor=2026-01-01T00%3A00%3A00Z%7Cev-test-2%7C1/, 'cursor sent URL-encoded, allow-list accepted');
+  await page.getByRole('button', { name: /Next page/ }).click();
+  await page.waitForFunction(() => document.body.innerText.includes('SYNTHETIC LAST PAGE ROW'), null, { timeout: 15000 });
+  t = await text(page);
+  assert.match(t, /next_cursor is null/); /* the last-page claim is made ONLY for a literal null */
+  assert.doesNotMatch(t, /Next page →/); assert.match(t, /Previous page/);
   await page.getByRole('button', { name: /Previous page/ }).click();
-  await page.waitForFunction(() => document.body.innerText.includes('SYNTHETIC TEST ROW'), null, { timeout: 15000 });
-  assert.doesNotMatch(await text(page), /SYNTHETIC PAGE 2 ROW/);
+  await page.waitForFunction(() => document.body.innerText.includes('SYNTHETIC PAGE 2 ROW'), null, { timeout: 15000 });
+  t = await text(page);
+  assert.match(t, /SYNTHETIC PAGE 2 ROW/); assert.doesNotMatch(t, /SYNTHETIC LAST PAGE ROW/);
   assert.deepEqual(rec.pageerrors, []); assert.deepEqual(rec.consoleErrors, []); assert.deepEqual(rec.badResponses, []);
   note('feed-pagination', true); await ctx.close();
+});
+
+rt('invalid next_cursor value: continuation state unknown, no completeness claim, raw kept (functional, 1440)', async () => {
+  const { ctx, page, rec } = await open(VIEWPORTS[0], 'badcursor');
+  await go(page, 'intelligence', () => document.querySelector('.u-table'));
+  const t = await text(page);
+  assert.match(t, /Showing 2 record\(s\)/);
+  assert.match(t, /invalid value/); assert.match(t, /continuation state is unknown/i);
+  assert.doesNotMatch(t, /Next page →/); /* no link is built from an invalid value */
+  assert.doesNotMatch(t, /next_cursor is null/); /* no false completeness claim */
+  assert.doesNotMatch(t, /may be showing only the first 50/); /* that wording belongs to the missing-field case only */
+  assert.match(t, /Raw response \(verbatim\)/); /* the raw record is never hidden */
+  assert.deepEqual(rec.pageerrors, []);
+  note('feed-invalid-cursor-value', true); await ctx.close();
+});
+
+rt('pagination recovery: a failed page keeps Previous and Retry, cursor preserved (functional, 1440)', async () => {
+  const { ctx, page, rec } = await open(VIEWPORTS[0], 'feedfail');
+  await go(page, 'intelligence', () => document.querySelector('.u-table')); /* page 1 */
+  await page.getByRole('button', { name: /Next page/ }).click();
+  await page.waitForFunction(() => document.body.innerText.includes('SYNTHETIC PAGE 2 ROW'), null, { timeout: 15000 }); /* page 2 */
+  await page.getByRole('button', { name: /Next page/ }).click();
+  await page.waitForSelector('.u-state', { timeout: 15000 }); /* page 3 → 503 */
+  let t = await text(page);
+  assert.match(t, /TEMPORARY_FAILURE/); assert.match(t, /HTTP 503/); assert.match(t, /not attributable to Core/);
+  assert.match(t, /Previous page/); /* R2C §5: Previous survives a failed page load */
+  assert.match(t, /Retry this page/);
+  assert.doesNotMatch(t, /Showing \d+ record/); /* failed page shows no record count */
+  const p3url = /cursor=2026-01-01T01%3A00%3A00Z%7Cev-test-3%7C1/;
+  assert.ok(rec.requests.some((r) => p3url.test(r.url)), 'page-3 cursor was requested');
+  await page.getByRole('button', { name: /Retry this page/ }).click();
+  await page.waitForFunction(() => document.querySelectorAll('.u-state').length > 0, null, { timeout: 15000 }); /* fails again, same cursor */
+  assert.ok(rec.requests.filter((r) => p3url.test(r.url)).length >= 2, 'Retry re-requested the SAME cursor without mutating the stack');
+  await page.getByRole('button', { name: /Previous page/ }).click();
+  await page.waitForFunction(() => document.body.innerText.includes('SYNTHETIC PAGE 2 ROW'), null, { timeout: 15000 });
+  t = await text(page);
+  assert.match(t, /Showing 1 record\(s\)/); assert.match(t, /Next page →/); assert.doesNotMatch(t, /TEMPORARY_FAILURE/);
+  assert.deepEqual(rec.pageerrors, []); assert.deepEqual(rec.consoleErrors, []); assert.deepEqual(rec.badResponses, []);
+  note('pagination-recovery', true); await ctx.close();
 });
 
 rt('feed without a continuation field states the 50-record bound explicitly', async () => {
@@ -190,17 +253,17 @@ rt('feed without a continuation field states the 50-record bound explicitly', as
   note('feed-bounded-no-contract', true); await ctx.close();
 });
 
-rt('404 origin classification rendered: Core-attributed vs undetermined (functional, 1440)', async () => {
+rt('origin attribution in the browser: impersonating-proxy 404 (exact Core envelope) stays UNDETERMINED (functional, 1440)', async () => {
   const { ctx, page, rec } = await open(VIEWPORTS[0], 'synthetic');
-  await go(page, 'intelligence/io-gone', () => document.querySelector('.u-state'));
+  await go(page, 'intelligence/io-gone', () => document.querySelector('.u-state')); /* route answers with the byte-identical Core envelope */
   let t = await text(page);
-  assert.match(t, /NOT_FOUND_BY_CORE/); assert.match(t, /Core answered 404 for this resource/);
+  assert.match(t, /UNDETERMINED_404/); assert.match(t, /shape evidence only/);
+  assert.doesNotMatch(t, /NOT_FOUND_BY_CORE/); assert.doesNotMatch(t, /Core answered 404 for this resource/);
   await go(page, 'intelligence/io-ambiguous', () => document.querySelector('.u-state'));
   t = await text(page);
-  assert.match(t, /UNDETERMINED_404/); assert.match(t, /not attributable to Core/);
-  assert.doesNotMatch(t, /Core answered 404 for this resource/);
+  assert.match(t, /UNDETERMINED_404/); assert.match(t, /not provable/);
   assert.deepEqual(rec.pageerrors, []); assert.deepEqual(rec.consoleErrors, []); assert.deepEqual(rec.badResponses, []);
-  note('404-origin-classification', true); await ctx.close();
+  note('404-origin-attribution', true); await ctx.close();
 });
 
 rt('timeout: a hung /core request cannot leave the UI in Reading Core… (functional, 1440)', async () => {

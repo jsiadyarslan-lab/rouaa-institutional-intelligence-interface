@@ -1,5 +1,5 @@
 # CORE-API-GAPS-REGISTER
-Requirements for a separate Core task (no Core change was made here). Common rules for every gap: read-only GET; each record carries source_id, document_id/canonical_url, representation_id + content_sha256, evidence ids; pagination (`limit`, `cursor`); 401 without token; errors as `{code, message}`; acceptance test = live response matches schema and every record resolves to its source via the trace.
+Requirements for a separate Core task (no Core change was made here). Common rules for every gap: read-only GET; each record carries source_id, document_id/canonical_url, representation_id + content_sha256, evidence ids; pagination (`limit`, `cursor`); 401 without token; errors as `{error:{code, message}}`; acceptance test = live response matches schema and every record resolves to its source via the trace.
 
 | Gap | Needed data | Endpoint (proposed) | Response shape (proposed) | Acceptance test |
 |---|---|---|---|---|
@@ -12,3 +12,4 @@ Requirements for a separate Core task (no Core change was made here). Common rul
 | Search | text search over objects | GET /v1/search?q= | `{results:[{type,id,snippet}]}` | known object returned by its headline |
 | Production runs/accounting/audit | run registry, counts, cost, audit log | GET /v1/runs, /v1/accounting, /v1/audit | to be specified | owner-mode only; figures reconcile with /metrics |
 | Owner routes via UI | credentialed read for registry | server-side channel (see blockers); never a browser token | — | no secret reaches the browser |
+| Intelligence feed ordering (R2C §6) | newest-first analyst view without breaking cursor semantics | `order` parameter on `GET /v1/intelligence` (e.g. `order=oldest\|newest`), cursor semantics defined per order | `{objects, next_cursor}` unchanged; the cursor must encode the active order | pages under `order=newest` stay mutually consistent (no overlaps/skips across cursors); the UI labels the active order; client-side reversal is NOT an acceptable substitute (it corrupts cross-page cursor ordering). Current Core transport sorts ascending by (derived_at, event_id, event_version) = oldest first, and the UI states this explicitly. |

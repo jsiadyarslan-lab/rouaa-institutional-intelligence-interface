@@ -5,13 +5,16 @@
   const NP = 'Not provided by Core';
   const STATE_TEXT = {
     LIVE_RESPONSE: 'Live response received — contract not production-verified',
-    NOT_FOUND_BY_CORE: 'Core answered 404 for this resource',
-    UNDETERMINED_404: '404 on the /core channel — origin not attributable to Core (no documented Core error envelope)',
-    UNAUTHORIZED: 'Core rejected the request (unauthorized)',
-    DEGRADED: 'Core reported a degraded store (503)',
-    CHANNEL_NOT_PROVISIONED: 'Core read channel (/core) is not provisioned in this deployment — nothing was verified',
-    TEMPORARY_FAILURE: 'Temporary connection failure — retry; this is not a statement about Core capability',
-    REJECTED_PATH: 'Request rejected by the UI allow-list'
+    UNDETERMINED_404: '404 on the /core channel — origin not attributable to Core (no upstream-origin marker exists in the current system)',
+    UNDETERMINED_RESPONSE: 'Response does not conform to the JSON contract — origin not attributable to Core, nothing verified',
+    UNAUTHORIZED: 'Request rejected with 401/403 — credentials required; not attributed to a specific upstream without origin proof',
+    TEMPORARY_FAILURE: 'Connection or 5xx failure — retry; not attributable to Core without origin proof, and not a statement about Core capability',
+    REJECTED_PATH: 'Request rejected by the UI allow-list',
+    /* Reserved states — unreachable by inference until a proven upstream-origin marker contract
+       exists (see R2C-ORIGIN-AND-PAGINATION-REPORT.md §2). Kept in the vocabulary on purpose. */
+    NOT_FOUND_BY_CORE: 'Core answered 404 for this resource (reserved — requires origin proof)',
+    DEGRADED: 'Core reported a degraded store (503) (reserved — requires origin proof)',
+    CHANNEL_NOT_PROVISIONED: 'Core read channel (/core) is not provisioned in this deployment (reserved — requires deployment-level evidence, not a response-shape guess)'
   };
   function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; }
   function chip(text, cls) { return el('span', 'u-chip ' + (cls || ''), text); }
@@ -32,7 +35,7 @@
     b.appendChild(el('strong', '', res.state));
     b.appendChild(el('span', '', ' — ' + STATE_TEXT[res.state] + (res.status ? ' (HTTP ' + res.status + ')' : '')));
     if (res.detail) b.appendChild(el('span', 'u-detail mono', ' [' + res.detail + ']'));
-    if (res.state === 'DEGRADED' && res.body) b.appendChild(raw(res.body));
+    if (res.body) b.appendChild(raw(res.body)); /* the raw answer is never hidden on failure states */
     return b;
   }
   function unavailable(mod) {
@@ -58,21 +61,45 @@
       box.appendChild(raw(m.body));
     }
   }
-  /* Feed pagination state (R2B) — in-memory only; nothing is persisted anywhere in the browser.
-     Cursors come only from Core's own next_cursor (or the previous-page stack), never from user input. */
+  /* Feed pagination state (R2B/R2C) — in-memory only; nothing is persisted anywhere in the browser.
+     Cursors come only from Core's own next_cursor (or the previous-page stack), never from user input.
+     The stack has no internal cap: navigation history is never silently dropped (R2C §5); it is
+     session-scoped and cleared on reload, which is inherent to the documented no-storage policy. */
   let feedCursor = null;
   const feedStack = [];
   function feedNav() { window.dispatchEvent(new Event('hashchange')); }
 
   async function feed(mod, box) {
+    /* R2C §6: Core orders ascending by (derived_at, event_id, event_version) — oldest first.
+       The UI never reverses locally: that would corrupt cross-page cursor semantics. */
+    box.appendChild(el('p', 'u-sub', 'Order: oldest first — Core canonical ordering by (derived_at, event_id, event_version).'));
     const path = '/v1/intelligence?limit=50' + (feedCursor ? '&cursor=' + encodeURIComponent(feedCursor) : '');
     const r = await coreGet(path);
-    if (r.state !== 'LIVE_RESPONSE') { box.appendChild(stateBox(r)); return; }
+    if (r.state !== 'LIVE_RESPONSE') {
+      box.appendChild(stateBox(r));
+      /* R2C §5: a failed page must never strand the analyst — Previous (stack untouched) and
+         Retry (same cursor, stack untouched) stay available; the current cursor is not lost. */
+      const pages = el('div', 'u-pages');
+      if (feedStack.length) {
+        const pb = el('button', '', '← Previous page'); pb.type = 'button';
+        pb.addEventListener('click', () => { feedCursor = feedStack.pop() || null; feedNav(); });
+        pages.appendChild(pb);
+      }
+      const rb = el('button', '', 'Retry this page'); rb.type = 'button';
+      rb.addEventListener('click', () => feedNav());
+      pages.appendChild(rb);
+      box.appendChild(pages);
+      return;
+    }
     const body = r.body && typeof r.body === 'object' ? r.body : null;
     const list = body && Array.isArray(body.objects) ? body.objects : null;
     if (!list) { box.appendChild(el('p', 'u-warn', 'Response schema not recognized (no objects[]). Shown verbatim, not interpreted.')); box.appendChild(raw(r.body)); return; }
-    const hasNextField = !!(body && 'next_cursor' in body); /* documented contract: {objects, next_cursor:string|null} */
-    const next = hasNextField && typeof body.next_cursor === 'string' && body.next_cursor ? body.next_cursor : null;
+    /* R2C §4: the four documented continuation cases — completeness is claimed only when
+       next_cursor is literally null; an invalid value claims nothing and links nowhere. */
+    const hasNextField = !!(body && 'next_cursor' in body);
+    const ncv = hasNextField ? body.next_cursor : undefined;
+    const next = typeof ncv === 'string' && ncv.length > 0 ? ncv : null;
+    const cursorCase = !hasNextField ? 'missing' : (ncv === null ? 'last' : (next ? 'next' : 'invalid'));
     box.appendChild(el('p', 'u-sub', 'Showing ' + list.length + ' record(s) — page limit 50 per Core request.'));
     if (!list.length) { box.appendChild(el('p', '', 'Core returned zero intelligence objects.')); box.appendChild(raw(r.body)); return; }
     const t = el('table', 'u-table'); const hr = el('tr');
@@ -87,25 +114,21 @@
       t.appendChild(tr);
     });
     box.appendChild(wrapTable(t));
-    /* Pagination controls — shown only when the response carries the documented continuation contract. */
-    if (hasNextField && (next || feedStack.length)) {
-      const pages = el('div', 'u-pages');
-      if (feedStack.length) {
-        const pb = el('button', '', '← Previous page'); pb.type = 'button';
-        pb.addEventListener('click', () => { feedCursor = feedStack.pop() || null; feedNav(); });
-        pages.appendChild(pb);
-      }
-      if (next) {
-        const nb = el('button', '', 'Next page →'); nb.type = 'button';
-        nb.addEventListener('click', () => { if (feedStack.length > 200) feedStack.shift(); feedStack.push(feedCursor); feedCursor = next; feedNav(); });
-        pages.appendChild(nb);
-      }
-      box.appendChild(pages);
+    const pages = el('div', 'u-pages');
+    if (feedStack.length) {
+      const pb = el('button', '', '← Previous page'); pb.type = 'button';
+      pb.addEventListener('click', () => { feedCursor = feedStack.pop() || null; feedNav(); });
+      pages.appendChild(pb);
     }
-    /* Completeness honesty (R2B): with the contract, next_cursor===null means this IS the last page.
-       If the continuation field is missing entirely, the bound is stated explicitly — no silent truncation. */
-    if (!hasNextField) box.appendChild(el('p', 'u-warn', 'Continuation field next_cursor is absent from this response — the feed may be showing only the first 50 records; completeness beyond this page cannot be stated from this response.'));
-    else if (!next) box.appendChild(el('p', 'u-sub', 'Core reports no further pages for this query (next_cursor is null) — no records are silently dropped.'));
+    if (cursorCase === 'next') { /* a Next link is built only from a valid non-empty string cursor */
+      const nb = el('button', '', 'Next page →'); nb.type = 'button';
+      nb.addEventListener('click', () => { feedStack.push(feedCursor); feedCursor = next; feedNav(); });
+      pages.appendChild(nb);
+    }
+    if (pages.childNodes.length) box.appendChild(pages);
+    if (cursorCase === 'last') box.appendChild(el('p', 'u-sub', 'Core reports no further pages for this query (next_cursor is null) — no records are silently dropped.'));
+    else if (cursorCase === 'missing') box.appendChild(el('p', 'u-warn', 'Continuation field next_cursor is absent from this response — the feed may be showing only the first 50 records; completeness beyond this page cannot be stated from this response.'));
+    else if (cursorCase === 'invalid') box.appendChild(el('p', 'u-warn', 'Continuation field next_cursor has an invalid value (neither a non-empty string nor null) — continuation state is unknown; no completeness is claimed and no further-page link is offered. Raw response is shown below.'));
     box.appendChild(raw(r.body));
   }
   async function objectDetail(id, box) {
@@ -135,7 +158,7 @@
     const b = el('button', '', 'Load trace'); b.type = 'button';
     b.addEventListener('click', () => { const v = i.value.trim(); if (v) location.hash = '#/intelligence/' + encodeURIComponent(v); });
     f.appendChild(i); f.appendChild(b); box.appendChild(f);
-    box.appendChild(el('p', 'u-sub', 'Traces are read from Core through the /core read channel; the outcome (including channel not provisioned) is shown after loading. Nothing is shown as verified unless Core returns it.'));
+    box.appendChild(el('p', 'u-sub', 'Traces are read through the /core read channel; the outcome is shown after loading with honest origin attribution. No response is attributed to Core without origin evidence, and nothing is shown as verified.'));
   }
   const LIVE = { overview, intelligence: feed, evidence };
 

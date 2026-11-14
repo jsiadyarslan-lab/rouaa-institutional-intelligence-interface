@@ -5,23 +5,29 @@
    would be sent; any token a proxy-side needs must stay on the server (see README "Credentials").
    Core is reached through a same-origin read channel mounted at /core (NOT provisioned by this repo —
    see PRODUCTION-INTEGRATION-BLOCKERS.md). No base-URL override, no snapshot fallback.
-   Reliability (R2B): every request is bounded by a hard timeout — a hung connection is aborted
-   into TEMPORARY_FAILURE, so the UI can never sit in "Reading Core…" indefinitely. */
+   Reliability (R2B/R2C): every request is bounded by a hard timeout enforced with AbortController;
+   if abort support is unavailable the request is NOT SENT at all (fail-closed) — no un-cancellable
+   request is ever issued and the UI can never sit in "Reading Core…" indefinitely.
+   Upstream attribution (R2C): the current system has NO verified upstream-origin marker between the
+   /core channel and Core (Core's transport emits only Content-Type/Content-Length/ETag), so NO error
+   response is attributed to Core from its shape alone — an impersonating proxy can emit any shape. */
 const ROUAA_CORE_BASE = '/core';
 const ROUAA_TIMEOUT_MS = 10000;
 /* Allow-list. cursor = the opaque, URL-encoded continuation token documented by the Core contract
    (GET /v1/intelligence?limit=&cursor= → {objects, next_cursor:string|null}); charset deliberately
    tight — raw '|', extra query parameters or paths inside the value are rejected. */
 const ROUAA_ALLOWED = /^\/(health|metrics|v1\/intelligence(\/[A-Za-z0-9._:-]+(\/trace)?)?)(\?limit=\d{1,3}(&cursor=[A-Za-z0-9._~%-]{1,512})?)?$/;
-/* states: LIVE_RESPONSE | NOT_FOUND_BY_CORE | UNDETERMINED_404 | UNAUTHORIZED | DEGRADED |
-           CHANNEL_NOT_PROVISIONED | TEMPORARY_FAILURE | REJECTED_PATH */
+/* states returned by coreGet: LIVE_RESPONSE | UNDETERMINED_404 | UNDETERMINED_RESPONSE |
+   UNAUTHORIZED | TEMPORARY_FAILURE | REJECTED_PATH.
+   NOT_FOUND_BY_CORE / DEGRADED / CHANNEL_NOT_PROVISIONED stay in the UI vocabulary but are
+   unreachable by inference until a proven upstream-origin marker contract exists (R2C report §2). */
 
 function _aborted(ctrl, e) {
   return !!(ctrl && ctrl.signal && ctrl.signal.aborted) || !!(e && (e.name === 'AbortError' || e.code === 20));
 }
-/* The documented Core error contract (ROUAA_CORE_INTELLIGENCE_CONTRACT_V1): errors are
-   {error:{code, message}}. A JSON 404 carrying this envelope is attributable to Core;
-   one without it is not — it gets UNDETERMINED_404, never NOT_FOUND_BY_CORE. */
+/* Shape check against the documented Core error envelope {error:{code,message}}.
+   R2C: this is SHAPE EVIDENCE ONLY — it does NOT prove Core is the sender (a proxy or gateway
+   can emit the same envelope), so it never upgrades an error to a Core-attributed state. */
 function _coreErrorEnvelope(body) {
   return !!(body && typeof body === 'object' && body.error && typeof body.error === 'object' &&
     typeof body.error.code === 'string' && body.error.code.length > 0);
@@ -30,13 +36,18 @@ function _coreErrorEnvelope(body) {
 async function coreGet(path, fetchImpl, timeoutMs) {
   if (!ROUAA_ALLOWED.test(path)) return { state: 'REJECTED_PATH', path };
   const f = fetchImpl || fetch;
+  if (typeof AbortController === 'undefined') {
+    /* R2C fail-closed: without a real cancellation mechanism the timeout guarantee cannot be
+       enforced, so the request is not sent — a hung connection becomes impossible, not unlikely. */
+    return { state: 'TEMPORARY_FAILURE', path, detail: 'timeout guarantee unavailable (no AbortController) — request not sent (fail-closed)' };
+  }
   const budget = typeof timeoutMs === 'number' && timeoutMs > 0 ? timeoutMs : ROUAA_TIMEOUT_MS;
-  const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
-  const timer = setTimeout(() => { if (ctrl) ctrl.abort(); }, budget);
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), budget);
   try {
     let r;
     try {
-      r = await f(ROUAA_CORE_BASE + path, { method: 'GET', headers: { Accept: 'application/json' }, credentials: 'same-origin', signal: ctrl ? ctrl.signal : undefined });
+      r = await f(ROUAA_CORE_BASE + path, { method: 'GET', headers: { Accept: 'application/json' }, credentials: 'same-origin', signal: ctrl.signal });
     } catch (e) {
       return _aborted(ctrl, e)
         ? { state: 'TEMPORARY_FAILURE', path, detail: 'timeout after ' + budget + 'ms — request aborted' }
@@ -53,18 +64,20 @@ async function coreGet(path, fetchImpl, timeoutMs) {
       }
     }
     if (r.status === 401 || r.status === 403) return { state: 'UNAUTHORIZED', path, status: r.status, body };
-    if (!isJson) return { state: r.status >= 500 ? 'TEMPORARY_FAILURE' : 'CHANNEL_NOT_PROVISIONED', path, status: r.status, detail: r.status >= 500 ? undefined : 'non-JSON answer on the /core channel' };
     if (r.status === 404) {
-      /* 404 origin classification (R2B): envelope present → evidence Core answered → NOT_FOUND_BY_CORE;
-         JSON 404 without the envelope → origin not provable → UNDETERMINED_404 (never attributed to Core).
-         A non-JSON 404 was already routed to CHANNEL_NOT_PROVISIONED above. */
-      if (_coreErrorEnvelope(body)) return { state: 'NOT_FOUND_BY_CORE', path, status: 404, body };
-      return { state: 'UNDETERMINED_404', path, status: 404, body, detail: 'JSON 404 without the documented Core error envelope; origin not attributable to Core' };
+      /* R2C: no upstream-origin marker exists in the current system — the documented Core error
+         envelope is shape evidence only and is NOT origin proof (a proxy can emit the same shape).
+         Every 404, JSON or not, stays UNDETERMINED_404: never attributed to Core, never read as
+         proof about the channel's provisioning state. */
+      return _coreErrorEnvelope(body)
+        ? { state: 'UNDETERMINED_404', path, status: 404, body, detail: 'contract-shaped error envelope present — shape evidence only; no upstream-origin marker exists, origin not proven' }
+        : { state: 'UNDETERMINED_404', path, status: 404, body, detail: 'origin not provable from the response alone' };
     }
-    if (r.status === 503) return { state: 'DEGRADED', path, status: 503, body };
-    if (r.status >= 500) return { state: 'TEMPORARY_FAILURE', path, status: r.status, body };
+    if (r.status >= 500) return { state: 'TEMPORARY_FAILURE', path, status: r.status, body, detail: 'HTTP ' + r.status + ' — 5xx not attributable to Core without origin proof' };
+    if (!isJson) return { state: 'UNDETERMINED_RESPONSE', path, status: r.status, detail: 'non-JSON response — does not conform to the JSON contract; origin not provable' };
     if (r.ok) return { state: 'LIVE_RESPONSE', path, status: r.status, body };
-    return { state: 'TEMPORARY_FAILURE', path, status: r.status, body };
+    /* other non-2xx JSON (400/405/429/…) — envelope shape is not origin proof either (R2C) */
+    return { state: 'UNDETERMINED_RESPONSE', path, status: r.status, body, detail: _coreErrorEnvelope(body) ? 'contract-shaped error envelope — shape evidence only; origin not proven' : 'JSON error response — origin not provable from the response alone' };
   } finally {
     clearTimeout(timer); /* timer cleaned on every exit path — success, error or abort */
   }
