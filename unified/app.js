@@ -102,6 +102,7 @@
     const b = el('button', '', 'Load trace'); b.type = 'button';
     b.addEventListener('click', () => { const v = i.value.trim(); if (v) location.hash = '#/intelligence/' + encodeURIComponent(v); });
     f.appendChild(i); f.appendChild(b); box.appendChild(f);
+    box.appendChild(el('p', 'u-sub', 'Traces are read from Core through the /core read channel; the outcome (including channel not provisioned) is shown after loading. Nothing is shown as verified unless Core returns it.'));
   }
   const LIVE = { overview, intelligence: feed, evidence };
 
@@ -109,7 +110,7 @@
     const app = $('app'); app.textContent = '';
     const parts = (location.hash || '#/').replace(/^#\//, '').split('/');
     const key = parts[0] || 'home';
-    document.querySelectorAll('#topnav a').forEach((a) => a.classList.toggle('active', a.dataset.key === key || (key === 'home' && a.dataset.key === 'overview')));
+    document.querySelectorAll('#topnav a').forEach((a) => a.classList.toggle('on', a.dataset.key === key || (key === 'home' && a.dataset.key === 'overview')));
     const wrap = el('div', 'u-wrap'); app.appendChild(wrap);
     if (key === 'matrix') return matrix(wrap);
     const mod = ROUAA_MODULES.find((m) => m.key === (key === 'home' ? 'overview' : key) && m.route !== false);
@@ -117,7 +118,8 @@
     if (key === 'intelligence' && parts[1]) {
       const om = ROUAA_MODULES.find((m) => m.key === 'object');
       wrap.appendChild(header(om)); const box = el('div'); wrap.appendChild(box);
-      return objectDetail(decodeURIComponent(parts[1]), box);
+      let id; try { id = decodeURIComponent(parts[1]); } catch (e) { box.appendChild(stateBox({ state: 'REJECTED_PATH' })); return; }
+      return objectDetail(id, box);
     }
     wrap.appendChild(header(mod)); const box = el('div', 'u-body'); wrap.appendChild(box);
     if (LIVE[mod.key]) { box.appendChild(el('p', 'u-load', 'Reading Core…')); const body = el('div'); await LIVE[mod.key](mod, body); box.textContent = ''; box.appendChild(body); }
@@ -143,5 +145,6 @@
     });
     const a = el('a', 'nav-matrix', 'Data-source matrix'); a.href = '#/matrix'; a.dataset.key = 'matrix'; nav.appendChild(a);
   }
-  buildNav(); window.addEventListener('hashchange', render); render();
+  buildNav(); const safeRender = () => render().catch(() => { const a = $('app'); a.textContent = ''; const b = el('div', 'u-wrap'); b.appendChild(stateBox({ state: 'TEMPORARY_FAILURE' })); a.appendChild(b); });
+  window.addEventListener('hashchange', safeRender); safeRender();
 })();

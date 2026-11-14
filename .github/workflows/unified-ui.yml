@@ -1,18 +1,48 @@
-name: Unified UI contract tests
+name: Unified UI acceptance
 on:
   push:
     branches: ["unify/**"]
   pull_request:
+  workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  group: unified-ui-${{ github.sha }}
+  cancel-in-progress: false
 jobs:
-  test:
+  acceptance:
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      ACCEPTANCE_DIR: artifacts/r2-${{ github.sha }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Checkout tested commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+      - name: Set up Node 22.16.0
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: "22.16.0"
-      - run: node --test tests/unified-ui.test.cjs
+          check-latest: false
+      - name: Node contract and runtime-integrity tests
+        run: node --test tests/unified-ui.test.cjs
+      - name: Install pinned Playwright and Chromium
+        run: |
+          npm install --no-save --ignore-scripts playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Browser acceptance (Playwright)
+        run: node --test tests/browser-acceptance.cjs
+      - name: Record tested commit
+        if: always()
+        run: |
+          mkdir -p "$ACCEPTANCE_DIR"
+          echo "$GITHUB_SHA" > "$ACCEPTANCE_DIR/TESTED_SHA.txt"
+      - name: Upload screenshots and acceptance report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: browser-acceptance-${{ github.sha }}
+          path: artifacts/r2-${{ github.sha }}/
+          if-no-files-found: warn
+          retention-days: 30

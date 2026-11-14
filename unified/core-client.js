@@ -3,7 +3,7 @@
    Core is reached through a same-origin read channel mounted at /core (NOT provisioned by this repo —
    see PRODUCTION-INTEGRATION-BLOCKERS.md). No base-URL override, no snapshot fallback. */
 const ROUAA_CORE_BASE = '/core';
-const ROUAA_ALLOWED = /^\/(health|metrics|console\/config|v1\/intelligence(\/[A-Za-z0-9._:-]+(\/trace)?)?)(\?limit=\d{1,3})?$/;
+const ROUAA_ALLOWED = /^\/(health|metrics|v1\/intelligence(\/[A-Za-z0-9._:-]+(\/trace)?)?)(\?limit=\d{1,3})?$/;
 /* states: LIVE_RESPONSE | NOT_FOUND_BY_CORE | UNAUTHORIZED | DEGRADED |
            CHANNEL_NOT_PROVISIONED | TEMPORARY_FAILURE | REJECTED_PATH */
 async function coreGet(path, fetchImpl) {
