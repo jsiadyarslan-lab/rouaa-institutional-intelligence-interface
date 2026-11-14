@@ -17,7 +17,7 @@ const MIME = { '.html': 'text/html; charset=utf-8', '.css': 'text/css', '.js': '
 const FIX = {
   health: { status: 'ok' },
   metrics: { source_count: 3, document_count: 9, fact_count: 42, event_count: 5, io_count: 5 },
-  feed: { objects: [{ io_id: 'io-test-1', headline: 'SYNTHETIC TEST ROW', event_type: 'test_event', status: 'active', created_at: '2026-01-01T00:00:00Z' }] },
+  feed: { objects: [{ io_id: 'io-test-1', headline: 'SYNTHETIC TEST ROW', event_type: 'test_event', status: 'active', created_at: '2026-01-01T00:00:00Z' }, { io_id: 'io-test-2', headline: 'SYNTHETIC ROW WITHOUT OTHER FIELDS' }] },
   obj: { io_id: 'io-test-1', event_id: 'ev-test-1', event_type: 'test_event', event_version: 1, status: 'active', created_at: '2026-01-01T00:00:00Z' },
   trace: { chain: [{ source: 'src-test', document: { canonical_url: 'https://example.test/doc' }, representation: { representation_id: 'rep-test', content_sha256: '0'.repeat(64) }, evidence: ['ev-1'], fact: 'fact-test' }] }
 };
@@ -82,7 +82,7 @@ const BLOCKED = ['source-detail', 'registry'];
 rt('shell: assets load, three nav groups, no errors (functional, 1440)', async () => {
   const { ctx, page, rec } = await open(VIEWPORTS[0], 'synthetic');
   await go(page, 'overview');
-  const groups = await page.locator('.nav-group-title').allInnerTexts();
+  const groups = await page.locator('.nav-group-title').allTextContents();
   assert.deepEqual(groups, ['Executive Intelligence', 'Research & Evidence', 'Production & Governance']);
   assert.equal(await page.locator('#topnav a').count(), 16); // 15 routed modules + matrix link
   assert.deepEqual(rec.pageerrors, []); assert.deepEqual(rec.consoleErrors, []); assert.deepEqual(rec.badResponses, []);
@@ -105,7 +105,7 @@ rt('synthetic Core: overview, feed, detail, evidence, matrix (functional, 1440)'
   await page.waitForSelector('.u-chain'); assert.match(await text(page), /fact-test/);
   await go(page, 'matrix', () => document.querySelector('.u-table'));
   const rows = await page.locator('.u-table tr').count(); assert.equal(rows, 1 + 16 + 4);
-  const cells = await page.locator('.u-table td').allInnerTexts();
+  const cells = await page.locator('.u-table td').allTextContents();
   assert.ok(!cells.includes('LIVE_VERIFIED')); assert.equal(cells.filter((c) => c === 'SNAPSHOT_QUARANTINED').length, 4);
   assert.deepEqual(rec.pageerrors, []); assert.deepEqual(rec.consoleErrors, []); assert.deepEqual(rec.badResponses, []);
   note('synthetic-core-flows', true); await ctx.close();
