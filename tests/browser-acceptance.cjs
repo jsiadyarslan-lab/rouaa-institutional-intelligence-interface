@@ -10,7 +10,7 @@ const { chromium } = require('playwright');
 
 const ROOT = path.join(__dirname, '..');
 const OUT = process.env.ACCEPTANCE_DIR || path.join(ROOT, 'artifacts', 'r2');
-const SHA = process.env.GITHUB_SHA || 'local';
+const SHA = process.env.TESTED_SHA || process.env.GITHUB_SHA || 'local';
 const VIEWPORTS = [1440, 1280, 1024, 768, 390].map((w) => ({ w, h: w >= 1024 ? 900 : 844 }));
 const SERVED = /^\/(index\.html|brand-tokens\.css|style\.css|unified\/[A-Za-z0-9._-]+)$/;
 const MIME = { '.html': 'text/html; charset=utf-8', '.css': 'text/css', '.js': 'text/javascript' };
@@ -24,6 +24,7 @@ const FIX = {
 const report = { sha: SHA, started: new Date().toISOString(), viewports: VIEWPORTS.map((v) => v.w), checks: [], browser: null };
 const note = (name, ok, detail) => report.checks.push({ name, ok, detail: detail || '' });
 
+function rt(name, fn) { return test(name, async (t) => { try { await fn(t); } catch (e) { note(name, false, String((e && e.message) || e).slice(0, 1200)); throw e; } }); }
 let server, base, browser; const serverLog = [];
 test.before(async () => {
   fs.mkdirSync(OUT, { recursive: true });
@@ -78,7 +79,7 @@ const shot = (page, vp, name) => page.screenshot({ path: path.join(OUT, vp.w + '
 const NOT_AVAILABLE = ['documents', 'facts', 'events', 'search', 'runs', 'acquisition', 'representations', 'retrievals', 'accounting', 'audit'];
 const BLOCKED = ['source-detail', 'registry'];
 
-test('shell: assets load, three nav groups, no errors (functional, 1440)', async () => {
+rt('shell: assets load, three nav groups, no errors (functional, 1440)', async () => {
   const { ctx, page, rec } = await open(VIEWPORTS[0], 'synthetic');
   await go(page, 'overview');
   const groups = await page.locator('.nav-group-title').allInnerTexts();
@@ -88,7 +89,7 @@ test('shell: assets load, three nav groups, no errors (functional, 1440)', async
   note('shell', true); await ctx.close();
 });
 
-test('synthetic Core: overview, feed, detail, evidence, matrix (functional, 1440)', async () => {
+rt('synthetic Core: overview, feed, detail, evidence, matrix (functional, 1440)', async () => {
   const { ctx, page, rec } = await open(VIEWPORTS[0], 'synthetic');
   await go(page, 'overview');
   let t = await text(page);
@@ -110,7 +111,7 @@ test('synthetic Core: overview, feed, detail, evidence, matrix (functional, 1440
   note('synthetic-core-flows', true); await ctx.close();
 });
 
-test('unavailable and blocked modules state it plainly and show no data', async () => {
+rt('unavailable and blocked modules state it plainly and show no data', async () => {
   const { ctx, page, rec } = await open(VIEWPORTS[0], 'synthetic');
   for (const k of NOT_AVAILABLE) { await go(page, k); const t = await text(page); assert.match(t, /NOT AVAILABLE in the current Core contract/, k); assert.match(t, /NOT_EXPOSED_BY_CORE/, k); assert.doesNotMatch(t, /LIVE_RESPONSE|Live response/, k); assert.equal(await page.locator('.u-table').count(), 0, k); }
   for (const k of BLOCKED) { await go(page, k); const t = await text(page); assert.match(t, /BLOCKED — no secure verified path/, k); assert.match(t, /BLOCKED_NO_SECURE_PATH/, k); }
@@ -118,7 +119,7 @@ test('unavailable and blocked modules state it plainly and show no data', async 
   note('unavailable-modules', true, NOT_AVAILABLE.length + ' not-exposed + ' + BLOCKED.length + ' blocked'); await ctx.close();
 });
 
-test('no /core channel: states it, UI keeps working', async () => {
+rt('no /core channel: states it, UI keeps working', async () => {
   const { ctx, page, rec } = await open(VIEWPORTS[0], 'nochannel');
   for (const k of ['overview', 'intelligence', 'evidence']) { await go(page, k); }
   await go(page, 'overview'); let t = await text(page);
@@ -131,7 +132,7 @@ test('no /core channel: states it, UI keeps working', async () => {
   note('no-channel', true); await ctx.close();
 });
 
-test('footer and visible text make no absolute traceability claim', async () => {
+rt('footer and visible text make no absolute traceability claim', async () => {
   const { ctx, page } = await open(VIEWPORTS[0], 'nochannel');
   await go(page, 'overview');
   const all = await page.locator('body').innerText();
@@ -140,7 +141,7 @@ test('footer and visible text make no absolute traceability claim', async () => 
   note('wording', true); await ctx.close();
 });
 
-test('network audit: GET only, same-origin, no snapshot/production/credential traffic', async () => {
+rt('network audit: GET only, same-origin, no snapshot/production/credential traffic', async () => {
   const { ctx, page, rec } = await open(VIEWPORTS[0], 'synthetic');
   for (const k of ['overview', 'intelligence', 'evidence', 'documents', 'matrix']) await go(page, k, () => document.querySelector('.u-wrap h1'));
   await go(page, 'intelligence/io-test-1', () => document.querySelector('.u-chain'));
@@ -159,7 +160,7 @@ test('network audit: GET only, same-origin, no snapshot/production/credential tr
 });
 
 for (const vp of VIEWPORTS) {
-  test('layout @' + vp.w + 'px: no horizontal overflow, screenshots', async () => {
+  rt('layout @' + vp.w + 'px: no horizontal overflow, screenshots', async () => {
     const { ctx, page, rec } = await open(vp, 'synthetic');
     const views = [['overview'], ['intelligence', () => document.querySelector('.u-table')], ['intelligence/io-test-1', () => document.querySelector('.u-chain')], ['evidence'], ['documents'], ['matrix', () => document.querySelector('.u-table')]];
     for (const [h, ready] of views) {

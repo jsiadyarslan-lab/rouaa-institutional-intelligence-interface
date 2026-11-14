@@ -2,7 +2,6 @@ name: Unified UI acceptance
 on:
   push:
     branches: ["unify/**"]
-  pull_request:
   workflow_dispatch:
 permissions:
   contents: read
@@ -14,6 +13,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
+      TESTED_SHA: ${{ github.sha }}
       ACCEPTANCE_DIR: artifacts/r2-${{ github.sha }}
     steps:
       - name: Checkout tested commit
@@ -33,6 +33,16 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Browser acceptance (Playwright)
         run: node --test tests/browser-acceptance.cjs
+      - name: Surface acceptance results as annotations
+        if: always()
+        run: |
+          node -e "
+          const fs=require('fs'),f=process.env.ACCEPTANCE_DIR+'/acceptance-report.json';
+          if(!fs.existsSync(f)){console.log('::error title=no-report::acceptance-report.json missing');process.exit(0);}
+          const r=JSON.parse(fs.readFileSync(f,'utf8')),enc=s=>String(s).replace(/%/g,'%25').replace(/\\r/g,'%0D').replace(/\\n/g,'%0A');
+          r.checks.filter(c=>!c.ok).slice(0,9).forEach(c=>console.log('::error title='+c.name+'::'+enc(c.detail)));
+          console.log('::notice title=summary::'+enc('sha='+r.sha+' browser='+r.browser+' viewports='+r.viewports.join(',')+' passed='+r.passed+' checks='+r.checks.filter(c=>c.ok).map(c=>c.name).join(',')));
+          "
       - name: Record tested commit
         if: always()
         run: |
