@@ -7,27 +7,33 @@
    see PRODUCTION-INTEGRATION-BLOCKERS.md). No base-URL override, no snapshot fallback.
    Reliability (R2B/R2C): every request is bounded by a hard timeout enforced with AbortController;
    if abort support is unavailable the request is NOT SENT at all (fail-closed) — no un-cancellable
-   request is ever issued and the UI can never sit in "Reading Core…" indefinitely.
-   Upstream attribution (R2C): the current system has NO verified upstream-origin marker between the
-   /core channel and Core (Core's transport emits only Content-Type/Content-Length/ETag), so NO error
-   response is attributed to Core from its shape alone — an impersonating proxy can emit any shape. */
+   request is ever issued.
+   Upstream attribution (R2C/R2D): the current system has NO verified upstream-origin marker between
+   the /core channel and Core (Core's transport emits only Content-Type/Content-Length/ETag), so NO
+   response — error OR success — is attributed to Core from its shape, Content-Type or HTTP status
+   alone. An impersonating proxy can emit any shape, including a contract-perfect HTTP 200. Therefore
+   every 2xx JSON payload is returned as UNVERIFIED_UPSTREAM_RESPONSE: preserved verbatim for
+   diagnostics, never presented as trusted Core data. See R2D-UPSTREAM-TRUST-BOUNDARY-REPORT.md. */
 const ROUAA_CORE_BASE = '/core';
 const ROUAA_TIMEOUT_MS = 10000;
 /* Allow-list. cursor = the opaque, URL-encoded continuation token documented by the Core contract
    (GET /v1/intelligence?limit=&cursor= → {objects, next_cursor:string|null}); charset deliberately
    tight — raw '|', extra query parameters or paths inside the value are rejected. */
 const ROUAA_ALLOWED = /^\/(health|metrics|v1\/intelligence(\/[A-Za-z0-9._:-]+(\/trace)?)?)(\?limit=\d{1,3}(&cursor=[A-Za-z0-9._~%-]{1,512})?)?$/;
-/* states returned by coreGet: LIVE_RESPONSE | UNDETERMINED_404 | UNDETERMINED_RESPONSE |
+/* states returned by coreGet: UNVERIFIED_UPSTREAM_RESPONSE | UNDETERMINED_404 | UNDETERMINED_RESPONSE |
    UNAUTHORIZED | TEMPORARY_FAILURE | REJECTED_PATH.
-   NOT_FOUND_BY_CORE / DEGRADED / CHANNEL_NOT_PROVISIONED stay in the UI vocabulary but are
-   unreachable by inference until a proven upstream-origin marker contract exists (R2C report §2). */
+   LIVE_RESPONSE stays in the UI vocabulary but is UNREACHABLE (R2D): it may only become reachable
+   when a documented, verified upstream-origin attestation contract exists (CORE-PROXY-ORIGIN-
+   ATTESTATION in CORE-API-GAPS-REGISTER.md) — never from HTTP 200, Content-Type or schema
+   conformance alone. NOT_FOUND_BY_CORE / DEGRADED / CHANNEL_NOT_PROVISIONED likewise remain
+   reserved-unreachable. */
 
 function _aborted(ctrl, e) {
   return !!(ctrl && ctrl.signal && ctrl.signal.aborted) || !!(e && (e.name === 'AbortError' || e.code === 20));
 }
 /* Shape check against the documented Core error envelope {error:{code,message}}.
-   R2C: this is SHAPE EVIDENCE ONLY — it does NOT prove Core is the sender (a proxy or gateway
-   can emit the same envelope), so it never upgrades an error to a Core-attributed state. */
+   R2C: shape evidence ONLY — never origin proof. Kept for diagnostic detail strings only;
+   it never upgrades any state to a Core-attributed one. */
 function _coreErrorEnvelope(body) {
   return !!(body && typeof body === 'object' && body.error && typeof body.error === 'object' &&
     typeof body.error.code === 'string' && body.error.code.length > 0);
@@ -65,17 +71,23 @@ async function coreGet(path, fetchImpl, timeoutMs) {
     }
     if (r.status === 401 || r.status === 403) return { state: 'UNAUTHORIZED', path, status: r.status, body };
     if (r.status === 404) {
-      /* R2C: no upstream-origin marker exists in the current system — the documented Core error
-         envelope is shape evidence only and is NOT origin proof (a proxy can emit the same shape).
-         Every 404, JSON or not, stays UNDETERMINED_404: never attributed to Core, never read as
-         proof about the channel's provisioning state. */
+      /* R2C: no upstream-origin marker exists — every 404, JSON or not, stays UNDETERMINED_404;
+         never attributed to Core, never read as proof about the channel's provisioning state. */
       return _coreErrorEnvelope(body)
         ? { state: 'UNDETERMINED_404', path, status: 404, body, detail: 'contract-shaped error envelope present — shape evidence only; no upstream-origin marker exists, origin not proven' }
         : { state: 'UNDETERMINED_404', path, status: 404, body, detail: 'origin not provable from the response alone' };
     }
     if (r.status >= 500) return { state: 'TEMPORARY_FAILURE', path, status: r.status, body, detail: 'HTTP ' + r.status + ' — 5xx not attributable to Core without origin proof' };
-    if (!isJson) return { state: 'UNDETERMINED_RESPONSE', path, status: r.status, detail: 'non-JSON response — does not conform to the JSON contract; origin not provable' };
-    if (r.ok) return { state: 'LIVE_RESPONSE', path, status: r.status, body };
+    if (r.ok) {
+      /* R2D: a successful HTTP answer proves ONLY that an HTTP answer arrived on the /core route.
+         Content-Type, JSON shape and schema conformance are NOT origin evidence — a proxy or
+         gateway can emit a contract-perfect 200 (success-response impersonation). The payload is
+         preserved verbatim for diagnostics only and is never classified as trusted Core data.
+         A non-JSON 2xx carries no payload to interpret. */
+      return isJson
+        ? { state: 'UNVERIFIED_UPSTREAM_RESPONSE', path, status: r.status, body, detail: 'HTTP ' + r.status + ' received on the /core route — upstream origin not verified; payload retained for diagnostics only, not presented as trusted ROUAA Core intelligence' }
+        : { state: 'UNVERIFIED_UPSTREAM_RESPONSE', path, status: r.status, detail: 'HTTP ' + r.status + ' received on the /core route — non-JSON body, upstream origin not verified' };
+    }
     /* other non-2xx JSON (400/405/429/…) — envelope shape is not origin proof either (R2C) */
     return { state: 'UNDETERMINED_RESPONSE', path, status: r.status, body, detail: _coreErrorEnvelope(body) ? 'contract-shaped error envelope — shape evidence only; origin not proven' : 'JSON error response — origin not provable from the response alone' };
   } finally {
