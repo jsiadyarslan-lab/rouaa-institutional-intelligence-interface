@@ -1,0 +1,14 @@
+*
+!analyst/
+!analyst/server.cjs
+!analyst/index.html
+!analyst/app.js
+!analyst/style.css
+!proof-workbench.html
+!proof-workbench.css
+!proof-workbench.js
+!proof-workbench-integrity.js
+!brand-tokens.css
+!proof-data/
+!proof-data/*.json
+!Dockerfile
