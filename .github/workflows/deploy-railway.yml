@@ -1,0 +1,63 @@
+name: Deploy UI to Railway
+# ينشر واجهة المحلل (حزمة deploy) إلى خدمة Railway عبر upload endpoint.
+# يتطلب secret: RAILWAY_TOKEN (توكن مساحة عمل بصلاحية نشر).
+on:
+  workflow_dispatch:
+    inputs:
+      note:
+        description: 'ملاحظة النشر (اختياري)'
+        required: false
+        default: 'v9 deploy'
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Pack deploy directory
+        run: |
+          set -Eeuo pipefail
+          test -f deploy/server.js
+          test -f deploy/rouaa-console-dark.html
+          tar -czf deploy-ui.tgz --exclude='deploy/reviews.jsonl' --exclude='deploy/usage.jsonl' -C . deploy
+          echo "package size: $(du -h deploy-ui.tgz | cut -f1)"
+
+      - name: Upload to Railway
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          set -Eeuo pipefail
+          PID="6bd32d3a-95e1-4f03-91af-7171d83fe1b2"
+          EID="c96e9b9b-2c0c-45f4-af83-2f6243fb2b55"
+          SID="5fc09e95-cdaa-47a0-aff7-0400f2f8765c"
+          RESP=$(curl -sS -X POST \
+            "https://backboard.railway.app/project/${PID}/environment/${EID}/up?serviceId=${SID}" \
+            -H "Authorization: Bearer ${RAILWAY_TOKEN}" \
+            -H "Content-Type: application/gzip" \
+            --data-binary @deploy-ui.tgz)
+          echo "${RESP}" | head -c 400
+          DEP_ID=$(echo "${RESP}" | python3 -c "import json,sys; d=json.load(sys.stdin); print((d.get('deployment') or {}).get('id') or d.get('id') or '')")
+          if [ -z "${DEP_ID}" ]; then echo "FATAL: no deployment id in response"; exit 1; fi
+          echo "deploymentId: ${DEP_ID}"
+
+      - name: Wait for deploy health
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          set -Eeuo pipefail
+          for i in $(seq 1 30); do
+            sleep 10
+            CODE=$(curl -sS -o /tmp/h.json -w "%{http_code}" -m 15 \
+              "https://rouaa-intelligence-ops-console-production.up.railway.app/analyst/api/health" || echo 000)
+            if [ "${CODE}" = "200" ] && python3 -c "import json; d=json.load(open('/tmp/h.json')); exit(0 if d.get('index_state') in ('LIVE','LAST_GOOD') else 1)" 2>/dev/null; then
+              echo "HEALTH OK after $((i*10))s"; exit 0
+            fi
+            echo "poll ${i}: ${CODE}"
+          done
+          echo "health check did not pass in 300s"; exit 1

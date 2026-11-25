@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>رُؤى — منصة الاستخبارات المالية المؤسسية</title>
+<meta name="description" content="واجهة عربية داكنة شفافة تعرض مخرجات محرك الاستخبارات المالية الحقيقية: قرارات الفائدة، معدلات التضخم، أسعار الطاقة، إجراءات الإنفاذ — بسلسلة إثبات كاملة.">
+<style>
+@font-face{font-family:'Noto Sans Arabic';src:url('/fonts/NotoSansArabic.ttf') format('truetype');font-display:swap;font-weight:400 900}
+@font-face{font-family:'Noto Naskh Arabic';src:url('/fonts/NotoNaskhArabic-Regular.ttf') format('truetype');font-display:swap}
+:root{
+  --bg0:#06080F; --bg1:#0A0F1C; --panel:rgba(255,255,255,.045); --panel2:rgba(255,255,255,.03);
+  --line:rgba(255,255,255,.08); --line2:rgba(255,255,255,.14);
+  --ink:#EAF0F8; --ink2:#9AA6B8; --ink3:#7C8AA5;
+  --gold:#C9A84C; --gold2:#E3C878; --gold-soft:rgba(201,168,76,.14);
+  --ok:#3DDC97; --warn:#F2C14E; --bad:#F87171; --info:#7FB3FF;
+  --ok-soft:rgba(61,220,151,.12); --warn-soft:rgba(242,193,78,.12); --bad-soft:rgba(248,113,113,.12);
+  --r:16px; --r2:12px; --blur:blur(10px) saturate(130%);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  font-family:"Noto Sans Arabic","Noto Naskh Arabic","Segoe UI",Tahoma,sans-serif;
+  background:var(--bg0); color:var(--ink); line-height:1.8;
+  -webkit-font-smoothing:antialiased; min-height:100vh;
+}
+.aurora{position:fixed;inset:0;z-index:-2;background:
+  radial-gradient(52vw 40vh at 82% -6%, rgba(201,168,76,.10), transparent 60%),
+  radial-gradient(46vw 42vh at 8% 12%, rgba(46,74,135,.22), transparent 62%),
+  radial-gradient(60vw 50vh at 50% 108%, rgba(27,46,86,.30), transparent 66%),
+  linear-gradient(180deg,var(--bg1),var(--bg0) 55%);}
+.grid-tex{position:fixed;inset:0;z-index:-1;opacity:.5;pointer-events:none;background-image:
+  linear-gradient(rgba(255,255,255,.022) 1px,transparent 1px),
+  linear-gradient(90deg,rgba(255,255,255,.022) 1px,transparent 1px);
+  background-size:44px 44px;
+  -webkit-mask-image:radial-gradient(70vw 60vh at 50% 0%,#000 30%,transparent 100%);
+  mask-image:radial-gradient(70vw 60vh at 50% 0%,#000 30%,transparent 100%);}
+.wrap{max-width:1280px;margin:0 auto;padding:0 clamp(12px,3vw,28px)}
+.glass{background:rgba(255,255,255,.05);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);
+  border:1px solid var(--line);border-radius:var(--r);transform:translateZ(0)}
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+  .glass{background:rgba(10,15,28,.88)}
+}
+/* ═══ الشريط العلوي ═══ */
+.topbar{position:sticky;top:0;z-index:50;border-bottom:1px solid var(--line);
+  background:rgba(9,13,24,.72);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);transform:translateZ(0)}
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+  .topbar{background:rgba(9,13,24,.96)}
+}
+.topbar-in{display:flex;align-items:center;gap:clamp(8px,1.6vw,18px);height:clamp(56px,7vw,66px)}
+.brand{display:flex;align-items:center;gap:10px;flex-shrink:0;text-decoration:none;color:var(--ink)}
+.brand-mark{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;font-weight:800;font-size:17px;
+  color:#0B0E14;background:linear-gradient(135deg,var(--gold2),var(--gold));box-shadow:0 2px 14px rgba(201,168,76,.28)}
+.brand-name{font-weight:800;font-size:17px}
+.brand-sub{font-size:10.5px;color:var(--ink2)}
+.conn-badge{display:inline-flex;align-items:center;gap:7px;font-size:11.5px;padding:5px 11px;border-radius:99px;
+  border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--ink2);white-space:nowrap}
+.conn-dot{width:8px;height:8px;border-radius:50%;background:var(--warn);box-shadow:0 0 0 3px var(--warn-soft)}
+.conn-badge.live .conn-dot{background:var(--ok);box-shadow:0 0 0 3px var(--ok-soft)}
+.conn-badge.live{color:var(--ok)}
+.nav{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none;flex:1;padding:2px}
+.nav::-webkit-scrollbar{display:none}
+.nav a{white-space:nowrap;text-decoration:none;color:var(--ink2);font-size:13px;font-weight:600;
+  padding:8px 14px;border-radius:99px;border:1px solid transparent;transition:.18s}
+.nav a:hover{color:var(--ink);background:rgba(255,255,255,.05)}
+.nav a.on{color:var(--gold2);border-color:rgba(201,168,76,.35);background:var(--gold-soft)}
+/* ═══ عام ═══ */
+main{padding:clamp(18px,3vw,30px) 0 60px}
+.page-head{margin:6px 0 22px}
+.page-kicker{color:var(--gold);font-size:12px;font-weight:700;letter-spacing:1.2px}
+.page-title{font-size:clamp(21px,3.4vw,30px);font-weight:800;margin:4px 0 6px}
+.page-desc{color:var(--ink2);font-size:clamp(12.5px,1.6vw,14.5px);max-width:75ch}
+.card{background:var(--panel2);border:1px solid var(--line);border-radius:var(--r);padding:clamp(14px,2.2vw,20px)}
+.card-h{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+.card-title{font-weight:800;font-size:15px}
+.card-note{font-size:11.5px;color:var(--ink3)}
+.grid{display:grid;gap:clamp(10px,1.6vw,16px)}
+.g4{grid-template-columns:repeat(4,1fr)}.g3{grid-template-columns:repeat(3,1fr)}.g2{grid-template-columns:repeat(2,1fr)}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;padding:4px 10px;border-radius:99px;
+  border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--ink2);white-space:nowrap}
+.chip.gold{color:var(--gold2);border-color:rgba(201,168,76,.35);background:var(--gold-soft)}
+.chip.ok{color:var(--ok);border-color:rgba(61,220,151,.3);background:var(--ok-soft)}
+.chip.warn{color:var(--warn);border-color:rgba(242,193,78,.3);background:var(--warn-soft)}
+.chip.bad{color:var(--bad);border-color:rgba(248,113,113,.3);background:var(--bad-soft)}
+.chip.info{color:var(--info);border-color:rgba(127,179,255,.3);background:rgba(127,179,255,.1)}
+.num{font-variant-numeric:tabular-nums;letter-spacing:.3px}
+a{color:var(--gold2)}
+.scrollx{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.muted{color:var(--ink2)}
+/* ═══ بطاقات البطل ═══ */
+.hero{display:grid;grid-template-columns:repeat(4,1fr);gap:clamp(10px,1.6vw,16px);margin-bottom:14px}
+.kpi{padding:clamp(14px,2vw,20px);position:relative;overflow:hidden}
+.kpi::after{content:"";position:absolute;inset:0 0 auto 0;height:1px;background:linear-gradient(90deg,transparent,rgba(227,200,120,.5),transparent)}
+.kpi .v{font-size:clamp(26px,4vw,36px);font-weight:800;color:var(--gold2);line-height:1.15}
+.kpi .l{font-size:12.5px;color:var(--ink2);margin-top:2px}
+.kpi .s{font-size:11px;color:var(--ink3);margin-top:6px}
+/* ═══ بطاقات المخرجات — القيمة أولاً ═══ */
+.io-card{background:var(--panel2);border:1px solid var(--line);border-radius:var(--r);padding:16px 16px 12px;
+  display:flex;flex-direction:column;gap:10px;transition:.18s}
+.io-card:hover{border-color:rgba(201,168,76,.4);transform:translateY(-1px)}
+.io-inst{font-size:11.5px;font-weight:700;color:var(--gold2);letter-spacing:.2px}
+.io-title{font-weight:800;font-size:15px;line-height:1.7}
+.io-val{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.io-val .big{font-size:clamp(22px,3vw,28px);font-weight:800;color:var(--gold2);line-height:1.2}
+.io-val .unit{font-size:12px;color:var(--ink2)}
+.io-val .extra{font-size:11.5px;color:var(--ink3)}
+.io-meta{display:flex;flex-wrap:wrap;gap:6px}
+.io-foot{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:auto;padding-top:8px;border-top:1px dashed var(--line)}
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line2);background:rgba(255,255,255,.05);
+  color:var(--ink);font-family:inherit;font-size:12px;font-weight:700;padding:7px 13px;border-radius:9px;cursor:pointer;text-decoration:none;transition:.16s}
+.btn:hover{border-color:rgba(201,168,76,.5);color:var(--gold2)}
+.btn.primary{background:linear-gradient(135deg,rgba(201,168,76,.9),rgba(201,168,76,.75));color:#0B0E14;border-color:transparent}
+.btn.sm{padding:5px 10px;font-size:11.5px;border-radius:8px}
+/* ═══ فلاتر ═══ */
+.filterbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:14px}
+.search{flex:1 1 220px;min-width:180px;position:relative}
+.search input{width:100%;background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:11px;
+  color:var(--ink);font-family:inherit;font-size:13.5px;padding:10px 38px 10px 12px;outline:none}
+.search input:focus{border-color:rgba(201,168,76,.5)}
+.search .si{position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--ink3);pointer-events:none}
+select{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:11px;color:var(--ink);
+  font-family:inherit;font-size:12.5px;padding:9px 10px;outline:none;cursor:pointer}
+select:focus{border-color:rgba(201,168,76,.5)}
+option{background:#0A0F1C;color:var(--ink)}
+.count-line{font-size:12px;color:var(--ink2);margin:2px 0 12px}
+.loadmore{display:block;margin:18px auto 0}
+/* ═══ الملف ═══ */
+.dossier-head{padding:clamp(16px,2.6vw,26px);margin-bottom:14px}
+.dos-inst{font-size:13px;font-weight:700;color:var(--gold2)}
+.dos-title{font-size:clamp(18px,3vw,26px);font-weight:800;line-height:1.6;margin:6px 0 10px}
+.dos-big{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin:8px 0 4px}
+.dos-big .v{font-size:clamp(30px,5vw,44px);font-weight:800;color:var(--gold2);line-height:1.15}
+.dos-big .u{font-size:13px;color:var(--ink2)}
+.meta-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:14px}
+.meta-cell{background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:10px;padding:9px 12px}
+.meta-cell .k{font-size:10.5px;color:var(--ink3);margin-bottom:3px}
+.meta-cell .v{font-size:12.5px;font-weight:600;overflow-wrap:anywhere}
+.chain{display:flex;align-items:stretch;flex-wrap:nowrap;overflow-x:auto;padding:6px 0 10px;scrollbar-width:thin}
+.chain-node{flex:1;min-width:150px;background:rgba(255,255,255,.035);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.chain-node .cn-k{font-size:10px;color:var(--gold);font-weight:700}
+.chain-node .cn-v{font-size:12.5px;color:var(--ink);margin-top:4px;font-weight:600}
+.chain-node .cn-s{font-size:10.5px;color:var(--ink3);margin-top:2px}
+.chain-arrow{display:grid;place-items:center;padding:0 6px;color:var(--gold);font-size:15px;flex-shrink:0}
+.quote{background:rgba(255,255,255,.03);border-right:3px solid var(--gold);border-radius:8px;padding:12px 14px;
+  font-size:13.5px;line-height:1.95}
+.quote .who{font-size:11px;color:var(--ink3);margin-top:8px;display:block}
+.tech{border:1px dashed var(--line2);border-radius:10px;padding:10px 14px;margin-top:12px;font-size:11px;color:var(--ink3)}
+.tech summary{cursor:pointer;font-weight:700;color:var(--ink2)}
+.tech code{direction:ltr;unicode-bidi:isolate;font-family:ui-monospace,Menlo,monospace;font-size:10.5px}
+/* ═══ جداول ═══ */
+.tbl{width:100%;border-collapse:collapse;font-size:12.5px;table-layout:fixed}
+.tbl th{text-align:right;color:var(--ink2);font-size:11px;font-weight:700;padding:8px 10px;border-bottom:1px solid var(--line2);white-space:nowrap}
+.tbl td{padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.055);vertical-align:top;overflow-wrap:anywhere}
+.tbl tr:hover td{background:rgba(255,255,255,.03)}
+.bar-row{display:flex;align-items:center;gap:10px;margin-bottom:9px}
+.bar-label{font-size:12px;color:var(--ink2);min-width:130px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar-track{flex:1;height:22px;background:rgba(255,255,255,.045);border-radius:7px;overflow:hidden}
+.bar-fill{height:100%;border-radius:7px;background:linear-gradient(90deg,rgba(201,168,76,.85),rgba(227,200,120,.65));transform:translateZ(0);transition:width .7s cubic-bezier(.2,.8,.2,1)}
+.bar-val{font-size:12.5px;font-weight:700;color:var(--gold2);min-width:44px;text-align:left}
+.heat-cell{height:clamp(30px,4vw,38px);border-radius:8px;display:grid;place-items:center;font-size:12px;font-weight:700;border:1px solid var(--line)}
+.h0{background:rgba(255,255,255,.025);color:var(--ink3)}.h1{background:rgba(201,168,76,.16);color:var(--gold2)}
+.h2{background:rgba(201,168,76,.34);color:#FFE9B8}.h3{background:rgba(201,168,76,.6);color:#14100A}
+.heat-lbl{font-size:11.5px;color:var(--ink2);padding:4px 2px;font-weight:600}
+.heat-table{width:100%;border-collapse:collapse;min-width:520px}
+.heat-table th{font-size:11px;color:var(--ink2);font-weight:700;padding:6px;border-bottom:1px solid var(--line)}
+.heat-table td{padding:4px}
+/* ═══ المراجعة ═══ */
+.review-card{background:var(--panel2);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:12px}
+.review-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.decided{opacity:.75}
+footer{border-top:1px solid var(--line);padding:26px 0 34px;margin-top:30px}
+.foot-in{display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;align-items:center;color:var(--ink3);font-size:11.5px}
+@media print{
+  body{background:#fff;color:#111}
+  .aurora,.grid-tex,.topbar,.nav,.btn,.review-actions,.tech{display:none!important}
+  .glass,.card,.io-card,.dossier-head,.review-card{border:1px solid #ddd!important;background:#fff!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+  .kpi .v,.dos-big .v,.io-val .big,.bar-val{color:#8a6d1f!important}
+  main{padding:0}
+}
+@media (max-width:980px){
+  .hero{grid-template-columns:repeat(2,1fr)}
+  .g4{grid-template-columns:repeat(2,1fr)}
+  .g3{grid-template-columns:repeat(2,1fr)}
+}
+@media (max-width:640px){
+  .g2,.g3,.g4{grid-template-columns:1fr}
+  .hero{grid-template-columns:1fr 1fr}
+  .chip{white-space:normal}
+  .bar-row{flex-wrap:wrap}
+  .bar-label{white-space:normal;overflow-wrap:anywhere}
+  .topbar{position:sticky}
+  .topbar-in{flex-wrap:wrap;height:auto;padding:10px 0 4px}
+  .conn-badge{order:-1;width:100%;justify-content:center;margin-bottom:2px}
+  .nav{order:3;width:100%}
+  .brand{order:1}
+  .bar-label{min-width:96px;max-width:130px}
+  .page-title{font-size:20px}
+}
+
+@media (max-width:640px){
+  .conn-badge{white-space:normal;text-align:center;line-height:1.55;font-size:10.5px;padding:5px 10px}
+  .conn-badge .conn-dot{flex-shrink:0;margin-top:3px}
+  .kpi .s{font-size:10px}
+  .card-note,.count-line{overflow-wrap:anywhere}
+}
+:focus-visible{outline:2px solid var(--gold2);outline-offset:2px;border-radius:4px}
+.skip{position:absolute;inset-inline-start:8px;top:-52px;z-index:99;background:var(--gold);color:#0A0F1C;padding:8px 14px;border-radius:0 0 8px 8px;font-weight:700;transition:top .2s}
+.skip:focus{top:0}
+.fs-ctl{display:flex;gap:4px;margin-inline-start:auto}
+.fs-btn{background:var(--panel);border:1px solid var(--line2);color:var(--ink);border-radius:8px;min-width:36px;height:34px;font-weight:700;cursor:pointer;font-family:inherit;font-size:13px}
+.fs-btn:hover{border-color:var(--gold)}
+html.fs1{zoom:1.15}html.fs2{zoom:1.3}html.fs3{zoom:1.5}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}.aurora{display:none!important}}
+h1,h2,h3{margin:0;font-weight:inherit}
+dl,dt,dd{margin:0}
+caption{caption-side:top;text-align:start;padding:0 0 6px;color:var(--ink2);font-size:12.5px}
+.sum-box{border-inline-start:3px solid var(--gold)}
+@media print{
+  .topbar,.conn-badge,.btn,.loadmore,.filterbar,.nav-note{display:none!important}
+  body{background:#fff!important;color:#111!important}
+  .glass,.card,.kpi,table.tbl{background:#fff!important;border-color:#ddd!important;color:#111!important;box-shadow:none!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+  .page-title,.page-kicker,.card-title,.card-note,.chip,.count-line,.l,.s,.v{color:#111!important}
+  .chip{border-color:#bbb!important;background:#f5f5f5!important}
+  a{color:#0645AD!important;text-decoration:underline}
+  .tbl a[href^="http"]::after{content:" (" attr(href) ")";font-size:10px;color:#555;word-break:break-all}
+  .scrollx{overflow:visible!important}
+  .grid{display:block!important}
+  .card{page-break-inside:avoid;margin-bottom:12px}
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#app">تخطَّ إلى المحتوى الرئيسي</a>
+<div class="aurora"></div>
+<div class="grid-tex"></div>
+
+<header class="topbar">
+  <div class="wrap topbar-in">
+    <a class="brand" href="#/dashboard">
+      <span class="brand-mark">رُ</span>
+      <span><span class="brand-name">رُؤى</span><br><span class="brand-sub">منصة الاستخبارات المالية المؤسسية</span></span>
+    </a>
+    <span id="connBadge" class="conn-badge" role="status" aria-live="polite"><span class="conn-dot"></span><span id="connText">جارٍ التحقق…</span></span>
+    <nav class="nav" id="nav" aria-label="الصفحات">
+      <a href="#/dashboard" data-r="dashboard">لوحة القيادة</a>
+      <a href="#/desk" data-r="desk">مكتب المخرجات</a>
+      <a href="#/indicators" data-r="indicators">المؤشرات</a>
+      <a href="#/directory" data-r="directory">دليل الجهات</a>
+      <a href="#/coverage" data-r="coverage">خريطة التغطية</a>
+      <a href="#/ops" data-r="ops">غرفة العمليات</a>
+      <a href="#/review" data-r="review">غرفة المراجعة</a>
+      <a href="#/owner" data-r="owner">مساحة المالك</a>
+    </nav>
+    <div class="fs-ctl" role="group" aria-label="حجم الخط">
+      <button type="button" class="fs-btn" data-fs="down" aria-label="تصغير الخط">أ−</button>
+      <button type="button" class="fs-btn" data-fs="up" aria-label="تكبير الخط">أ+</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap" id="app" tabindex="-1"></main>
+
+<footer>
+  <div class="wrap foot-in">
+    <span>منصة رُؤى — كل قيمة مقروءة حياً من وثائق رسمية بسلسلة إثبات كاملة</span>
+    <span>الفهرس الحي للجسر: <b id="snapDate">—</b> · الشارة أعلى الصفحة تصف حالة البيانات بصدق</span>
+  </div>
+</footer>
+
+<script>
+"use strict";
+"use strict";
+/* رُؤى — واجهة المحلل v3: SPA حي يقرأ من جسر الخادم نفسه.
+ * كل رقم يُجلب حياً؛ الشارة تصف الوصول والفهرس بصدق؛ لا لقطة مدمجة.
+ * المراجعة تكتب على الخادم (POST /analyst/api/review) فتتغير الأحكام فعلاً. */
+const $ = (s, r) => (r || document).querySelector(s);
+const esc = (t) => String(t == null ? "" : t)
+  .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+  .replace(/"/g, "&quot;");
+const fmtTime = (iso) => {
+  if (!iso) return "—";
+  try {
+    return new Date(iso).toLocaleString("ar", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", timeZone: "UTC" }) + " UTC";
+  } catch (_) { return iso; }
+};
+let HEALTH = null, SUMMARY = null, REVIEW_STATE = { page: 1, q: "", country: "", sector: "", freshness: "", items: [], total: 0 };
+let RV_QUEUE = []; // طابور المراجعة الكامل من الخادم — يُعرض منه 24 ثم الباقي بضغطة واحدة
+
+async function jget(path, tries = 3) {
+  // الخادم يُبقي الطلب معلقاً أثناء إعادة بناء الفهرس — نعيد المحاولة بصبر
+  for (let i = 0; i < tries; i++) {
+    try {
+      const ctl = new AbortController();
+      const t = setTimeout(() => ctl.abort(), 90000);
+      const r = await fetch(path, { headers: { Accept: "application/json" }, signal: ctl.signal });
+      clearTimeout(t);
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      return await r.json();
+    } catch (e) {
+      if (i === tries - 1) throw e;
+      await new Promise((res) => setTimeout(res, 4000));
+    }
+  }
+}
+async function jpost(path, body, headers) {
+  // ترويسات إضافية اختيارية (مثل توكن المراجعة) تُدمج فوق ترويسة JSON الأساسية
+  const r = await fetch(path, { method: "POST", headers: Object.assign({ "Content-Type": "application/json" }, headers || {}), body: JSON.stringify(body) });
+  const d = await r.json().catch(() => ({}));
+  return { status: r.status, data: d };
+}
+
+async function boot() {
+  const bootMsg = setTimeout(() => {
+    $("#connText").textContent = "يُبنى فهرس المحرك الآن — أول طلب بعد النشر قد يستغرق دقيقتين؛ الصفحة ستكتمل تلقائياً";
+  }, 8000);
+  try {
+    HEALTH = await jget("/analyst/api/health");
+    SUMMARY = await jget("/analyst/api/summary");
+    renderConn();
+    const sd = document.getElementById("snapDate");
+    if (sd && SUMMARY && SUMMARY.data_asof) sd.textContent = fmtTime(SUMMARY.data_asof);
+  } catch (e) {
+    $("#connText").textContent = "الجسر غير متاح: " + e.message + " — إعادة تلقائية خلال 15 ثانية";
+    $("#connBadge").classList.remove("live");
+    setTimeout(boot, 15000);
+  } finally { clearTimeout(bootMsg); }
+}
+function renderConn() {
+  const b = $("#connBadge"), t = $("#connText");
+  if (!HEALTH) return;
+  const live = HEALTH.index_state === "LIVE";
+  b.classList.toggle("live", live);
+  t.innerHTML = live
+    ? `الجسر حي — فهرس بيانات ${fmtTime(HEALTH.built_at)} · كائنات ${HEALTH.disclosure.objects} · نسخ متجاوزة موثقة ${HEALTH.disclosure.superseded_versions}`
+    : `آخر فهرس جيد ${fmtTime(HEALTH.built_at)} — السبب: ${esc(HEALTH.delay_reason || "؟")}`;
+}
+
+const VERDICT_CHIP = {
+  VERIFIED: '<span class="chip ok">متحقق منه — بمراجعة مسجلة</span>',
+  REJECTED: '<span class="chip bad">مرفوض</span>',
+  NEEDS_REVIEW: '<span class="chip warn">بحاجة مراجعة</span>',
+  UNASSESSED: '<span class="chip info">لم يُقيَّم بعد</span>',
+};
+const VERDICT_AR = { VERIFIED: "متحقق منه", REJECTED: "مرفوض", NEEDS_REVIEW: "بحاجة مراجعة", UNASSESSED: "لم يُقيَّم بعد" };
+const FRESH_CHIP = (o) => {
+  if (o.freshness === "archived") return '<span class="chip bad">أرشيفي — ' + (o.age_days != null ? o.age_days : "؟") + ' يوماً</span>';
+  if (o.freshness === "aging") return '<span class="chip warn">متجاوز 92 يوماً</span>';
+  if (o.freshness === "undated") return '<span class="chip info">بلا تاريخ مضمون — معلَم بصدق</span>';
+  return '<span class="chip ok">حديث</span>';
+};
+function dispHtml(o) {
+  const d = o.disp;
+  if (!d) return "";
+  if (d.kind === "policy") return `<div class="io-val"><span class="big">${esc(d.value)}</span>${d.extra ? `<span class="extra">${esc(d.extra)}</span>` : ""}</div>`;
+  if (d.kind === "num") return `<div class="io-val"><span class="big num">${esc(d.value)}${d.unit_ar === "%" ? "%" : ""}</span>${d.unit_ar && d.unit_ar !== "%" ? `<span class="unit">${esc(d.unit_ar)}</span>` : ""}</div>`;
+  if (d.kind === "cat" || d.kind === "entity") return `<div class="io-val"><span class="big" style="font-size:16px">${esc(d.value)}</span></div>`;
+  return "";
+}
+
+/* ═══ لوحة القيادة ═══ */
+function pgDashboard() {
+  const T = (SUMMARY && SUMMARY.totals) || {};
+  const f = (SUMMARY && SUMMARY.freshness) || {};
+  const gates = (SUMMARY && SUMMARY.quality_gates) || [];
+  const prod = T.sources_producing || 0, acq = T.sources_acquired || 0, reg = T.sources_registry_live || 0;
+  const exploit = acq ? Math.round((prod / acq) * 1000) / 10 : 0;
+  return `
+  <div class="page-head">
+    <div class="page-kicker">لوحة القيادة — أرقام صادقة بمقاماتها</div>
+    <h1 class="page-title">ما ينتجه المحرك الآن — كما هو، بلا تجميل</h1>
+    <p class="page-desc">كل رقم هنا مقروء حياً من جسر الخادم لحظة فتح الصفحة (البيانات اعتباراً من ${fmtTime(SUMMARY && SUMMARY.data_asof)}). النسب تُعرض بمقاماتها؛ والبوابات أدناه هي معايير قبول تدقيق 2026-11-19 تُقاس تلقائياً على البيانات الحية.</p>
+  </div>
+  <div class="hero">
+    <div class="kpi glass"><div class="v num">${T.intelligence_objects ?? "—"}</div><div class="l">كائنات استخباراتية معروضة (كلها)</div><div class="s">سجلات المخزن ${T.store_records ?? "—"} = الكائنات + ${T.superseded_versions ?? 0} نسخة متجاوزة موثقة</div></div>
+    <div class="kpi glass"><div class="v num">${T.facts ?? "—"}</div><div class="l">حقيقة موثقة البنيان</div><div class="s">القيم النصية JSON مفككة عند الخدمة</div></div>
+    <div class="kpi glass"><div class="v num">${T.documents ?? "—"}</div><div class="l">وثيقة رسمية بسلسلة الإثبات</div><div class="s">روابط المصادر الرسمية حية</div></div>
+    <div class="kpi glass"><div class="v num">${exploit}%</div><div class="l">الاستغلال الفعلي للسجل الحي</div><div class="s">${prod} منتجة ÷ ${acq} مقتناة · <a href="#/coverage" style="color:var(--gold2)">خريطة التغطية<span aria-hidden="true">↗</span></a></div></div>
+  </div>
+  <div class="grid g2" style="margin-bottom:14px">
+    <div class="card">
+      <div class="card-h"><h2 class="card-title">بوابات القبول — تُقاس الآن على الحي</h2><span class="chip ok">آلي</span></div>
+      ${gates.map((g) => `
+        <div class="bar-row" style="margin-bottom:8px">
+          <span class="chip ${g.pass ? "ok" : "bad"}" style="min-width:64px;justify-content:center">${g.pass ? "PASS" : "FAIL"}</span>
+          <span style="font-size:12.5px">${esc(g.name_ar)}</span>
+          <span class="card-note" style="margin-inline-start:auto">${esc(g.measured)}</span>
+        </div>`).join("")}
+      <div class="card-note" style="margin-top:10px">قاعدة التوسع: لا يُضاف أي مصدر جديد ما دامت بوابات PASS هذه خضراء — التوسع فوق قناة موثوقة لا فوقها.</div>
+    </div>
+    <div class="card">
+      <div class="card-h"><h2 class="card-title">طزاجة المحتوى — بوابة الأرشيف تعمل</h2><a class="chip gold" href="#/desk?freshness=archived">المؤرشف</a></div>
+      ${["current", "aging", "archived", "undated"].map((k) => {
+        const lbl = { current: "حديث (<92 يوماً)", aging: "متجاوز 92 يوماً", archived: "أرشيفي (>365 يوماً — موسوم صراحة)", undated: "بلا تاريخ مضمون (بلا فترة منتحلة)" }[k];
+        const v = f[k] || 0, tot = Object.values(f).reduce((a, b) => a + b, 0) || 1;
+        return `<div class="bar-row"><span class="bar-label">${lbl}</span><span class="bar-track"><span class="bar-fill" style="width:${Math.round(100 * v / tot)}%"></span></span><span class="bar-val num">${v}</span></div>`;
+      }).join("")}
+      <div class="card-note" style="margin-top:8px">الفترة تُشتق من مضمون الوثيقة فقط — شهر الاقتناء لا يُعرض أبداً كفترة محتوى، والكائنات بلا تاريخ مضمون تظهر «بلا فترة» لا بتاريخ مزيف.</div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-h"><h2 class="card-title">آخر إصدارات المحرك — عمق كل كائن ظاهر</h2>${(SUMMARY.engine || {}).stalled ? '<span class="chip" style="background:var(--warn-soft);color:var(--warn)">المحرك متوقف عن الجري ' + ((SUMMARY.engine || {}).age_hours ?? "?") + ' ساعة — قيد قرار المالك</span>' : '<span class="chip ok">المحرك يعمل — آخر جري قبل ' + ((SUMMARY.engine || {}).age_hours ?? "?") + ' ساعة</span>'}<a class="chip gold" href="#/desk">المكتب الكامل</a></div>
+    <div id="dashLatest">جارٍ الجلب…</div>
+  </div>`;
+}
+
+/* ═══ مكتب المخرجات ═══ */
+async function pgDesk(arg) {
+  const qs = new URLSearchParams(arg || "");
+  REVIEW_STATE.q = qs.get("q") || REVIEW_STATE.q;
+  REVIEW_STATE.freshness = qs.get("freshness") || "";
+  REVIEW_STATE.page = 1;
+  const S = SUMMARY || { filters: {} };
+  const fo = S.filters || {};
+  return `
+  <div class="page-head">
+    <div class="page-kicker">مكتب المخرجات — بحث وفلاتر على الخادم</div>
+    <h1 class="page-title">كل كائن بعمقه الحقيقي وطزاجته</h1>
+    <p class="page-desc">الفلاتر والبحث تنفَّذ في الخادم على الفهرس الكامل؛ ترقيم متصل مضمون (فرز محدد التعادل + ختم فهرس في كل استجابة).</p>
+  </div>
+  <div class="filterbar">
+    <span class="search"><input id="fq" aria-label="بحث في المخرجات" placeholder="ابحث في العناوين والمؤسسات والمقتطفات…" value="${esc(REVIEW_STATE.q)}"><span class="si" aria-hidden="true">🔍</span></span>
+    <select id="fc"><option value="">كل الدول</option>${(fo.countries || []).map((c) => `<option value="${esc(c)}"${REVIEW_STATE.country === c ? " selected" : ""}>${esc(c)}</option>`).join("")}</select>
+    <select id="fs"><option value="">كل القطاعات</option>${(fo.sectors || []).map((c) => `<option value="${esc(c)}"${REVIEW_STATE.sector === c ? " selected" : ""}>${esc(c)}</option>`).join("")}</select>
+    <select id="ff"><option value="">كل الطزاجة</option>
+      <option value="current"${REVIEW_STATE.freshness === "current" ? " selected" : ""}>حديث</option>
+      <option value="aging"${REVIEW_STATE.freshness === "aging" ? " selected" : ""}>متجاوز 92 يوماً</option>
+      <option value="archived"${REVIEW_STATE.freshness === "archived" ? " selected" : ""}>أرشيفي >365</option>
+      <option value="undated"${REVIEW_STATE.freshness === "undated" ? " selected" : ""}>بلا تاريخ مضمون</option>
+    </select>
+    <button class="btn sm" id="expCsv">تصدير CSV</button>
+    <button class="btn sm" id="expJson">تصدير JSON</button>
+    <button class="btn sm" id="expPrint">طباعة PDF</button>
+  </div>
+  <div class="count-line" id="deskCount" aria-live="polite"></div>
+  <div class="grid g2" id="deskGrid"></div>
+  <button class="btn loadmore" id="loadMore">تحميل المزيد</button>`;
+}
+
+function cardHtml(o) {
+  return `<article class="io-card">
+    <a href="#/io/${esc(o.io_id)}" style="text-decoration:none;color:inherit"><div class="io-title">${esc(o.title_ar || o.headline)}</div></a>
+    <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-top:4px">
+      <span class="io-inst">${esc(o.institution_ar || o.institution || "جهة رسمية")} · ${esc(o.country_ar || "")}</span>
+      ${o.superseded ? '<span class="chip info">نسخة متجاوزة</span>' : ""}
+    </div>
+    ${dispHtml(o)}
+    <div class="io-meta" role="group" aria-label="بيانات الحالة والفترة">
+      <span class="chip gold">${esc(o.event_ar || "سجل رسمي")}</span>
+      <span class="chip">الفترة: ${esc(o.period_ar || "غير محددة")}${o.period_basis === "content" ? " (من المضمون)" : ""}</span>
+      ${FRESH_CHIP(o)}
+      <span class="chip ${o.depth === 1 ? "warn" : "info"}">العمق: ${o.depth} ${o.depth === 1 ? "حقيقة" : "حقائق"}</span>
+      ${VERDICT_CHIP[o.quality_verdict] || ""}
+      ${o.review ? `<span class="chip ok">مراجعة: ${esc(o.review.actor)}</span>` : ""}
+    </div>
+    <div class="io-foot">
+      <span class="card-note">أُحيل بتاريخ المضمون ${esc(o.content_date || "—")}</span>
+      <a class="btn sm" href="#/io/${esc(o.io_id)}">ملف الكائن وسلسلة الإثبات</a>
+    </div>
+  </article>`;
+}
+
+async function deskLoadMore(reset) {
+  const st = REVIEW_STATE;
+  const p = new URLSearchParams({ page: st.page, page_size: 12 });
+  if (st.q) p.set("q", st.q);
+  if (st.country) p.set("country", st.country);
+  if (st.sector) p.set("sector", st.sector);
+  if (st.freshness) p.set("freshness", st.freshness);
+  const d = await jget("/analyst/api/outputs?" + p.toString());
+  if (reset) $("#deskGrid").innerHTML = "";
+  $("#deskGrid").insertAdjacentHTML("beforeend", d.objects.map(cardHtml).join(""));
+  $("#deskCount").textContent = `${d.total} كائناً مطابقاً · صفحة ${d.page}/${d.pages} · فهرس ${fmtTime(d.index_built_at)}`;
+  if (reset && d.objects.length === 0) {
+    $("#deskGrid").innerHTML = '<div class="card" style="grid-column:1/-1;text-align:center;padding:28px"><h2 class="card-title">لا نتائج مطابقة</h2><div class="card-note">جرّب توسيع البحث أو إزالة المرشحات — لا شيء يُخفى: المجموع الكامل ' + d.total + ' والكائنات كلها قابلة للتصفح والتصدير.</div></div>';
+  }
+  const btn = $("#loadMore");
+  btn.style.display = d.page < d.pages ? "block" : "none";
+  st.page = d.page + 1;
+  st.total = d.total;
+}
+async function exportSet(kind) {
+  const st = REVIEW_STATE;
+  const p = new URLSearchParams({ page_size: 50 });
+  if (st.q) p.set("q", st.q);
+  if (st.country) p.set("country", st.country);
+  if (st.sector) p.set("sector", st.sector);
+  if (st.freshness) p.set("freshness", st.freshness);
+  const rows = [];
+  for (let page = 1; page <= 20; page++) {
+    p.set("page", page);
+    const d = await jget("/analyst/api/outputs?" + p.toString());
+    rows.push(...d.objects);
+    if (page >= d.pages) break;
+  }
+  const stamp = (SUMMARY.data_asof || "").replace(/[:\-]/g, "").slice(0, 13) || "now";
+  if (kind === "json") {
+    download(`rouaa-outputs-${stamp}.json`, JSON.stringify({ data_asof: SUMMARY.data_asof, count: rows.length, objects: rows }, null, 2), "application/json");
+  } else {
+    const cols = ["io_id", "title_ar", "institution_ar", "country_ar", "sector_ar", "event_ar", "content_date", "period_ar", "freshness", "depth", "quality_verdict"];
+    const csv = "\uFEFF" + cols.join(",") + "\n" + rows.map((r) => cols.map((c) => `"${String(r[c] == null ? "" : r[c]).replace(/"/g, '""')}"`).join(",")).join("\n");
+    download(`rouaa-outputs-${stamp}.csv`, csv, "text/csv");
+  }
+}
+function download(name, content, type) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([content], { type }));
+  a.download = name; a.click();
+}
+
+/* ═══ ملف الكائن ═══ */
+function summaryAr(o) {
+  const inst = o.institution_ar || o.institution || "جهة رسمية";
+  const ev = o.event_ar || o.event || "سجل رسمي";
+  const per = o.period_ar || o.period || "";
+  const d = o.disp || {};
+  const core = [d.value, d.extra].filter(Boolean).join(" — ");
+  const date = o.content_date ? ("بتاريخ مضمون " + o.content_date) : "بلا تاريخ مضمون — معلن بصدق";
+  const body = core || ("المستخرج محدود في هذا الكائن (عمق " + (o.depth != null ? o.depth : "؟") + ") — التفصيل في الحقائق وسلسلة الإثبات أدناه");
+  return inst + " — " + ev + (per ? " (" + per + ")" : "") + ": " + body + ". " + date + ".";
+}
+async function pgIo(id) {
+  let o;
+  try { o = await jget("/analyst/api/output/" + encodeURIComponent(id)); }
+  catch (e) { return `<div class="card">تعذر الجلب: ${esc(e.message)}</div>`; }
+  const factRow = (f) => {
+    const disp = o.disp;
+    let val = "";
+    if (f.metric === "official_policy_decision" && disp && disp.kind === "policy") {
+      val = esc(disp.value) + (disp.extra ? " · " + esc(disp.extra) : "");
+    } else if (f.value_struct && typeof f.value_struct === "object" && "action" in f.value_struct) {
+      const j = f.value_struct;
+      val = `${esc(j.action || "")}${j.change_basis_points ? " " + esc(j.change_basis_points) + " نقطة أساس" : ""}`;
+      if (Array.isArray(j.rates)) val += " · " + j.rates.map((r) => esc((r.instrument || "") + " " + (r.value_percent != null ? r.value_percent + "%" : ""))).join(" · ");
+    } else if (f.value_struct) val = `<code>${esc(JSON.stringify(f.value_struct))}</code>`;
+    else val = esc(String(f.value == null ? "" : f.value).slice(0, 160));
+    const entityCell = f.entity
+      ? `<a class="chip" style="text-decoration:none" href="#/desk?q=${encodeURIComponent(f.entity)}">${esc(f.entity)}</a>`
+      : '<span class="card-note" aria-hidden="true">—</span>';
+    return `<tr><td>${esc(f.metric_ar || f.metric || "")}</td><td>${val}</td>
+      <td>${entityCell}</td>
+      <td>${f.unit_ar ? esc(f.unit_ar) : '<span aria-hidden="true">—</span>'}</td><td>${(f.reference_period || f.effective_date) ? esc(f.reference_period || f.effective_date) : '<span aria-hidden="true">—</span>'}</td>
+      <td>${esc((f.quality_state || "NONE").replace("DIRECT_EVIDENCE_SELECTED_PENDING_INDEPENDENT_REVIEW", "إثبات مباشر بانتظار مراجعة").replace("DIRECT_OFFICIAL_CELL_PENDING_INDEPENDENT_REVIEW", "خلية رسمية بانتظار مراجعة").replace("NOT_ASSESSED", "لم يُقيَّم").replace("NONE", "بلا حالة"))}</td></tr>`;
+  };
+  return `
+  <div class="dossier-head glass">
+    <h1 class="dos-title">${esc(o.title_ar || o.headline)}</h1>
+    <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-top:6px">
+      <span class="dos-inst">${esc(o.institution_ar || o.institution)} · ${esc(o.country_ar)} · ${esc(o.sector_ar)}</span>
+      ${VERDICT_CHIP[o.quality_verdict] || ""}${FRESH_CHIP(o)}
+    </div>
+    <div class="card sum-box" id="sum" style="margin-top:10px"><h2 class="card-title">الخلاصة التنفيذية</h2><p class="page-desc" style="margin:6px 0 0">${esc(summaryAr(o))}</p></div>
+    ${o.gloss_ar ? `<div class="card sum-box" style="margin-top:10px"><h2 class="card-title">خلاصة عربية آلية</h2><p class="page-desc" style="margin:6px 0 0">${esc(o.gloss_ar)}</p></div>` : ""}
+    ${dispHtml(o)}
+    <dl class="meta-grid">
+      <div class="meta-cell"><dt class="k">الفترة (من المضمون فقط)</dt><dd class="v">${esc(o.period_ar || "غير محددة")}</dd></div>
+      <div class="meta-cell"><dt class="k">تاريخ مضمون الوثيقة</dt><dd class="v">${esc(o.content_date || "غير متاح")}</dd></div>
+      <div class="meta-cell"><dt class="k">لحظة الاقتناء (منفصلة بصدق)</dt><dd class="v" lang="en" dir="ltr">${esc(o.acquired_at || "—")}</dd></div>
+      <div class="meta-cell"><dt class="k">عمق الكائن</dt><dd class="v">${o.depth} حقيقة · ${o.evidence_count} إثباتاً</dd></div>
+      <div class="meta-cell"><dt class="k">وثيقة الإثبات</dt><dd class="v"><a href="${esc(o.canonical_url)}" target="_blank" rel="noopener">الرسمية <span aria-hidden="true">↗</span></a></dd></div>
+      <div class="meta-cell"><dt class="k">الحالة في المحرك</dt><dd class="v">${esc(o.status)} · إصدار ${esc(o.version)}</dd></div>
+    </dl>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+      <button class="btn sm" onclick="exportIoJson('${esc(o.io_id)}')">تصدير JSON</button>
+      <button class="btn sm" onclick="exportIoCsv('${esc(o.io_id)}')">تصدير CSV</button>
+      <button class="btn sm" onclick="window.print()">طباعة PDF</button>
+    </div>
+  </div>
+  <div class="card" style="margin-bottom:12px">
+    <div class="card-h"><h2 class="card-title">الحقائق — مهيكلة ومفككة عند الخدمة</h2><span class="card-note">الوحدات والفترات معبأة حيث تتيحها الوثيقة — الخلية البشطة تعني «غير متوفر في الوثيقة» ولا يُخترع بديل</span></div>
+    <div class="scrollx"><table class="tbl"><caption>حقائق الكائن — ${o.facts.length} صفوف، كل خلية مقروءة من الوثيقة</caption><thead><tr><th scope="col" style="width:20%">المؤشر</th><th scope="col" style="width:30%">القيمة</th><th scope="col" style="width:16%">الكيان</th><th scope="col" style="width:10%">الوحدة</th><th scope="col" style="width:10%">الفترة/السريان</th><th scope="col" style="width:14%">حالة الجودة الآلية</th></tr></thead>
+    <tbody>${(o.facts || []).map(factRow).join("") || '<tr><td colspan="5">لا حقائق</td></tr>'}</tbody></table></div>
+  </div>
+  <div class="card" style="margin-bottom:12px">
+    <div class="card-h"><h2 class="card-title">سلسلة الإثبات — المقتطف باللغة الأصلية + رابط الوثيقة الرسمية</h2></div>
+    ${(o.evidence || []).map((e) => `<blockquote class="quote"><span lang="en" dir="ltr" style="display:inline-block">${esc((e.excerpt || "").slice(0, 420))}${(e.excerpt || "").length > 420 ? "…" : ""}</span><span class="who">المصدر الرسمي: <a href="${esc(e.canonical_url)}" target="_blank" rel="noopener">${esc(e.canonical_url)}</a></span></blockquote>`).join("") || '<div class="card-note">لا مقتطفات</div>'}
+  </div>
+  <div class="card review-card">
+    <div class="card-h"><h2 class="card-title">مراجعة بشرية — تُسجل على الخادم وتغيّر الحكم المعروض فعلاً</h2><span class="chip gold">مسار كتابة حقيقي</span></div>
+    ${o.review ? `<div class="card-note" style="margin-bottom:8px">مراجعة مسجلة: <b>${esc(o.review.verdict)}</b> بواسطة <b>${esc(o.review.actor)}</b> في ${fmtTime(o.review.at)}${o.review.note ? " — " + esc(o.review.note) : ""}</div>` : ""}
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <input id="rvActor" placeholder="اسمك (إلزامي — الحكم يُسجل باسمك)" style="flex:1 1 220px;background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:10px;color:var(--ink);font-family:inherit;padding:9px 12px">
+      <input id="rvNote" placeholder="ملاحظة (اختياري)" style="flex:1 1 220px;background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:10px;color:var(--ink);font-family:inherit;padding:9px 12px">
+      <button class="btn primary" onclick="submitReview('${esc(o.io_id)}','VERIFIED')">اعتماد: متحقق منه</button>
+      <button class="btn" onclick="submitReview('${esc(o.io_id)}','REJECTED')">رفض</button>
+      <button class="btn" onclick="submitReview('${esc(o.io_id)}','NEEDS_REVIEW')">إعادة لطابور المراجعة</button>
+    </div>
+    <div class="card-note" id="rvMsg" style="margin-top:8px">القرار يُكتب في سجل مراجعة على الخادم (append-only باسم الفاعل) ويظهر لكل من يفتح هذا الكائن من أي متصفح. ترحيله إلى مخزن المحرك يتطلب مسار كتابة لدى Core — موثق في بوابة g1.</div>
+  </div>`;
+}
+async function submitReview(ioId, verdict) {
+  const actor = ($("#rvActor") || {}).value || "";
+  const note = ($("#rvNote") || {}).value || "";
+  const msg = $("#rvMsg");
+  let tok = "";
+  try { tok = sessionStorage.getItem("rouaa-rv-token") || ""; } catch (_) {}
+  const { status, data } = await jpost("/analyst/api/review", { io_id: ioId, verdict, actor, note }, tok ? { "x-review-token": tok } : null);
+  if (status === 200) {
+    msg.innerHTML = `<span class="chip ok">سُجل على الخادم ✓</span> ${esc(data.effect_ar || "")} — تُحدَّث الصفحة لتعرض الحكم الجديد.`;
+    setTimeout(() => route(), 900);
+  } else if (status === 401 && data && data.error && data.error.code === "REVIEW_TOKEN_REQUIRED") {
+    // الخادم يطلب توكن مراجعة — نموّه حقلاً صغيراً مكانياً بدل رسالة خطأ جافة
+    msg.innerHTML = `<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:4px">
+      <input type="password" id="rvTok" aria-label="توكن المراجعة" placeholder="توكن المراجعة" style="flex:1 1 220px;background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:10px;color:var(--ink);font-family:inherit;padding:9px 12px">
+      <button class="btn primary" onclick="retryReview('${esc(ioId)}','${esc(verdict)}')">أعد الإرسال</button>
+    </div>
+    <div class="card-note" style="margin-top:6px">${esc((data.error || {}).message_ar || "")}</div>`;
+    const tokInput = $("#rvTok");
+    if (tokInput) tokInput.focus();
+  } else {
+    msg.innerHTML = `<span class="chip bad">رفض الخادم (${status})</span> ${esc((data.error || {}).message || "")}`;
+  }
+}
+async function retryReview(ioId, verdict) {
+  // نحفظ التوكن المُدخل ثم نعيد المحاولة بنفس الكائن والحكم — الاسم والملاحظة يبقيان في حقولهما
+  const inp = $("#rvTok");
+  const tok = (inp && inp.value) || "";
+  if (tok) { try { sessionStorage.setItem("rouaa-rv-token", tok); } catch (_) {} }
+  await submitReview(ioId, verdict);
+}
+async function exportIoJson(id) {
+  const o = await jget("/analyst/api/output/" + encodeURIComponent(id));
+  download(`rouaa-${id}.json`, JSON.stringify(o, null, 2), "application/json");
+}
+async function exportIoCsv(id) {
+  const o = await jget("/analyst/api/output/" + encodeURIComponent(id));
+  const rows = [["fact_id", "metric", "metric_ar", "value", "unit", "reference_period", "effective_date", "quality_state"].join(",")];
+  for (const f of (o.facts || [])) rows.push([f.fact_id, f.metric, f.metric_ar, JSON.stringify(f.value_struct || f.value), f.unit || "", f.reference_period || "", f.effective_date || "", f.quality_state || ""].map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","));
+  download(`rouaa-${id}-facts.csv`, "\uFEFF" + rows.join("\n"), "text/csv");
+}
+
+/* ═══ دليل الجهات + التغطية ═══ */
+async function pgDirectory() {
+  const d = await jget("/analyst/api/sources");
+  return `
+  <div class="page-head"><div class="page-kicker">دليل الجهات — السجل الحي</div>
+  <h1 class="page-title">${d.registered} مصدراً مسجلاً — المنتج منها معلَّم</h1>
+  <p class="page-desc">الأسماء بالعربية تُشتق على الخادم؛ العلم «ينتج» يعني أن هذا المصدر حمل كائناً استخباراتياً واحداً على الأقل في الفهرس الحي.</p></div>
+  <div class="filterbar" style="margin-bottom:12px"><span class="search" style="flex:1 1 260px"><input id="dirQ" aria-label="بحث في دليل الجهات" placeholder="ابحث في ${d.registered} جهة فريدة…" value=""><span class="si" aria-hidden="true">🔍</span></span></div>
+  <div class="scrollx"><table class="tbl" id="dirTable"><caption>دليل الجهات المسجلة — ${d.registered} جهة فريدة</caption><thead><tr><th scope="col" style="width:34%">الجهة</th><th scope="col" style="width:14%">الدولة</th><th scope="col" style="width:20%">القطاع</th><th scope="col" style="width:14%">ينتج؟</th><th scope="col" style="width:18%">المعرف</th></tr></thead>
+  <tbody id="dirBody"></tbody></table></div>`;
+  // جدول مرشَّح في المكان — يُستدعى بعد إدراج innerHTML في الشجرة (route يناديه)
+  window.__fillDir = () => { const rows = d.sources; const body = () => document.getElementById('dirBody');
+  if (!body()) return;
+  body().innerHTML = rows.map((s) => `<tr><td>${esc(s.institution_ar || s.institution)}</td><td>${esc(s.country_ar || s.country)}</td><td>${esc(s.sector_ar || s.sector)}</td><td>${s.produced_intelligence ? '<span class="chip ok">ينتج</span>' : '<span class="chip">لا بعد</span>'}</td><td><code>${esc(s.source_id)}</code></td></tr>`).join('');
+  const q = document.getElementById('dirQ');
+  q.addEventListener('input', () => {
+    const term = q.value.toLowerCase();
+    body().innerHTML = rows.filter((s) => (s.institution_ar + ' ' + s.institution + ' ' + s.country_ar + ' ' + s.sector_ar + ' ' + s.source_id).toLowerCase().includes(term))
+      .map((s) => `<tr><td>${esc(s.institution_ar || s.institution)}</td><td>${esc(s.country_ar || s.country)}</td><td>${esc(s.sector_ar || s.sector)}</td><td>${s.produced_intelligence ? '<span class="chip ok">ينتج</span>' : '<span class="chip">لا بعد</span>'}</td><td><code>${esc(s.source_id)}</code></td></tr>`).join('');
+  }); };
+}
+function pgCoverage() {
+  const T = (SUMMARY && SUMMARY.totals) || {};
+  const fo = (SUMMARY && SUMMARY.filters) || {};
+  return `
+  <div class="page-head"><div class="page-kicker">خريطة التغطية — الصدق قبل التفاؤل</div>
+  <h1 class="page-title">السجل الحي مقابل التعداد المرجعي الكامل</h1>
+  <p class="page-desc">سجل المحرك يضم ${T.registry_rows_raw || "؟"} صفاً يغطي <b>${T.sources_registry_live} جهة فريدة مسجلة فعلياً</b> (صنف لكل جهة — لا يُعدّ ضعفين)؛ المقتناة ${T.sources_acquired}؛ المنتجة ${T.sources_producing} — أي استغلال فعلي ${Math.round(100 * (T.sources_producing || 0) / Math.max(1, T.sources_registry_live || 1))}% من السجل الفريد و${Math.round(100 * (T.sources_producing || 0) / Math.max(1, T.sources_acquired || 1))}% من المقتناة. النسب بمقاماتها المعلنة لا تختفي.</p></div>
+  <div class="card"><h2 class="card-title" style="margin-bottom:10px">توزيع المنتجة على الدول (${(fo.countries || []).length} دولة أنتجت فعلاً)</h2>
+    ${(fo.countries || []).map((c) => `<a class="chip gold" style="margin:3px" href="#/desk?country=${esc(c)}">${esc(c)}</a>`).join("") || "—"}
+    <div class="card-note" style="margin-top:10px">اختر دولة لعرض كائناتها في المكتب — كل بيان هنا قابل للنقر حتى النهاية.</div>
+  </div>`;
+}
+
+/* ═══ المؤشرات — أحدث قيمة لكل جهة ═══ */
+async function pgIndicators() {
+  const d = await jget("/analyst/api/indicators");
+  const inds = d.indicators || [];
+  return `
+  <div class="page-head">
+    <div class="page-kicker">المؤشرات — أحدث قيمة لكل جهة</div>
+    <h1 class="page-title">لوحة المؤشرات الرسمية</h1>
+    <p class="page-desc">${esc(d.note_ar || "")} كل صف يوصل إلى ملف الكائن بسلسلة الإثبات.</p>
+  </div>
+  ${inds.length ? inds.map((ind) => `
+  <div class="card" style="margin-bottom:12px">
+    <div class="card-h"><h2 class="card-title">${esc(ind.metric_ar || ind.metric)}</h2><span class="chip gold">${ind.items.length} جهة</span></div>
+    <div class="scrollx"><table class="tbl">
+      <caption>أحدث قيمة لكل جهة — ${esc(ind.metric_ar || ind.metric)}</caption>
+      <thead><tr><th scope="col">الجهة</th><th scope="col">القيمة</th><th scope="col">الوحدة</th><th scope="col">الفترة</th><th scope="col">بتاريخ</th><th scope="col">الملف</th></tr></thead>
+      <tbody>${ind.items.map((it) => `<tr>
+        <td>${esc(it.institution_ar)}</td>
+        <td class="num" style="color:var(--gold2);font-weight:800">${esc(it.value)}</td>
+        <td>${esc(it.unit_ar || "—")}</td>
+        <td>${esc(it.period_ar || "—")}</td>
+        <td>${esc(it.content_date || "—")}</td>
+        <td><a class="btn sm" href="#/io/${esc(it.io_id)}">الملف</a></td>
+      </tr>`).join("")}</tbody>
+    </table></div>
+  </div>`).join("") : `<div class="card" style="text-align:center;padding:28px"><h2 class="card-title">لا مؤشرات بعد</h2><div class="card-note">لم يُبنَ أي مؤشر من مخرجات المحرك الحالية — الصفحة تُحدَّث تلقائياً حين توجد قيم قابلة للعرض.</div></div>`}`;
+}
+
+/* ═══ مساحة المالك — مؤشرات قرار صادقة، عامة بلا أسرار ═══ */
+async function pgOwner() {
+  const [S, H, ST] = await Promise.all([jget("/analyst/api/summary"), jget("/analyst/api/health"), jget("/analyst/api/stats")]);
+  const T = S.totals || {}, F = S.freshness || {}, E = S.engine || {}, D = H.disclosure || {};
+  const avgDepth = T.intelligence_objects ? (T.facts_served / T.intelligence_objects).toFixed(1) : "—";
+  const days = (ST.days || []).slice(-14);
+  const maxV = Math.max(1, ...days.map((x) => x.views || 0));
+  const rvEph = String(D.reviews_file || "").indexOf("ephemeral") === 0;
+  const chipOk = '<span class="chip ok">ضمن الهدف</span>', chipBelow = '<span class="chip warn">دون الهدف</span>';
+  return `
+  <div class="page-head">
+    <div class="page-kicker">مساحة المالك — مؤشرات القرار</div>
+    <h1 class="page-title">لوحة قيادة المالك</h1>
+    <p class="page-desc">مقارنة الحالة الحالية بأهداف خطة 30 يوماً (تدقيق 2026-11-23). كل الأرقام حية من الجسر لحظة الفتح — وما لا يمكن قياسه من هنا يُعلَن بصدق ولا يُخمَّن.</p>
+  </div>
+  <div class="grid g2">
+    <div class="card">
+      <div class="card-h"><h2 class="card-title">مؤشرات الخطة مقابل الأهداف</h2><span class="chip gold">خطة 30 يوماً</span></div>
+      <div class="scrollx"><table class="tbl">
+        <caption>مؤشرات خطة 30 يوماً مقابل الوضع الحالي — القراءة لحظة فتح الصفحة</caption>
+        <thead><tr><th scope="col">المؤشر</th><th scope="col">الآن</th><th scope="col">الهدف</th><th scope="col">الحالة</th></tr></thead>
+        <tbody>
+          <tr><td>عمر آخر جري للمحرك</td><td class="num">${E.age_hours ?? "—"} ساعة</td><td>أقل من 24</td><td>${E.age_hours != null && E.age_hours < 24 ? chipOk : '<span class="chip warn">قيد قرار المالك</span>'}</td></tr>
+          <tr><td>جهات منتجة</td><td class="num">${T.sources_producing ?? "—"}</td><td>30+</td><td>${(T.sources_producing || 0) >= 30 ? chipOk : chipBelow}</td></tr>
+          <tr><td>متوسط عمق الكائن</td><td class="num">${avgDepth} حقيقة/كائن</td><td>2.5+</td><td>${Number(avgDepth) >= 2.5 ? chipOk : chipBelow}</td></tr>
+          <tr><td>كائنات مُتحقق منها بمراجعة</td><td class="num">${T.verified_by_review ?? 0}</td><td>20+</td><td>${(T.verified_by_review || 0) >= 20 ? chipOk : chipBelow}</td></tr>
+          <tr><td>كائنات بلا تاريخ مضمون</td><td class="num">${F.undated ?? "—"}</td><td>بالانخفاض</td><td><span class="chip info">يُراقب</span></td></tr>
+          <tr><td>زمن استجابة API</td><td>يُقاس من خارج المتصفح — لا يُقاس هنا</td><td>p95 &lt; 0.5 ث</td><td><span class="chip info">قياس خارجي</span></td></tr>
+        </tbody>
+      </table></div>
+    </div>
+    <div class="card">
+      <div class="card-h"><h2 class="card-title">حالة الجسر والمحرك</h2><span class="chip ${H.index_state === "LIVE" ? "ok" : "warn"}">${H.index_state === "LIVE" ? "حي" : "آخر جيد"}</span></div>
+      <div class="scrollx"><table class="tbl">
+        <caption>حالة الجسر والمحرك كما يعرفها النظام عن نفسه</caption>
+        <thead><tr><th scope="col">البند</th><th scope="col">الحالة</th></tr></thead>
+        <tbody>
+          <tr><td>حالة الفهرس</td><td>${esc(H.index_state || "—")} — بُني ${fmtTime(H.built_at)}</td></tr>
+          <tr><td>سجل المراجعة</td><td>${rvEph ? '<span class="chip warn">سجل مراجعة مؤقت — يتطلب مجلداً دائماً</span>' : '<span class="chip ok">دائم</span>'}</td></tr>
+          <tr><td>المحرك</td><td>${E.stalled
+            ? `<span class="chip warn">متوقف عن الجري</span> <span class="card-note">${E.age_hours ?? "؟"} ساعة · آخر جري <code>${esc(E.last_run_id || "—")}</code></span>`
+            : `<span class="chip ok">يعمل — عمر آخر جري ${E.age_hours ?? "؟"} ساعة</span>`}</td></tr>
+          <tr><td>نسخ متجاوزة موثقة</td><td class="num">${D.superseded_versions ?? "—"}</td></tr>
+          <tr><td>سجلات المخزن</td><td class="num">${D.store_records ?? "—"}</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+    <div class="card">
+      <div class="card-h"><h2 class="card-title">الاستخدام — عدّاد بلا تتبع</h2><span class="chip info">بلا تتبع</span></div>
+      <div class="meta-grid">
+        <div class="meta-cell"><dt class="k">زيارة صفحة</dt><dd class="v num" style="font-size:clamp(24px,3.4vw,32px);font-weight:800;color:var(--gold2)">${ST.total_views ?? "—"}</dd></div>
+        <div class="meta-cell"><dt class="k">نداء API</dt><dd class="v num" style="font-size:clamp(24px,3.4vw,32px);font-weight:800;color:var(--gold2)">${ST.total_api ?? "—"}</dd></div>
+      </div>
+      <div class="card-title" style="font-size:13px;margin:12px 0 8px">آخر 14 يوماً — زيارات الصفحة</div>
+      ${days.map((x) => `<div class="bar-row"><span class="bar-label num">${esc(x.date)}</span><span class="bar-track"><span class="bar-fill" style="width:${Math.round(100 * (x.views || 0) / maxV)}%"></span></span><span class="bar-val num">${x.views || 0}</span></div>`).join("") || '<div class="card-note">لا بيانات استخدام بعد.</div>'}
+      <div class="card-note" style="margin-top:8px">${esc(ST.note_ar || "")}</div>
+    </div>
+    <div class="card">
+      <div class="card-h"><h2 class="card-title">نقاط قرار Go/No-Go</h2><span class="chip gold">قرارات المالك</span></div>
+      <div class="bar-row"><span class="chip ${E.stalled ? "warn" : "ok"}" style="min-width:44px;justify-content:center">D1</span><span style="font-size:12.5px"><b>إعادة تشغيل المحرك</b> — ${E.stalled ? "لم يُنجز بعد — المحرك متوقف" : "مُنجز/جارٍ"}</span></div>
+      <div class="bar-row"><span class="chip info" style="min-width:44px;justify-content:center">D2</span><span style="font-size:12.5px"><b>الدفعة العربية الأولى (10 جهات)</b> — قيد المالك — يتطلب موصلات محرك</span></div>
+      <div class="bar-row"><span class="chip info" style="min-width:44px;justify-content:center">D3</span><span style="font-size:12.5px"><b>البرنامج التجريبي مع مؤسسات</b> — لم يبدأ</span></div>
+      <div class="card-note" style="margin-top:8px">نقاط القرار الثلاث من خطة 30 يوماً — حالة D1 تُقرأ من خط المحرك الحي، وD2 وD3 حالتهما الإدارية معلنة كما هي.</div>
+    </div>
+  </div>
+  <div class="card-note" style="margin-top:10px">هذه الصفحة عامة لا تحوي أسراراً — عرض حالة تشغيلية صادق.</div>`;
+}
+
+/* ═══ غرفة العمليات + المراجعة ═══ */
+function pgOps() {
+  const S = SUMMARY || {}, H = HEALTH || {}, T = S.totals || {};
+  return `
+  <div class="page-head"><div class="page-kicker">غرفة العمليات — حالة الجسر والبوابات</div>
+  <h1 class="page-title">كل ما يعرف عن نفسه هذا النظام</h1></div>
+  <div class="grid g2">
+    <div class="card"><div class="card-h"><h2 class="card-title">حالة الجسر والفهرس</h2><span class="chip ${H.index_state === "LIVE" ? "ok" : "warn"}">${H.index_state === "LIVE" ? "حي" : "آخر جيد"}</span></div>
+      <table class="tbl"><tbody>
+        <tr><td>الفهرس مبني</td><td>${fmtTime(H.built_at)}</td></tr>
+        <tr><td>آخر نجاح اتصال</td><td>${fmtTime(H.last_ok_at)}</td></tr>
+        <tr><td>سبب أي تأخير</td><td>${esc(H.delay_reason || "لا شيء")}</td></tr>
+        <tr><td>كائنات معروضة</td><td class="num">${H.disclosure ? H.disclosure.objects : "—"}</td></tr>
+        <tr><td>سجلات المخزن (بالنسخ)</td><td class="num">${H.disclosure ? H.disclosure.store_records : "—"}</td></tr>
+        <tr><td>نسخ متجاوزة موثقة</td><td class="num">${H.disclosure ? H.disclosure.superseded_versions : "—"}</td></tr>
+        <tr><td>مُتحقق منه بمراجعة مسجلة</td><td class="num">${T.verified_by_review ?? 0}</td></tr>
+        <tr><td>قرارات مراجعة مسجلة على الخادم</td><td class="num">${T.reviews_logged ?? 0}</td></tr>
+        <tr><td>حقائق مخدومة من آثار الكائنات</td><td class="num">${T.facts_served ?? 0} <span class="card-note">من ${T.facts ?? "?"} بالمخزن</span></td></tr>
+        <tr><td>إثباتات موصولة بآثار</td><td class="num">${T.evidence ?? 0}</td></tr>
+      </tbody></table>
+      <div class="card-note">${esc((H.disclosure || {}).note_ar || "")}</div>
+    </div>
+    <div class="card"><div class="card-h"><h2 class="card-title">خط المحرك — الصدق التشغيلي</h2><span class="chip ${(S.engine || {}).stalled ? "warn" : "ok"}">${(S.engine || {}).stalled ? "متوقف عن الجري" : "حديث"}</span></div>
+      <table class="tbl"><tbody>
+        <tr><td>آخر جري للمحرك</td><td><code>${esc((S.engine || {}).last_run_id || "—")}</code></td></tr>
+        <tr><td>انتهى في</td><td>${fmtTime((S.engine || {}).last_run_at)}</td></tr>
+        <tr><td>العمر الآن</td><td class="num">${(S.engine || {}).age_hours ?? "—"} ساعة</td></tr>
+        <tr><td>الحالة</td><td>${(S.engine || {}).stalled ? "أكثر من 24 ساعة بلا جري — قيد قرار المالك (سعة القرص/الوقود)؛ الجسر يخدم آخر فهرس جيد بصدق ولا يخترع بديلاً" : "جري خلال 24 ساعة الماضية"}</td></tr>
+      </tbody></table>
+      <div class="card-note">هذه ليست بوابة قبول للجسر — بل محدد تشغيلي للمحرك يُعلن كما هو.</div>
+    </div>
+    <div class="card"><div class="card-h"><h2 class="card-title">بوابات القبول السبع (تدقيق 2026-11-19 — ج1 + ج2)</h2></div>
+      ${(SUMMARY.quality_gates || []).map((g) => `<div class="bar-row" style="margin-bottom:8px"><span class="chip ${g.pass ? "ok" : "bad"}" style="min-width:64px;justify-content:center">${g.pass ? "PASS" : "FAIL"}</span><span style="font-size:12.5px">${esc(g.name_ar)}</span><span class="card-note" style="margin-inline-start:auto">${esc(g.measured)}</span></div>`).join("")}
+      <div class="card-note" style="margin-top:8px">قاعدة التوسع (P6): ${esc((SUMMARY.disclosure || {}).expansion_rule_ar || "")}</div>
+    </div>
+  </div>`;
+}
+async function pgReview() {
+  // الطابور يُجلب بنداء واحد من الخادم: كل غير المُتحقق منه مرتباً بتاريخ المضمون
+  const d = await jget("/analyst/api/review-queue");
+  const rv = await jget("/analyst/api/reviews");
+  RV_QUEUE = d.queue || [];
+  const verdictChipCls = { VERIFIED: "ok", REJECTED: "bad", NEEDS_REVIEW: "warn" };
+  return `
+  <div class="page-head"><div class="page-kicker">غرفة المراجعة — قرارات تصل وتُقرأ</div>
+  <h1 class="page-title">طابور ${d.queue_total} كائناً · مُتحقق ${d.verified} من ${d.total_objects}</h1>
+  <p class="page-desc">الطابور يُجلب بنداء واحد من الخادم: كل كائن غير مُتحقق منه مرتباً بتاريخ المضمون. القرار يُكتب في سجل المراجعة على خادم الجسر باسم الفاعل، ويغيّر الحكم المعروض للجميع فوراً. ترحيل الأحكام إلى مخزن المحرك نفسه يتطلب مسار كتابة لدى Core (غير متوفر — موثق بصدق في لوحة البوابات).</p></div>
+  <div class="filterbar" style="margin-bottom:12px">
+    ${Object.keys(d.by_verdict || {}).map((k) => `<span class="chip ${verdictChipCls[k] || ""}">${esc(VERDICT_AR[k] || k)}: ${esc(d.by_verdict[k])}</span>`).join("")}
+    <span class="card-note">فهرس الطابور ${fmtTime(d.index_built_at)} · ${esc(d.index_state || "")}</span>
+  </div>
+  <div class="grid g2" id="rvQueue">${RV_QUEUE.slice(0, 24).map(reviewCardHtml).join("")}</div>
+  ${RV_QUEUE.length > 24 ? `<button class="btn loadmore" id="rvAll" onclick="showAllQueue()">عرض كل الطابور (${RV_QUEUE.length})</button>` : ""}
+  <div class="card" style="margin-top:12px"><h2 class="card-title" style="margin-bottom:8px">سجل القرارات المسجلة على الخادم</h2>
+    ${(rv.reviews || []).slice().reverse().map((r) => `<div class="bar-row"><span class="chip ${r.verdict === "VERIFIED" ? "ok" : r.verdict === "REJECTED" ? "bad" : "warn"}">${esc(VERDICT_AR[r.verdict] || r.verdict)}</span><span style="font-size:12.5px"><code>${esc(r.io_id)}</code> — ${esc(r.actor)} — ${fmtTime(r.at)}${r.note ? " — " + esc(r.note) : ""}</span></div>`).join("") || '<div class="card-note">لا قرارات بعد — كن أول من يفصل.</div>'}
+  </div>`;
+}
+function reviewCardHtml(o) {
+  // بطاقة كائن من طابور المراجعة — نفس بنية البطاقات السابقة
+  return `<div class="review-card glass">
+    <span class="io-inst">${esc(o.institution_ar || o.institution)}</span>
+    <a href="#/io/${esc(o.io_id)}" style="text-decoration:none;color:inherit"><div class="io-title" style="font-size:14px">${esc(o.title_ar)}</div></a>
+    <div class="io-meta">${VERDICT_CHIP[o.quality_verdict] || ""}<span class="chip">العمق: ${o.depth}</span>${FRESH_CHIP(o)}</div>
+    <a class="btn sm" href="#/io/${esc(o.io_id)}">افتح وافصل</a>
+  </div>`;
+}
+function showAllQueue() {
+  // ضغطة واحدة تعرض بقية الطابور في نفس الشبكة — بلا ترقيم صفحات
+  const grid = $("#rvQueue");
+  if (!grid) return;
+  grid.insertAdjacentHTML("beforeend", RV_QUEUE.slice(24).map(reviewCardHtml).join(""));
+  const btn = $("#rvAll");
+  if (btn) btn.remove();
+}
+
+/* ═══ الراوتر ═══ */
+async function route() {
+  const h = location.hash.replace(/^#\//, "") || "dashboard";
+  const qi = h.indexOf("?");
+  const arg = qi >= 0 ? h.slice(qi + 1) : "";
+  const page = (qi >= 0 ? h.slice(0, qi) : h).split("/")[0] || "dashboard";
+  const ioId = (qi >= 0 ? h.slice(0, qi) : h).split("/").slice(1).join("/");
+  const app = $("#app");
+  const TITLES = { dashboard: "لوحة القيادة", desk: "المكتب", io: "ملف الكائن", indicators: "المؤشرات", directory: "دليل الجهات", coverage: "خريطة التغطية", ops: "غرفة العمليات", review: "غرفة المراجعة", owner: "مساحة المالك" };
+  document.title = "رُؤى — " + (TITLES[page] || "منصة الاستخبارات الرسمية");
+  document.querySelectorAll("#nav a").forEach((a) => { a.classList.toggle("on", a.dataset.r === page); if (a.dataset.r === page) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); });
+  try {
+    if (page === "dashboard") { app.innerHTML = pgDashboard(); await deskLatest(); }
+    else if (page === "desk") { app.innerHTML = await pgDesk(arg); wireDesk(); await deskLoadMore(true); }
+    else if (page === "io") { app.innerHTML = await pgIo(ioId); }
+    else if (page === "directory") { app.innerHTML = await pgDirectory(); if (typeof window.__fillDir === 'function') window.__fillDir(); }
+    else if (page === "coverage") { app.innerHTML = pgCoverage(); }
+    else if (page === "indicators") { app.innerHTML = await pgIndicators(); }
+    else if (page === "owner") { app.innerHTML = await pgOwner(); }
+    else if (page === "ops") { app.innerHTML = pgOps(); }
+    else if (page === "review") { app.innerHTML = await pgReview(); }
+    else { app.innerHTML = '<div class="card">الصفحة غير موجودة</div>'; }
+  } catch (e) {
+    app.innerHTML = `<div class="card">تعذر التحميل: ${esc(e.message)} — الجسر قد يكون يعيد بناء الفهرس؛ أعد المحاولة بعد لحظات.</div>`;
+  }
+}
+async function deskLatest() {
+  try {
+    const d = await jget("/analyst/api/outputs?page=1&page_size=4");
+    $("#dashLatest").innerHTML = `<div class="grid g2">${d.objects.map(cardHtml).join("")}</div>`;
+  } catch (e) { $("#dashLatest").textContent = "تعذر الجلب: " + e.message; }
+}
+function wireDesk() {
+  const st = REVIEW_STATE;
+  $("#fq").addEventListener("keydown", (e) => { if (e.key === "Enter") { st.q = e.target.value; deskLoadMore(true); } });
+  $("#fc").addEventListener("change", (e) => { st.country = e.target.value; deskLoadMore(true); });
+  $("#fs").addEventListener("change", (e) => { st.sector = e.target.value; deskLoadMore(true); });
+  $("#ff").addEventListener("change", (e) => { st.freshness = e.target.value; deskLoadMore(true); });
+  $("#loadMore").addEventListener("click", () => deskLoadMore(false));
+  $("#expCsv").addEventListener("click", () => exportSet("csv"));
+  $("#expJson").addEventListener("click", () => exportSet("json"));
+  $("#expPrint").addEventListener("click", () => window.print());
+}
+function focusH1() {
+  const h1 = document.querySelector("#app h1");
+  if (h1) { h1.setAttribute("tabindex", "-1"); h1.focus({ preventScroll: true }); }
+}
+window.addEventListener("hashchange", () => route().then(focusH1));
+boot().then(() => route()).then(focusH1);
+
+/* حجم الخط للرؤية الضعيفة — ثلاث درجات، محفوظة محلياً */
+const FS_KEY = "rouaa-fs";
+function applyFs(lv) {
+  document.documentElement.classList.remove("fs1", "fs2", "fs3");
+  if (lv > 0) document.documentElement.classList.add("fs" + lv);
+  try { localStorage.setItem(FS_KEY, String(lv)); } catch (e) {}
+}
+(function () {
+  let lv = 0;
+  try { lv = parseInt(localStorage.getItem(FS_KEY) || "0", 10) || 0; } catch (e) {}
+  applyFs(lv);
+  document.querySelectorAll(".fs-btn").forEach((b) => b.addEventListener("click", () => {
+    const cur = parseInt(localStorage.getItem(FS_KEY) || "0", 10) || 0;
+    applyFs(Math.max(0, Math.min(3, cur + (b.dataset.fs === "up" ? 1 : -1))));
+  }));
+})();
+
+</script>
+</body>
+</html>

@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>رؤى — واجهة المحلل المؤسسية</title>
+<link rel="stylesheet" href="/rouaa-analyst.css">
+</head>
+<body>
+<header class="masthead">
+  <div class="brand">
+    <span class="brand-name">رؤى</span>
+    <span class="brand-sub">منصة الاستخبارات المؤسسية — إنتاج المحرك</span>
+  </div>
+  <div class="head-data" id="headData">—</div>
+</header>
+<nav class="mainnav" id="mainnav">
+  <a href="#outputs" data-view="outputs" class="navlink active">المخرجات</a>
+  <a href="#archive" data-view="archive" class="navlink">الأرشيف</a>
+  <a href="#sources" data-view="sources" class="navlink">المصادر</a>
+  <span class="navspace"></span>
+  <a href="#ops" data-view="ops" class="navlink opslink">مساحة المشغّل</a>
+</nav>
+
+<main id="main">
+  <section id="view-outputs" class="view">
+    <div class="toolbar">
+      <input id="q" type="search" placeholder="بحث واحد في كل المخرجات…">
+      <select id="f-country"><option value="">كل البلدان</option></select>
+      <select id="f-sector"><option value="">كل القطاعات</option></select>
+      <select id="f-source"><option value="">كل المصادر</option></select>
+      <select id="f-period"><option value="">كل الفترات</option></select>
+      <button id="apply" class="primary">تطبيق</button>
+    </div>
+    <div class="resultsline" id="resultsline">—</div>
+    <div id="results"></div>
+    <div class="pager" id="pager"></div>
+  </section>
+
+  <section id="view-sources" class="view" hidden>
+    <div class="sourceshead">
+      <h2>المصادر الرسمية</h2>
+      <div id="progress-real" class="progressreal"></div>
+    </div>
+    <div id="sourcesbody"></div>
+  </section>
+
+  <section id="view-archive" class="view" hidden>
+    <h2>الأرشيف</h2>
+    <div id="archivebody"></div>
+  </section>
+
+  <section id="view-ops" class="view ops" hidden>
+    <h2>مساحة المشغّل — سجلات التشغيل والجودة</h2>
+    <div id="opsbody"></div>
+  </section>
+</main>
+
+<dialog id="evidencePanel" class="evidence-panel">
+  <div class="panel-head">
+    <div><span id="pv-kicker">الدليل</span><h3 id="pv-title"></h3></div>
+    <button id="pv-close" class="closebtn">×</button>
+  </div>
+  <div id="pv-body" class="panel-body"></div>
+</dialog>
+
+<script src="/rouaa-analyst.js"></script>
+</body>
+</html>

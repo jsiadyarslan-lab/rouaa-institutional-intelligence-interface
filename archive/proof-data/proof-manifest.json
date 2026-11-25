@@ -1,0 +1,84 @@
+{
+  "audit_branch": "p2.8-r7-first-verified-intelligence-object",
+  "core_commit": "5d7b76feed6215673da800d5b60e9690477970ce",
+  "data_scope": "R7_FIRST_VERIFIED_INTELLIGENCE_OBJECT",
+  "execution_id": "exec-p28r7-0b1dd673df77581ebd878f58",
+  "export_files": {
+    "proof-deliveries.json": {
+      "bytes": 755,
+      "path": "proof-export/p28r7/proof-deliveries.json",
+      "sha256": "110990f631a64707f14e8031e48856f0d5ac4e87f6f170ffce188eff8489dca6"
+    },
+    "proof-documents.json": {
+      "bytes": 1030,
+      "path": "proof-export/p28r7/proof-documents.json",
+      "sha256": "bfbb40d4b5b1d8fa2c458f2de32aaf3c3ef83721f83e22fccbb661da59e9e7da"
+    },
+    "proof-events.json": {
+      "bytes": 897,
+      "path": "proof-export/p28r7/proof-events.json",
+      "sha256": "c88ac714522bfa0bb6b04e649ab47a1917c2777a9feca09af9c7a49343557976"
+    },
+    "proof-evidence.json": {
+      "bytes": 1264,
+      "path": "proof-export/p28r7/proof-evidence.json",
+      "sha256": "1053f9dc3c50bfb5f17b796cbf27962844e7cfdc0d4554a90a8d0a3d77aa6579"
+    },
+    "proof-facts.json": {
+      "bytes": 2036,
+      "path": "proof-export/p28r7/proof-facts.json",
+      "sha256": "987edc96da2d32e2a8ed33cdf1ac00e5833e09bc3df69665be6492ad512e3eb0"
+    },
+    "proof-intelligence-objects.json": {
+      "bytes": 4007,
+      "path": "proof-export/p28r7/proof-intelligence-objects.json",
+      "sha256": "cb2a6dddfa40d09444eb8c640d56d41c3edc777d663f861b8fd20294d34bc7ca"
+    },
+    "proof-quality.json": {
+      "bytes": 929,
+      "path": "proof-export/p28r7/proof-quality.json",
+      "sha256": "9aa917093e8e30b857adc0d4898fcb447ba5e89243b39b7a3192777cde62cbff"
+    },
+    "proof-runs.json": {
+      "bytes": 1185,
+      "path": "proof-export/p28r7/proof-runs.json",
+      "sha256": "a5d871328d4b2b070435756d49007a45de19c29f385bd957e69d58ed01cfef64"
+    },
+    "proof-sources.json": {
+      "bytes": 742,
+      "path": "proof-export/p28r7/proof-sources.json",
+      "sha256": "1c88cce2facde13796aba1f152ff0847fdf77dad6502b4aa99132c43726a5ba1"
+    },
+    "proof-summary.json": {
+      "bytes": 1182,
+      "path": "proof-export/p28r7/proof-summary.json",
+      "sha256": "15d43164c1880e3082dce848c7ce5e6adb85e687a84272c13b680153a58ac14f"
+    }
+  },
+  "freshness": "ARCHIVED_SNAPSHOT FALLBACK — Core API unreachable: Core reads failed: scheduler,sources,documents,facts,events,runs",
+  "generated_at": "2026-11-13T07:18:08+00:00",
+  "io_proof_state": "OBSERVED_API_READBACK_PENDING_INDEPENDENT_REVIEW",
+  "plan_id": "p28r7-one-document-statistical-agency-inflation",
+  "run_id": "p28r7-src-istat-october-2026",
+  "schema_version": "ROUAA_PROOF_CONTRACT_V1",
+  "snapshot_kind": "ARCHIVED_SNAPSHOT",
+  "source_artifacts": [
+    {
+      "path": "source_registry/sources.jsonl",
+      "source_id": "src-istat",
+      "state": "OBSERVED"
+    },
+    {
+      "license": "CC BY 4.0",
+      "path": "original-document.html",
+      "sha256": "cac41dcabd4c797a5e437e921cbfc3fdb591cffaf0a27218ae0f2cd4ef85f6f8",
+      "state": "VERIFIED"
+    },
+    {
+      "path": "proof-store/representations.jsonl",
+      "state": "OBSERVED"
+    }
+  ],
+  "verification_state": "OBSERVED",
+  "live_bridge_error": "Core reads failed: scheduler,sources,documents,facts,events,runs"
+}

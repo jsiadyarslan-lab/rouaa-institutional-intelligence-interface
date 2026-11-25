@@ -1,0 +1,31 @@
+{
+  "classification": "OBSERVED",
+  "core_commit": "5d7b76feed6215673da800d5b60e9690477970ce",
+  "data_scope": "R7_FIRST_VERIFIED_INTELLIGENCE_OBJECT",
+  "execution_id": "exec-p28r7-0b1dd673df77581ebd878f58",
+  "generated_at": "2026-11-13T07:18:08+00:00",
+  "production_baseline": {
+    "note": "R7 proof store is isolated; no production counters are read or changed",
+    "scope": "NOT_INCLUDED"
+  },
+  "r7_first_verified_intelligence_object": {
+    "documents_committed": 1,
+    "documents_qualified": 1,
+    "sources_attempted": 1,
+    "sources_configured": 1,
+    "sources_qualified": 1,
+    "verdict": "FIRST_VERIFIED_INTELLIGENCE_OBJECT_PENDING_INDEPENDENT_REVIEW",
+    "verified_deliveries": 1,
+    "verified_economic_events": 1,
+    "verified_financial_facts": 1,
+    "verified_intelligence_objects": 1
+  },
+  "run_id": "p28r7-src-istat-october-2026",
+  "schema_version": "ROUAA_PROOF_CONTRACT_V1",
+  "snapshot_kind": "ARCHIVED_SNAPSHOT",
+  "warnings": [
+    "Only one existing registry source and one official document were used.",
+    "No R4/R5/R6 evidence was changed or replayed.",
+    "Independent human review remains pending and quality_state is not VERIFIED."
+  ]
+}

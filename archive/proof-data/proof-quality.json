@@ -1,0 +1,29 @@
+{
+  "api_readback": true,
+  "core_commit": "5d7b76feed6215673da800d5b60e9690477970ce",
+  "data_scope": "R7_FIRST_VERIFIED_INTELLIGENCE_OBJECT",
+  "deliveries": 1,
+  "direct_evidence": 1,
+  "etag_304": true,
+  "events": 1,
+  "execution_id": "exec-p28r7-0b1dd673df77581ebd878f58",
+  "facts": 1,
+  "fixture_events": 0,
+  "fixture_facts": 0,
+  "generated_at": "2026-11-13T07:18:08+00:00",
+  "idempotency": true,
+  "independent_review_state": "PENDING_HUMAN_REVIEW",
+  "intelligence_objects": 1,
+  "quality_state": "DIRECT_EVIDENCE_SELECTED_PENDING_INDEPENDENT_REVIEW",
+  "raw_document_sha256": {
+    "checked": 1,
+    "failed": 0,
+    "method": "sha256(raw bytes) independently compared with Core Representation.content_sha256",
+    "state": "VERIFIED",
+    "verified": 1
+  },
+  "representations": 2,
+  "run_id": "p28r7-src-istat-october-2026",
+  "schema_version": "ROUAA_PROOF_CONTRACT_V1",
+  "snapshot_kind": "ARCHIVED_SNAPSHOT"
+}
