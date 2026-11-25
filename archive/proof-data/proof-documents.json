@@ -1,0 +1,24 @@
+{
+  "core_commit": "5d7b76feed6215673da800d5b60e9690477970ce",
+  "data_scope": "R7_FIRST_VERIFIED_INTELLIGENCE_OBJECT",
+  "entries": [
+    {
+      "canonical_url": "https://www.istat.it/en/press-release/consumer-prices-provisional-data-october-2026",
+      "content_sha256": "cac41dcabd4c797a5e437e921cbfc3fdb591cffaf0a27218ae0f2cd4ef85f6f8",
+      "content_type": "text/html; charset=UTF-8",
+      "document_id": "doc-6f4ad50d00c7af64",
+      "evidence_state": "DIRECT",
+      "institution": "Istat (Italy)",
+      "publication_date": "2026-10-30",
+      "qualification_status": "QUALIFIED",
+      "reuse_license": "CC BY 4.0 — Istat website legal notice; attribution retained",
+      "source_id": "src-istat",
+      "title": "Consumer prices (provisional data) — October 2026"
+    }
+  ],
+  "execution_id": "exec-p28r7-0b1dd673df77581ebd878f58",
+  "generated_at": "2026-11-13T07:18:08+00:00",
+  "run_id": "p28r7-src-istat-october-2026",
+  "schema_version": "ROUAA_PROOF_CONTRACT_V1",
+  "snapshot_kind": "ARCHIVED_SNAPSHOT"
+}

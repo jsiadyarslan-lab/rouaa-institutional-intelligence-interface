@@ -1,0 +1,22 @@
+{
+  "core_commit": "5d7b76feed6215673da800d5b60e9690477970ce",
+  "data_scope": "R7_FIRST_VERIFIED_INTELLIGENCE_OBJECT",
+  "entries": [
+    {
+      "candidate_id": "src-istat",
+      "documents_committed": 1,
+      "domain": "istat.it",
+      "institution": "Istat (Italy)",
+      "institution_id": "ISTAT",
+      "official_endpoint": "https://www.istat.it/en/rss",
+      "qualification_status": "PRODUCTION_READY",
+      "source_class": "statistical_agency",
+      "terminal_state": "QUALIFIED"
+    }
+  ],
+  "execution_id": "exec-p28r7-0b1dd673df77581ebd878f58",
+  "generated_at": "2026-11-13T07:18:08+00:00",
+  "run_id": "p28r7-src-istat-october-2026",
+  "schema_version": "ROUAA_PROOF_CONTRACT_V1",
+  "snapshot_kind": "ARCHIVED_SNAPSHOT"
+}
