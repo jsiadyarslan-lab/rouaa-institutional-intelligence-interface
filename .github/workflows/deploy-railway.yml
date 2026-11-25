@@ -27,10 +27,10 @@ jobs:
           test -f package.json
           test -f rouaa-console-dark.html
           # بنية جذرية مطابقة لحزم v8 الناجحة؛ لا سجلات مراجعة/استخدام ولا workflows
-          tar -czf deploy-ui.tgz \
+          tar -czf /tmp/deploy-ui.tgz \
             --exclude='reviews.jsonl' --exclude='usage.jsonl' --exclude='.github' --exclude='.git' \
             -C . .
-          echo "package size: $(du -h deploy-ui.tgz | cut -f1)"
+          echo "package size: $(du -h /tmp/deploy-ui.tgz | cut -f1)"
 
       - name: Upload to Railway
         env:
@@ -44,7 +44,7 @@ jobs:
             "https://backboard.railway.app/project/${PID}/environment/${EID}/up?serviceId=${SID}" \
             -H "Authorization: Bearer ${RAILWAY_TOKEN}" \
             -H "Content-Type: application/gzip" \
-            --data-binary @deploy-ui.tgz)
+            --data-binary @/tmp/deploy-ui.tgz)
           echo "HTTP ${HTTP_CODE}"; cat /tmp/resp.json || true
           if [ "${HTTP_CODE}" != "200" ]; then echo "FATAL: upload rejected"; exit 1; fi
           DEP_ID=$(python3 -c "import json; d=json.load(open('/tmp/resp.json')); print((d.get('deployment') or {}).get('id') or d.get('id') or '')")
