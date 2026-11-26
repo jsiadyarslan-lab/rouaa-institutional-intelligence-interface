@@ -64,11 +64,17 @@ const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
+// v12: DNS الداخلي لrailway يعيد AAAA (IPv6 غير قابل للتوجيه داخلياً) قبل A —
+// فرض ipv4first كي يصل fetch للشبكة الداخلية عبر IPv4 الصحيح.
+try { require('node:dns').setDefaultResultOrder('ipv4first'); } catch (_) {}
 
 const PORT = Number(process.env.PORT || 8080);
 const RAILWAY_CORE_URL = process.env.RAILWAY_SERVICE_ROUAA_INTELLIGENCE_CORE_API_URL || '';
-const CORE_URL_IN = (RAILWAY_CORE_URL || process.env.CORE_URL || '');
-const isLocalCore = (u) => /^https?:\/\/(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(u);
+// v11: CORE_URL الصريح يتقدم على التلقائي — ليتحدث البروكسي مع المحرك
+// عبر الشبكة الداخلية (railway.internal) بدل الرابط العام، تمهيداً لحذفه.
+const CORE_URL_IN = (process.env.CORE_URL || RAILWAY_CORE_URL || '');
+// v11: شبكة railway.internal الداخلية HTTP بلا TLS — يجب أن تبقى http://
+const isLocalCore = (u) => (/^https?:\/\/(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(u) || /\.railway\.internal/.test(u));
 const CORE_URL = CORE_URL_IN
   .replace(/\/$/, '')
   .replace(/^[a-z0-9.-]+\.[a-z]+$/i, (h) => 'https://' + h)
