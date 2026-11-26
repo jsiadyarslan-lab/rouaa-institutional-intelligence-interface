@@ -164,6 +164,29 @@ option{background:#0A0F1C;color:var(--ink)}
 .heat-table{width:100%;border-collapse:collapse;min-width:520px}
 .heat-table th{font-size:11px;color:var(--ink2);font-weight:700;padding:6px;border-bottom:1px solid var(--line)}
 .heat-table td{padding:4px}
+/* ═══ دليل الجهات — جدول قابل للفرز والتمرير (v13) ═══ */
+.dir-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:thin;max-width:100%}
+.dir-tbl{width:100%;min-width:760px;border-collapse:collapse;font-size:12.5px}
+.dir-tbl th{text-align:right;color:var(--ink2);font-size:11px;font-weight:700;padding:8px 10px;border-bottom:1px solid var(--line2);white-space:nowrap;background:var(--bg1)}
+.dir-tbl th button{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:5px;color:inherit;font:inherit}
+.dir-tbl th button:focus-visible{outline:2px solid var(--gold2);outline-offset:2px;border-radius:4px}
+.dir-tbl th[aria-sort="ascending"] button,.dir-tbl th[aria-sort="descending"] button{color:var(--gold2)}
+.dir-tbl td{padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.055);vertical-align:top;overflow-wrap:anywhere}
+.dir-tbl tbody tr:hover td{background:rgba(255,255,255,.03)}
+.dir-name{display:block;font-weight:700;color:var(--ink)}
+.dir-id{display:block;font-size:10.5px;color:var(--ink3);direction:ltr;unicode-bidi:isolate;font-family:ui-monospace,Menlo,monospace}
+.dir-state{display:inline-flex;flex-direction:column;align-items:flex-start;gap:3px}
+.pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;padding:2px 9px;border-radius:99px;
+  border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--ink2);white-space:nowrap}
+.pill::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor;flex-shrink:0}
+.pill.ok{color:var(--ok);border-color:rgba(61,220,151,.3);background:var(--ok-soft)}
+.pill.warn{color:var(--warn);border-color:rgba(242,193,78,.3);background:var(--warn-soft)}
+.pill.bad{color:var(--bad);border-color:rgba(248,113,113,.3);background:var(--bad-soft)}
+.pill.info{color:var(--info);border-color:rgba(127,179,255,.3);background:rgba(127,179,255,.1)}
+.dir-count{font-variant-numeric:tabular-nums;font-weight:800;color:var(--gold2)}
+.dir-scroll-hint{display:none;font-size:11px;color:var(--ink3);margin:0 0 6px}
+.chip-code{font-size:10px;color:var(--ink3);direction:ltr;unicode-bidi:isolate;margin-inline-start:2px}
+@media (max-width:640px){.dir-scroll-hint{display:block}}
 /* ═══ المراجعة ═══ */
 .review-card{background:var(--panel2);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:12px}
 .review-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
@@ -408,6 +431,8 @@ async function pgDesk(arg) {
   const qs = new URLSearchParams(arg || "");
   REVIEW_STATE.q = qs.get("q") || REVIEW_STATE.q;
   REVIEW_STATE.freshness = qs.get("freshness") || "";
+  // v13: رابط الدولة من خريطة التغطية كان يُهمل — المعامل حاضر فيُطبَّق، غائب يبقى الحال
+  if (qs.has("country")) REVIEW_STATE.country = qs.get("country") || "";
   REVIEW_STATE.page = 1;
   const S = SUMMARY || { filters: {} };
   const fo = S.filters || {};
@@ -629,36 +654,150 @@ async function exportIoCsv(id) {
 }
 
 /* ═══ دليل الجهات + التغطية ═══ */
+/* v13: عدّ عربي موفَّق (0 / 1 / 2 / 3–10 / 11+) على نهج المنتج: «306 جهة، 35 مصدراً» */
+const AR_UNIT = {
+  row: { one: "صف واحد", two: "صفان", few: "صفوف", many: "صفاً" },
+  inst: { one: "جهة واحدة", two: "جهتان", few: "جهات", many: "جهة" },
+  src: { one: "مصدر واحد", two: "مصدران", few: "مصادر", many: "مصدراً" },
+};
+function arCount(n, u) {
+  n = Number(n) || 0;
+  if (n === 0) return "0 " + u.few;
+  if (n === 1) return u.one;
+  if (n === 2) return u.two;
+  if (n <= 10) return n + " " + u.few;
+  return n + " " + u.many;
+}
+const AR_COLL = new Intl.Collator("ar", { sensitivity: "base", numeric: true });
+/* تطبيع البحث العربي: بلا تشكيل ولا تطويل، وألف وياء وتاء مربوطة موحّدة */
+const arNorm = (s) => String(s == null ? "" : s).toLowerCase()
+  .replace(/[\u064B-\u0652\u0670\u0640]/g, "")
+  .replace(/[أإآٱ]/g, "ا").replace(/ى/g, "ي").replace(/ة/g, "ه");
+let DIR_ROWS = [], DIR_STATE = { q: "", sort: "name", dir: 1 }; // v13: حالة الدليل بين الضغطات
+const DIR_RANK = { ok: 0, warn: 1, info: 2, bad: 3 };
+
 async function pgDirectory() {
   const d = await jget("/analyst/api/sources");
+  DIR_ROWS = d.sources || [];
+  DIR_STATE = { q: "", sort: "name", dir: 1 };
+  const n = DIR_ROWS.length;
+  const producing = DIR_ROWS.filter((s) => (s.object_count || 0) > 0).length;
+  const T = (SUMMARY && SUMMARY.totals) || {};
+  // كائنات منسوبة لمعرّفات مصدر ليست في السجل تُعدّ في «المنتجة» ولا صف لها هنا — يُعلن
+  const unlisted = Math.max(0, (T.sources_producing || 0) - producing);
   return `
   <div class="page-head"><div class="page-kicker">دليل الجهات — السجل الحي</div>
-  <h1 class="page-title">${d.registered} مصدراً مسجلاً — المنتج منها معلَّم</h1>
-  <p class="page-desc">الأسماء بالعربية تُشتق على الخادم؛ العلم «ينتج» يعني أن هذا المصدر حمل كائناً استخباراتياً واحداً على الأقل في الفهرس الحي.</p></div>
-  <div class="filterbar" style="margin-bottom:12px"><span class="search" style="flex:1 1 260px"><input id="dirQ" aria-label="بحث في دليل الجهات" placeholder="ابحث في ${d.registered} جهة فريدة…" value=""><span class="si" aria-hidden="true">🔍</span></span></div>
-  <div class="scrollx"><table class="tbl" id="dirTable"><caption>دليل الجهات المسجلة — ${d.registered} جهة فريدة</caption><thead><tr><th scope="col" style="width:34%">الجهة</th><th scope="col" style="width:14%">الدولة</th><th scope="col" style="width:20%">القطاع</th><th scope="col" style="width:14%">ينتج؟</th><th scope="col" style="width:18%">المعرف</th></tr></thead>
-  <tbody id="dirBody"></tbody></table></div>`;
-  // جدول مرشَّح في المكان — يُستدعى بعد إدراج innerHTML في الشجرة (route يناديه)
-  window.__fillDir = () => { const rows = d.sources; const body = () => document.getElementById('dirBody');
-  if (!body()) return;
-  body().innerHTML = rows.map((s) => `<tr><td>${esc(s.institution_ar || s.institution)}</td><td>${esc(s.country_ar || s.country)}</td><td>${esc(s.sector_ar || s.sector)}</td><td>${s.produced_intelligence ? '<span class="chip ok">ينتج</span>' : '<span class="chip">لا بعد</span>'}</td><td><code>${esc(s.source_id)}</code></td></tr>`).join('');
-  const q = document.getElementById('dirQ');
-  q.addEventListener('input', () => {
-    const term = q.value.toLowerCase();
-    body().innerHTML = rows.filter((s) => (s.institution_ar + ' ' + s.institution + ' ' + s.country_ar + ' ' + s.sector_ar + ' ' + s.source_id).toLowerCase().includes(term))
-      .map((s) => `<tr><td>${esc(s.institution_ar || s.institution)}</td><td>${esc(s.country_ar || s.country)}</td><td>${esc(s.sector_ar || s.sector)}</td><td>${s.produced_intelligence ? '<span class="chip ok">ينتج</span>' : '<span class="chip">لا بعد</span>'}</td><td><code>${esc(s.source_id)}</code></td></tr>`).join('');
-  }); };
+  <h1 class="page-title">${arCount(n, AR_UNIT.src)} مسجلاً — الحالة من سجل المحرك والإنتاج من الفهرس</h1>
+  <p class="page-desc">كل صف جهة واحدة فريدة من سجل المحرك (سجل إصدارات: المصدر قد يظهر في أكثر من صف، فعدد الصفوف ${d.registry_available === false ? "غير متاح" : d.registry_rows_raw} أكبر من عدد الجهات). الاسم بالعربية إن وُجد اسم معتمد وإلا اسم السجل كما هو؛ الحالة هي آخر حالة للمصدر في سجل المحرك (التأهيل ثم الصحة) وهي مستقلة عن الإنتاج؛ وعدد الكائنات يُقرأ من الفهرس الحي: ${arCount(producing, AR_UNIT.inst)} أنتجت${unlisted ? "، وهناك كائنات لمعرّفات مصدر غير مسجلة في السجل بعددها " + unlisted : ""}.</p></div>
+  <div class="filterbar" style="margin-bottom:8px"><span class="search" style="flex:1 1 260px"><input id="dirQ" type="search" aria-label="بحث في دليل الجهات" placeholder="ابحث بالاسم أو المعرّف أو الدولة أو الحالة…" value=""></span><span class="si" aria-hidden="true">🔍</span></span>
+    <span class="chip" id="dirCount" role="status" aria-live="polite"></span></div>
+  <p class="dir-scroll-hint" id="dirHint">الجدول يمرَّر جانبياً داخل إطاره لرؤية كل الأعمدة</p>
+  <div class="dir-wrap" id="dirScroll" tabindex="0" role="region" aria-label="جدول دليل الجهات — يمرَّر جانبياً"><table class="dir-tbl" id="dirTable">
+    <caption>دليل الجهات المسجلة — ${arCount(d.registered, AR_UNIT.inst)} فريدة</caption>
+    <thead><tr>
+      <th scope="col" data-col="name" aria-sort="ascending"><button type="button" data-sort="name" data-label="الجهة">الجهة <span class="sort-ind" aria-hidden="true">▲</span></button></th>
+      <th scope="col" data-col="sector" aria-sort="none"><button type="button" data-sort="sector" data-label="الصنف">الصنف <span class="sort-ind" aria-hidden="true">↕</span></button></th>
+      <th scope="col" data-col="country" aria-sort="none"><button type="button" data-sort="country" data-label="الدولة">الدولة <span class="sort-ind" aria-hidden="true">↕</span></button></th>
+      <th scope="col" data-col="state" aria-sort="none"><button type="button" data-sort="state" data-label="الحالة">الحالة <span class="sort-ind" aria-hidden="true">↕</span></button></th>
+      <th scope="col" data-col="objects" aria-sort="none"><button type="button" data-sort="objects" data-label="الكائنات">الكائنات <span class="sort-ind" aria-hidden="true">↕</span></button></th>
+      <th scope="col">الملف</th>
+    </tr></thead>
+    <tbody id="dirBody"></tbody></table></div>
+  <div class="card-note" style="margin-top:10px">${esc(d.census_note_ar || "")}</div>`;
+}
+function dirStateHtml(s) {
+  const raw = [s.qualification_status, s.health_status].filter(Boolean).join(" · ");
+  if (!raw) { // لا حالة في السجل (سجل قديم/مختصر): تُعرض حقيقة الإنتاج وحدها بلونها
+    return (s.object_count || 0) > 0
+      ? '<span class="pill ok" title="كائنات في الفهرس الحي — لا حالة مسجلة">منتجة في الفهرس</span>'
+      : '<span class="pill" title="لا كائنات في الفهرس الحي — لا حالة مسجلة">لا مخرجات بعد</span>';
+  }
+  const lv = DIR_RANK[s.state_level] != null ? s.state_level : "";
+  const pill = (cls, txt) => `<span class="pill ${cls}">${esc(txt)}</span>`;
+  return `<span class="dir-state" title="${esc(raw)}">${pill(lv, s.qualification_ar || s.qualification_status)}${s.health_ar ? pill("", s.health_ar) : ""}</span>`;
+}
+function dirRowHtml(s) {
+  const name = s.name_ar || s.name || s.institution || s.source_id;
+  const cnt = s.object_count || 0;
+  const file = s.latest_io_id
+    ? `<a class="btn sm" href="#/io/${encodeURIComponent(s.latest_io_id)}">الملف</a>`
+    : '<span aria-hidden="true">—</span>';
+  return `<tr data-sid="${esc(s.source_id)}"><td dir="auto"><span class="dir-name">${esc(name)}</span><span class="dir-id">${esc(s.source_id)}</span></td>
+    <td dir="auto">${esc(s.sector_ar || s.sector || "—")}</td>
+    <td dir="auto">${esc(s.country_ar || s.country || "—")}</td>
+    <td>${dirStateHtml(s)}</td>
+    <td class="num ${cnt ? "dir-count" : "muted"}">${cnt}</td>
+    <td>${file}</td></tr>`;
+}
+function renderDir() {
+  const body = $("#dirBody");
+  if (!body) return;
+  const terms = arNorm(DIR_STATE.q).split(/\s+/).filter(Boolean);
+  const hay = (s) => arNorm([s.name, s.name_ar, s.institution, s.source_id, s.country, s.country_ar,
+    s.sector, s.sector_ar, s.qualification_ar, s.health_ar, s.qualification_status, s.health_status].join(" "));
+  const list = DIR_ROWS.filter((s) => terms.every((t) => hay(s).includes(t)));
+  const key = DIR_STATE.sort, dir = DIR_STATE.dir;
+  const val = (s) => key === "objects" ? (s.object_count || 0)
+    : key === "state" ? [DIR_RANK[s.state_level] != null ? DIR_RANK[s.state_level] : 4, s.qualification_ar || s.qualification_status || ""]
+    : key === "country" ? (s.country_ar || s.country || "")
+    : key === "sector" ? (s.sector_ar || s.sector || "")
+    : (s.name_ar || s.name || s.institution || s.source_id);
+  list.sort((a, b) => {
+    const va = val(a), vb = val(b);
+    const c = Array.isArray(va) ? ((va[0] - vb[0]) || AR_COLL.compare(va[1], vb[1]))
+      : (key === "objects" ? va - vb : AR_COLL.compare(va, vb));
+    return (c * dir) || (a.source_id < b.source_id ? -1 : 1);
+  });
+  document.querySelectorAll("#dirTable th[data-col]").forEach((th) => {
+    const on = th.dataset.col === key;
+    th.setAttribute("aria-sort", on ? (dir === 1 ? "ascending" : "descending") : "none");
+    const btn = th.querySelector("[data-sort]");
+    const ind = btn.querySelector(".sort-ind");
+    if (ind) ind.textContent = on ? (dir === 1 ? "▲" : "▼") : "↕";
+    btn.setAttribute("aria-label", "رتّب حسب " + btn.dataset.label + (on ? (dir === 1 ? " — تصاعدياً" : " — تنازلياً") : ""));
+  });
+  body.innerHTML = list.length ? list.map(dirRowHtml).join("")
+    : `<tr><td colspan="6" style="text-align:center;padding:28px"><h2 class="card-title">${DIR_ROWS.length ? "لا نتائج مطابقة" : "لا جهات لعرضها"}</h2><div class="card-note">${DIR_ROWS.length ? "جرّب كلمة أقصر أو امسح البحث — العدد الكلي " + arCount(DIR_ROWS.length, AR_UNIT.inst) + " ولا شيء يُخفى." : "لا يعرض الجسر أي جهة من سجل المحرك الآن — إن كان السجل غير متاح فهذا يُعلن في خريطة التغطية ولا يُفترض أن السجل فارغ."}</div></td></tr>`;
+  const cnt = $("#dirCount");
+  if (cnt) cnt.textContent = arCount(list.length, AR_UNIT.inst) + " ظاهرة من أصل " + arCount(DIR_ROWS.length, AR_UNIT.inst);
+}
+function wireDirectory() {
+  const q = $("#dirQ");
+  if (q) q.addEventListener("input", () => { DIR_STATE.q = q.value; renderDir(); });
+  document.querySelectorAll("#dirTable [data-sort]").forEach((b) => b.addEventListener("click", () => {
+    const k = b.dataset.sort;
+    if (DIR_STATE.sort === k) DIR_STATE.dir = -DIR_STATE.dir;
+    else { DIR_STATE.sort = k; DIR_STATE.dir = k === "objects" ? -1 : 1; }
+    renderDir();
+  }));
+  renderDir();
 }
 function pgCoverage() {
   const T = (SUMMARY && SUMMARY.totals) || {};
   const fo = (SUMMARY && SUMMARY.filters) || {};
+  const names = (SUMMARY && SUMMARY.country_names_ar) || {}; // v13: الأسماء من الخادم
+  const rows = T.registry_rows_raw; // v13: null = تعذّر قراءة السجل — لا «؟» ولا رقم مخترع
+  const uniq = T.sources_registry_live, acq = T.sources_acquired, prod = T.sources_producing;
+  const pct = (a, b) => (b ? Math.round(100 * a / b) + "% (" + a + " ÷ " + b + ")" : "—");
+  const chips = (fo.countries || []).slice()
+    .map((c) => ({ c, n: names[c] || c }))
+    .sort((x, y) => AR_COLL.compare(x.n === x.c ? "zz" + x.c : x.n, y.n === y.c ? "zz" + y.c : y.n))
+    .map(({ c, n }) => `<a class="chip gold" style="margin:3px" href="#/desk?country=${encodeURIComponent(c)}" title="${esc(c)}">${esc(n)}${n === c ? "" : `<span class="chip-code" lang="en" dir="ltr">${esc(c)}</span>`}</a>`)
+    .join("\n");
+  const cell = (k, v) => `<div class="meta-cell"><dt class="k">${k}</dt><dd class="v num">${v}</dd></div>`;
   return `
   <div class="page-head"><div class="page-kicker">خريطة التغطية — الصدق قبل التفاؤل</div>
   <h1 class="page-title">السجل الحي مقابل التعداد المرجعي الكامل</h1>
-  <p class="page-desc">سجل المحرك يضم ${T.registry_rows_raw || "؟"} صفاً يغطي <b>${T.sources_registry_live} جهة فريدة مسجلة فعلياً</b> (صنف لكل جهة — لا يُعدّ ضعفين)؛ المقتناة ${T.sources_acquired}؛ المنتجة ${T.sources_producing} — أي استغلال فعلي ${Math.round(100 * (T.sources_producing || 0) / Math.max(1, T.sources_registry_live || 1))}% من السجل الفريد و${Math.round(100 * (T.sources_producing || 0) / Math.max(1, T.sources_acquired || 1))}% من المقتناة. النسب بمقاماتها المعلنة لا تختفي.</p></div>
-  <div class="card"><h2 class="card-title" style="margin-bottom:10px">توزيع المنتجة على الدول (${(fo.countries || []).length} دولة أنتجت فعلاً)</h2>
-    ${(fo.countries || []).map((c) => `<a class="chip gold" style="margin:3px" href="#/desk?country=${esc(c)}">${esc(c)}</a>`).join("") || "—"}
-    <div class="card-note" style="margin-top:10px">اختر دولة لعرض كائناتها في المكتب — كل بيان هنا قابل للنقر حتى النهاية.</div>
+  <p class="page-desc">سجل المحرك يضم <b>${rows == null ? "عدداً غير متاح" : arCount(rows, AR_UNIT.row)}</b>${rows == null ? "" : " من الصفوف"}، وهو سجل إصدارات: المصدر الواحد قد يظهر في أكثر من صف، فعدد الصفوف أكبر من عدد الجهات ولا يُقرأ كعدد جهات. هذه الصفوف تمثّل <b>${arCount(uniq, AR_UNIT.inst)} فريدة مسجلة فعلياً</b>؛ والمقتناة ${arCount(acq, AR_UNIT.src)} (عدّاد المحرك)؛ والمنتجة ${arCount(prod, AR_UNIT.src)} — أي استغلال فعلي ${pct(prod, uniq)} من الجهات المسجلة و${pct(prod, acq)} من المقتناة. النسب بمقاماتها المعلنة لا تختفي.</p></div>
+  <div class="card" style="margin-bottom:14px"><dl class="meta-grid" style="margin-top:0">
+    ${cell("صفوف سجل المحرك (سجل إصدارات)", rows == null ? "غير متاح" : rows)}
+    ${cell("جهات فريدة مسجلة", uniq == null ? "—" : uniq)}
+    ${cell("جهات مقتناة (عدّاد المحرك)", acq == null ? "—" : acq)}
+    ${cell("جهة منتجة في الفهرس", prod == null ? "—" : prod)}
+  </dl></div>
+  <div class="card"><h2 class="card-title" style="margin-bottom:10px">توزيع المنتجة على الدول (${arCount((fo.countries || []).length, AR_UNIT.inst)} أنتجت فعلاً)</h2>
+    <div id="covChips">${chips || "—"}</div>
+    <div class="card-note" style="margin-top:10px">اختر دولة لعرض كائناتها في المكتب — الاسم بالعربية ورمز الدولة بجانبه، وكل بيان هنا قابل للنقر حتى النهاية.</div>
   </div>`;
 }
 
@@ -848,7 +987,7 @@ async function route() {
     if (page === "dashboard") { app.innerHTML = pgDashboard(); await deskLatest(); }
     else if (page === "desk") { app.innerHTML = await pgDesk(arg); wireDesk(); await deskLoadMore(true); }
     else if (page === "io") { app.innerHTML = await pgIo(ioId); }
-    else if (page === "directory") { app.innerHTML = await pgDirectory(); if (typeof window.__fillDir === 'function') window.__fillDir(); }
+    else if (page === "directory") { app.innerHTML = await pgDirectory(); wireDirectory(); }
     else if (page === "coverage") { app.innerHTML = pgCoverage(); }
     else if (page === "indicators") { app.innerHTML = await pgIndicators(); }
     else if (page === "owner") { app.innerHTML = await pgOwner(); }

@@ -1,7 +1,19 @@
 'use strict';
 
 /**
- * ROUAA analyst site server (V3 → v10) — same-origin bridge, honesty-first.
+ * ROUAA analyst site server (V3 → v13) — same-origin bridge, honesty-first.
+ *
+ * v13 changes (2026-11-26) — ثلاثة عيوب حية في الواجهة (مهمة 0.4):
+ *  summary rows : summary.totals.registry_rows_raw — صفوف سجل المحرك كما وصلت
+ *                 (null إن تعذّر قراءة السجل). كان العرض يقرأ حقلاً لا تُرسله
+ *                 هذه النقطة فيطبع «؟»؛ الحقيقة تُبنى هنا من بيانات السجل فقط.
+ *  country ar   : COUNTRY_AR يغطي رموز ISO 3166-1 بأسمائها العربية (CLDR) بدل
+ *                 27 رمزاً، وsummary.country_names_ar يعطي أسماء الدول المنتجة
+ *                 للعرض — كل أسماء العرض تُحسب خادمياً (P4).
+ *  sources rows : حالة كل مصدر من آخر صف له في السجل (سجل الإصدارات: المحرك
+ *                 يعتدّ بالأخير، و«الأول يفوز» كان يقرأ صف الاكتشاف) + الاسم
+ *                 المحلول وعربه + عدد كائناته وأحدث ملف. حقول مضافة فقط: لا
+ *                 حقل حُذف ولا سُمّي من جديد، وSERVER_VERSION يبقى v10 (عقد قائم).
  *
  * v10 changes (2026-11-25):
  *  openapi      : GET /analyst/api/openapi.json — عقد آلة OpenAPI 3.0.3
@@ -131,6 +143,7 @@ const INDEX_STATE = {
   servingLastGood: false, building: null,
   storeRecords: null, supersededVersions: 0, feedDuplicates: 0,
   reviewsByIo: null, lastProbeAt: 0,
+  registryReadOk: false, // v13: هل قُرئ سجل المحرك فعلاً؟ (false = تعذّر، فلا يُدَّعى عدد)
 };
 
 // Producing-source id → canonical English institution (registry rows may fall
@@ -153,7 +166,7 @@ function applyReview(o, reviewsByIo) {
 }
 
 // ── Enrichment lexicon (lifted from the audit-approved display layer — P4) ──
-const COUNTRY_AR = {"US":"الولايات المتحدة","UK":"المملكة المتحدة","EU":"الاتحاد الأوروبي","DE":"ألمانيا","FR":"فرنسا","IT":"إيطاليا","JP":"اليابان","CA":"كندا","CN":"الصين","IE":"أيرلندا","LU":"لوكسمبورغ","TR":"تركيا","UA":"أوكرانيا","AE":"الإمارات","AU":"أستراليا","BR":"البرازيل","KE":"كينيا","FI":"فنلندا","HK":"هونغ كونغ","CH":"سويسرا","SE":"السويد","NL":"هولندا","ES":"إسبانيا","PT":"البرتغال","IN":"الهند","INTL":"دولي/متعدد الأطراف"};
+const COUNTRY_AR = {"US":"الولايات المتحدة","UK":"المملكة المتحدة","EU":"الاتحاد الأوروبي","DE":"ألمانيا","FR":"فرنسا","IT":"إيطاليا","JP":"اليابان","CA":"كندا","CN":"الصين","IE":"أيرلندا","LU":"لوكسمبورغ","TR":"تركيا","UA":"أوكرانيا","AE":"الإمارات","AU":"أستراليا","BR":"البرازيل","KE":"كينيا","FI":"فنلندا","HK":"هونغ كونغ","CH":"سويسرا","SE":"السويد","NL":"هولندا","ES":"إسبانيا","PT":"البرتغال","IN":"الهند","INTL":"دولي/متعدد الأطراف","AC":"جزيرة أسينشيون","AD":"أندورا","AF":"أفغانستان","AG":"أنتيغوا وبربودا","AI":"أنغويلا","AL":"ألبانيا","AM":"أرمينيا","AO":"أنغولا","AQ":"أنتاركتيكا","AR":"الأرجنتين","AS":"ساموا الأمريكية","AT":"النمسا","AW":"أروبا","AX":"جزر آلاند","AZ":"أذربيجان","BA":"البوسنة والهرسك","BB":"بربادوس","BD":"بنغلاديش","BE":"بلجيكا","BF":"بوركينا فاسو","BG":"بلغاريا","BH":"البحرين","BI":"بوروندي","BJ":"بنين","BL":"سان بارتليمي","BM":"برمودا","BN":"بروناي","BO":"بوليفيا","BQ":"هولندا الكاريبية","BS":"جزر البهاما","BT":"بوتان","BV":"جزيرة بوفيه","BW":"بوتسوانا","BY":"بيلاروس","BZ":"بليز","CC":"جزر كوكوس (كيلينغ)","CD":"الكونغو - كينشاسا","CF":"جمهورية أفريقيا الوسطى","CG":"الكونغو - برازافيل","CI":"ساحل العاج","CK":"جزر كوك","CL":"تشيلي","CM":"الكاميرون","CO":"كولومبيا","CP":"جزيرة كليبيرتون","CR":"كوستاريكا","CU":"كوبا","CV":"الرأس الأخضر","CW":"كوراساو","CX":"جزيرة كريسماس","CY":"قبرص","CZ":"التشيك","DG":"دييغو غارسيا","DJ":"جيبوتي","DK":"الدانمرك","DM":"دومينيكا","DO":"جمهورية الدومينيكان","DZ":"الجزائر","EA":"سيوتا وميليلا","EC":"الإكوادور","EE":"إستونيا","EG":"مصر","EH":"الصحراء الغربية","ER":"إريتريا","ET":"إثيوبيا","FJ":"فيجي","FK":"جزر فوكلاند","FM":"ميكرونيزيا","FO":"جزر فارو","GA":"الغابون","GB":"المملكة المتحدة","GD":"غرينادا","GE":"جورجيا","GF":"غويانا الفرنسية","GG":"غيرنزي","GH":"غانا","GI":"جبل طارق","GL":"غرينلاند","GM":"غامبيا","GN":"غينيا","GP":"غوادلوب","GQ":"غينيا الاستوائية","GR":"اليونان","GS":"جورجيا الجنوبية وجزر ساندويتش الجنوبية","GT":"غواتيمالا","GU":"غوام","GW":"غينيا بيساو","GY":"غيانا","HM":"جزيرة هيرد وجزر ماكدونالد","HN":"هندوراس","HR":"كرواتيا","HT":"هايتي","HU":"هنغاريا","IC":"جزر الكناري","ID":"إندونيسيا","IL":"إسرائيل","IM":"جزيرة مان","IO":"الإقليم البريطاني في المحيط الهندي","IQ":"العراق","IR":"إيران","IS":"آيسلندا","JE":"جيرسي","JM":"جامايكا","JO":"الأردن","KG":"قيرغيزستان","KH":"كمبوديا","KI":"كيريباتي","KM":"جزر القمر","KN":"سانت كيتس ونيفيس","KP":"كوريا الشمالية","KR":"كوريا الجنوبية","KW":"الكويت","KY":"جزر كايمان","KZ":"كازاخستان","LA":"لاوس","LB":"لبنان","LC":"سانت لوسيا","LI":"ليختنشتاين","LK":"سريلانكا","LR":"ليبيريا","LS":"ليسوتو","LT":"ليتوانيا","LV":"لاتفيا","LY":"ليبيا","MA":"المغرب","MC":"موناكو","MD":"مولدوفا","ME":"الجبل الأسود","MF":"سان مارتن","MG":"مدغشقر","MH":"جزر مارشال","MK":"مقدونيا الشمالية","ML":"مالي","MM":"ميانمار (بورما)","MN":"منغوليا","MO":"منطقة ماكاو الإدارية الخاصة","MP":"جزر ماريانا الشمالية","MQ":"جزر المارتينيك","MR":"موريتانيا","MS":"مونتسرات","MT":"مالطا","MU":"موريشيوس","MV":"جزر المالديف","MW":"ملاوي","MX":"المكسيك","MY":"ماليزيا","MZ":"موزمبيق","NA":"ناميبيا","NC":"كاليدونيا الجديدة","NE":"النيجر","NF":"جزيرة نورفولك","NG":"نيجيريا","NI":"نيكاراغوا","NO":"النرويج","NP":"نيبال","NR":"ناورو","NU":"نيوي","NZ":"نيوزيلندا","OM":"عُمان","PA":"بنما","PE":"بيرو","PF":"بولينيزيا الفرنسية","PG":"بابوا غينيا الجديدة","PH":"الفلبين","PK":"باكستان","PL":"بولندا","PM":"سان بيير ومكويلون","PN":"جزر بيتكيرن","PR":"بورتوريكو","PS":"الأراضي الفلسطينية","PW":"بالاو","PY":"باراغواي","QA":"قطر","RE":"روينيون","RO":"رومانيا","RS":"صربيا","RU":"روسيا","RW":"رواندا","SA":"المملكة العربية السعودية","SB":"جزر سليمان","SC":"سيشل","SD":"السودان","SG":"سنغافورة","SH":"سانت هيلينا","SI":"سلوفينيا","SJ":"سفالبارد وجان ماين","SK":"سلوفاكيا","SL":"سيراليون","SM":"سان مارينو","SN":"السنغال","SO":"الصومال","SR":"سورينام","SS":"جنوب السودان","ST":"ساو تومي وبرينسيبي","SV":"السلفادور","SX":"سانت مارتن","SY":"سوريا","SZ":"إسواتيني","TA":"تريستان دا كونا","TC":"جزر توركس وكايكوس","TD":"تشاد","TF":"الأقاليم الجنوبية الفرنسية","TG":"توغو","TH":"تايلاند","TJ":"طاجيكستان","TK":"توكيلاو","TL":"تيمور - ليشتي","TM":"تركمانستان","TN":"تونس","TO":"تونغا","TT":"ترينيداد وتوباغو","TV":"توفالو","TW":"تايوان","TZ":"تنزانيا","UG":"أوغندا","UM":"جزر الولايات المتحدة النائية","UY":"أورغواي","UZ":"أوزبكستان","VA":"الفاتيكان","VC":"سانت فنسنت وجزر غرينادين","VE":"فنزويلا","VG":"جزر فيرجن البريطانية","VI":"جزر فيرجن الأمريكية","VN":"فيتنام","VU":"فانواتو","WF":"جزر والس وفوتونا","WS":"ساموا","XA":"لكنات تجريبية غير أصلية","XB":"لكنات تجريبية ثنائية الاتجاه","XK":"كوسوفو","YE":"اليمن","YT":"مايوت","ZA":"جنوب أفريقيا","ZM":"زامبيا","ZW":"زيمبابوي"};
 const SECTOR_AR = {"central_bank":"بنوك مركزية","statistical_agency":"جهات إحصائية","securities_regulator":"رقابة أوراق مالية","financial_regulator":"رقابة مالية","finance_ministry":"وزارات مالية","energy_regulator":"رقابة طاقة","commodity_regulator":"رقابة سلع","insurance_regulator":"رقابة تأمين","banking_regulator":"رقابة بنوك","official_development_institution":"مؤسسات تنمية","international_financial_institution":"مؤسسات مالية دولية","international_economic_institution":"مؤسسات اقتصادية دولية","stock_exchange":"بورصات","energy_ministry":"وزارات طاقة","customs_authority":"جمارك","competition_authority":"حماية المنافسة","telecom_regulator":"رقابة اتصالات","agricultural_agency":"جهات زراعية","mining_authority":"سلطات مناجم","labor_ministry":"وزارات عمل","trade_ministry":"وزارات تجارة","environmental_carbon_authority":"بيئة وكربون","sovereign_wealth_institution":"صناديق سيادية","corporate_registrar":"سجلات شركات","industrial_ministry":"وزارات صناعة","transport_authority":"سلطات نقل","pension_regulator":"رقابة معاشات","insolvency_authority":"سلطات إفلاس","regional_economic_institution":"اقتصاد إقليمي","":"غير محدد"};
 const METRIC_AR = {"inflation_rate":"معدل التضخم","retail_electricity_price":"سعر الكهرباء للأسر","policy_interest_rate":"سعر الفائدة المرجعي","policy_rate":"سعر الفائدة الأساسي","official_policy_decision":"قرار رسمي","action_type":"نوع الإجراء","violation_type":"نوع المخالفة","defendant_name":"الكيان المعني","sanctions_designation":"إدراج ضمن العقوبات","enforcement_action":"إجراء إنفاذ","fx_reserve":"الاحتياطيات الأجنبية","gdp_growth":"نمو الناتج المحلي","unemployment_rate":"معدل البطالة","ppi":"مؤشر أسعار المنتجين","cpi":"مؤشر أسعار المستهلك"};
 const NUMERIC_METRICS = new Set(["inflation_rate","retail_electricity_price","policy_interest_rate","policy_rate","gdp_growth","unemployment_rate","ppi","cpi","fx_reserve"]);
@@ -167,6 +180,34 @@ const ACTION_AR = {"lower":"خفض","hold":"تثبيت","raise":"رفع","increa
 const INSTR_AR = {"deposit_facility":"تسهيلات الإيداع","main_refinancing":"إعادة التمويل الرئيسية","marginal_lending_facility":"الإقراض الهامشي","federal_funds":"أموال الاحتياطي الفيدرالي","discount_rate":"سعر الخصم","overnight_reverse_repo":"إعادة الشراء الليلي العكسي","policy_rate":"سعر السياسة"};
 const ACTTYPE_AR = {"complaint":"دعوى قضائية","charges":"اتهامات","settlement":"تسوية","enforcement order":"أمر إنفاذ","lawsuit":"دعوى","penalty":"غرامة"};
 const VERDICT_AR = {"NEEDS_REVIEW":"بحاجة مراجعة","DIRECT_EVIDENCE_SELECTED_PENDING_INDEPENDENT_REVIEW":"إثبات مباشر بانتظار المراجعة","NOT_ASSESSED":"لم يُقيَّم آلياً","REJECTED":"مرفوض","VERIFIED":"متحقق منه (مراجعة مسجلة)"};
+
+// v13: حالات المحرك كما وردت في source_network/registry.py (+ حالتا العزل في
+// acquisition_planning.py) — تُترجم حرفياً لا تُخترع؛ وكل قيمة مجهولة تُعرض كما هي.
+const HEALTH_AR = {"HEALTHY":"سليم","DEGRADED":"متراجع","STALE":"متقادم","BLOCKED":"محجوب","ENDPOINT_MOVED":"انتقلت نقطة الجلب","NO_CONTENT":"بلا محتوى","UNSUPPORTED":"طريقة الجلب غير مدعومة","ISOLATED":"معزول"};
+const QUALIFICATION_AR = {"DISCOVERED":"مكتشَف — لم يُتحقق بعد","DOMAIN_VERIFIED":"النطاق موثَّق","ENDPOINT_VERIFIED":"نقطة الجلب موثَّقة","QUALIFIED":"مؤهَّل","PRODUCTION_READY":"جاهز للإنتاج","BLOCKED":"محجوب","REQUIRES_REMEDIATION":"يحتاج معالجة","ISOLATE_AS_TEST":"معزول للاختبار","ISOLATION_LIFTED":"رُفع العزل"};
+// v13: السجل سجل إصدارات — كل تحديث يضيف صفاً كاملاً بنفس source_id والمحرك
+// يعتدّ بالأخير (registry.py::_load). الهوية تبقى من الصف الأول كي لا يتغير أي
+// سلوك قائم، والحالة (التأهيل والصحة) تُقرأ من الصف الأخير.
+function lastRegistryRow(rawRows, sid) {
+  let last = null;
+  for (const r of rawRows || []) if (r && r.source_id === sid) last = r;
+  return last;
+}
+// v13: لون الحالة — المحجوب أسوأ ما يكون، والجاهز للإنتاج سليم، والعزل معلومة
+// مستقلة، وما عداه يحتاج انتباهاً؛ "" = لا حالة معروفة فلا لون يُدَّعى.
+function stateLevel(qual, health) {
+  const q = String(qual || '').toUpperCase(), h = String(health || '').toUpperCase();
+  if (q === 'BLOCKED' || h === 'BLOCKED') return 'bad';
+  if (q === 'PRODUCTION_READY' && (h === 'HEALTHY' || !h)) return 'ok';
+  if (/ISOLAT/.test(q) || h === 'ISOLATED') return 'info';
+  if (q in QUALIFICATION_AR || h in HEALTH_AR) return 'warn';
+  return '';
+}
+function countryNameMap(codes) {
+  const m = {};
+  for (const c of codes || []) m[c] = COUNTRY_AR[c] || c; // الرمز نفسه إن غاب الاسم
+  return m;
+}
 
 function instAr(name) {
   if (!name) return null;
@@ -388,11 +429,13 @@ async function buildIndex() {
   const reg = {};
   let rawRegRows = 0;
   INDEX_STATE.registryRawRows = []; // الصفوف كما وصلت (صنف لكل صف)
+  INDEX_STATE.registryReadOk = false; // v13: حتى يثبت نجاح القراءة
   const rr = await coreGet('/v1/ops/registry');
   if (rr.status === 200) {
     const rows = (JSON.parse(rr.body).records || []);
     rawRegRows = rows.length;
     INDEX_STATE.registryRawRows = rows;
+    INDEX_STATE.registryReadOk = true; // v13
     for (const rec of rows) if (!reg[rec.source_id]) reg[rec.source_id] = rec;
   }
   // 3) traces (evidence chain per object) — v9: جلب متوازٍ بدفعات من 8 بدل
@@ -905,16 +948,20 @@ function analystApi(req, res, pathname, params) {
           events: m.event_count != null ? m.event_count : 0,
           verified_by_review: verifiedCount,
           reviews_logged: reviewsCount,
+          // v13: صفوف سجل المحرك كما وصلت (سجل إصدارات) — null حين تعذّرت قراءته
+          registry_rows_raw: INDEX_STATE.registryReadOk ? (INDEX_STATE.registryRawRows || []).length : null,
         },
         freshness,
         health: { last_ok_at: INDEX_STATE.lastOkAt, delay_reason: INDEX_STATE.delayReason },
         data_asof: INDEX_STATE.builtAt,
         quality_gates: computeGates(),
         disclosure: {
-          note_ar: 'أعداد صادقة: الكائنات = معرفات فريدة من الفيد؛ سجلات المخزن تشمل النسخ المتجاوزة؛ الاستغلال = المنتجة ÷ السجل الحي، والتعداد المرجعي 805 يُعرض في خريطة التغطية.',
+          note_ar: 'أعداد صادقة: الكائنات = معرفات فريدة من الفيد؛ سجلات المخزن تشمل النسخ المتجاوزة؛ الاستغلال = المنتجة ÷ السجل الحي، والتعداد المرجعي ' + (INDEX_STATE.registryReadOk ? (INDEX_STATE.registryRawRows || []).length : 'غير المتاح للجسر') + ' يُعرض في خريطة التغطية.', // v13: كان «805» نصاً ثابتاً,
           expansion_rule_ar: 'بوابات g0-g5 الست يجب أن تبقى PASS قبل إضافة أي مصدر جديد — وتقاس على الكل لا على عينات.',
         },
         filters: { countries, sectors, periods, source_ids: sourceIds },
+        // v13: أسماء الدول المنتجة بالعربية للعرض (رمز → اسم) — filters نفسها لا تتغير
+        country_names_ar: countryNameMap(countries),
         runs: (m.runs && m.runs.latest_run) ? [m.runs.latest_run] : [],
         engine: (() => {
           const lr = m.runs && m.runs.latest_run;
@@ -998,20 +1045,57 @@ function analystApi(req, res, pathname, params) {
         if (!reg[r.source_id]) reg[r.source_id] = r; // first row wins
       }
       const producing = new Set(INDEX_STATE.projected.map((o) => o.source_id).filter(Boolean));
-      const rows = Object.keys(reg).sort().map((sid) => ({
-        source_id: sid,
-        institution: reg[sid].institution_name || sid,
-        institution_ar: instAr(reg[sid].institution_name || sid),
-        country: reg[sid].country || '',
-        country_ar: COUNTRY_AR[reg[sid].country || ''] || reg[sid].country || '',
-        sector: reg[sid].source_class || '',
-        sector_ar: SECTOR_AR[reg[sid].source_class || ''] || reg[sid].source_class || '',
-        endpoint: reg[sid].acquisition_endpoint || '',
-        documents: null,
-        produced_intelligence: producing.has(sid),
-      }));
+      // v13: عدد كائنات كل مصدر وأحدث ملف له من الفهرس الحي (ترتيب الفهرس نفسه:
+      // تاريخ المضمون نزولاً ثم io_id صعوداً)، ومواضع المصدر من سلاسل الإثبات.
+      const rawRows = INDEX_STATE.registryRawRows || [];
+      const objCount = {}, latest = {}, srcMeta = {};
+      for (const o of INDEX_STATE.projected) {
+        const sid = o.source_id;
+        if (!sid) continue;
+        objCount[sid] = (objCount[sid] || 0) + 1;
+        const cur = latest[sid];
+        const newer = !cur
+          || String(o.content_date || '') > String(cur.content_date || '')
+          || (String(o.content_date || '') === String(cur.content_date || '') && String(o.io_id) < String(cur.io_id));
+        if (newer) latest[sid] = o;
+      }
+      for (const o of (INDEX_STATE.objects || [])) {
+        for (const c of (o.chain || [])) {
+          const s = c && c.source;
+          if (s && s.source_id && !srcMeta[s.source_id]) srcMeta[s.source_id] = s;
+        }
+      }
+      const rows = Object.keys(reg).sort().map((sid) => {
+        const first = reg[sid]; // الهوية: الصف الأول (القاعدة القائمة بلا تغيير)
+        const last = lastRegistryRow(rawRows, sid) || first; // الحالة: الصف الأخير (v13)
+        const name = resolveInstitution(first, srcMeta[sid], sid);
+        const h = last.health_status || '', q = last.qualification_status || '';
+        return {
+          source_id: sid,
+          institution: first.institution_name || sid,
+          institution_ar: instAr(first.institution_name || sid),
+          country: first.country || '',
+          country_ar: COUNTRY_AR[first.country || ''] || first.country || '',
+          sector: first.source_class || '',
+          sector_ar: SECTOR_AR[first.source_class || ''] || first.source_class || '',
+          endpoint: first.acquisition_endpoint || '',
+          documents: null,
+          produced_intelligence: producing.has(sid),
+          // ── v13: حقول مضافة فقط (لا اسم قائم تغيّر) ──
+          name,                                   // اسم العرض المحلول (اسم السجل أو الاسم الرسمي)
+          name_ar: instAr(name),                  // الاسم العربي المعتمد أو null
+          health_status: h || null,               // آخر حالة صحة في سجل المحرك
+          health_ar: h ? (HEALTH_AR[h] || h) : '', // وعربيها (القيمة نفسها إن كانت مجهولة)
+          qualification_status: q || null,        // آخر حالة تأهيل في سجل المحرك
+          qualification_ar: q ? (QUALIFICATION_AR[q] || q) : '',
+          state_level: stateLevel(q, h),          // ok | warn | bad | info | ''
+          object_count: objCount[sid] || 0,       // كائنات هذا المصدر في الفهرس الحي
+          latest_io_id: latest[sid] ? latest[sid].io_id : null,
+        };
+      });
       return sendJson(res, 200, { sources: rows, registered: Object.keys(reg).length,
-        registry_rows_raw: (INDEX_STATE.registryRawRows || []).length,
+        registry_rows_raw: rawRows.length,
+        registry_available: INDEX_STATE.registryReadOk, // v13
         census_note_ar: 'سجل المحرك يضم ' + (INDEX_STATE.registryRawRows || []).length + ' صفاً (صنف لكل صف — الجهة قد تظهر بعدة صنوف) يغطي ' + Object.keys(reg).length + ' جهة فريدة مسجلة فعلياً — الاستغلال الحقيقي = المنتجة ÷ الفريدة.' });
     }
     if (pathname === '/analyst/api/review-queue') {
