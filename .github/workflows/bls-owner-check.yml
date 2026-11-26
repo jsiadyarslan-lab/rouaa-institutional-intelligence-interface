@@ -1,0 +1,59 @@
+name: BLS owner check (temporary)
+# Temporary, push-triggered on this branch only. Reads the repository secret BLS_API_KEY,
+# fetches US CPI-U from the BLS API, and reports through annotations. Delete the branch and
+# the secret after the owner has verified the numbers.
+on:
+  push:
+    branches: ["ci/bls-owner-check"]
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      BLS_API_KEY: ${{ secrets.BLS_API_KEY }}
+    steps:
+      - name: Fetch BLS CPI-U and report
+        run: |
+          python3 - <<'PY'
+          import base64, hashlib, json, os, sys, urllib.request
+
+          def note(title, text):
+              enc = text.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+              print("::notice title=%s::%s" % (title, enc))
+
+          key = os.environ.get("BLS_API_KEY", "")
+          if not key.strip():
+              note("bls-check", "BLOCKED_KEY_REQUIRED: add the repository secret BLS_API_KEY")
+              sys.exit(0)
+          body = json.dumps({"seriesid": ["CUUR0000SA0"], "startyear": "2022", "endyear": "2026",
+                             "registrationkey": key}).encode()
+          req = urllib.request.Request(
+              "https://api.bls.gov/publicAPI/v2/timeseries/data/", data=body, method="POST",
+              headers={"Content-Type": "application/json", "User-Agent": "ROUAA-owner-check/0.1"})
+          try:
+              with urllib.request.urlopen(req, timeout=30) as r:
+                  raw = r.read(2000001)
+                  final = r.geturl()
+          except Exception as exc:
+              note("bls-check", "FETCH_FAILED: " + type(exc).__name__)
+              sys.exit(0)
+          if key.encode() in raw:
+              note("bls-check", "REFUSED: response echoed the credential")
+              sys.exit(0)
+          sha = hashlib.sha256(raw).hexdigest()
+          note("bls-raw-sha256", "%s bytes=%d host_ok=%s" % (sha, len(raw), final.startswith("https://api.bls.gov/")))
+          b64 = base64.b64encode(raw).decode()
+          note("bls-raw-b64", b64 if len(b64) < 48000 else "TOO_LARGE")
+          try:
+              d = json.loads(raw)
+              rows = d["Results"]["series"][0]["data"]
+              lines = ["status=" + str(d.get("status")), "period | value | footnotes"]
+              for x in rows[:16]:
+                  fn = ",".join(f.get("code", "") for f in x.get("footnotes", []) if f)
+                  lines.append("%s-%s | %s | %s" % (x["year"], x["period"], x["value"], fn))
+              note("bls-table", "\n".join(lines))
+          except Exception as exc:
+              note("bls-table", "PARSE_FAILED: " + type(exc).__name__)
+          PY
