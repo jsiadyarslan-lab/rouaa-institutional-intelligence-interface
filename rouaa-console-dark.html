@@ -674,7 +674,11 @@ const arNorm = (s) => String(s == null ? "" : s).toLowerCase()
   .replace(/[\u064B-\u0652\u0670\u0640]/g, "")
   .replace(/[أإآٱ]/g, "ا").replace(/ى/g, "ي").replace(/ة/g, "ه");
 let DIR_ROWS = [], DIR_STATE = { q: "", sort: "name", dir: 1 }; // v13: حالة الدليل بين الضغطات
-const DIR_RANK = { ok: 0, warn: 1, info: 2, bad: 3 };
+// v13 دلالات الترتيب في الدليل (D3): «الكائنات» رقمياً لا معجمياً (تنازلياً افتراضياً)،
+// «الحالة» تصاعدياً حسب شدة الحبّة ok ثم warn ثم bad ثم info والمجهول (بلا مستوى) أخيراً،
+// «الجهة» بالاسم العربي المعروض عبر Intl.Collator("ar"). كل ترتيب يعيد ترتيب الصفوف فعلياً،
+// والتعادل يُكسر بـ source_id تصاعدياً (ثابت ومتكرر بين الضغطات).
+const DIR_RANK = { ok: 0, warn: 1, bad: 2, info: 3 }; // المجهول يحصل على 4 في الترتيب (renderDir)
 
 async function pgDirectory() {
   const d = await jget("/analyst/api/sources");
