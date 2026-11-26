@@ -45,7 +45,12 @@ jobs:
           sha = hashlib.sha256(raw).hexdigest()
           note("bls-raw-sha256", "%s bytes=%d host_ok=%s" % (sha, len(raw), final.startswith("https://api.bls.gov/")))
           b64 = base64.b64encode(raw).decode()
-          note("bls-raw-b64", b64 if len(b64) < 48000 else "TOO_LARGE")
+          chunks = [b64[i:i + 3800] for i in range(0, len(b64), 3800)]
+          if len(chunks) > 8:
+              note("bls-raw-b64-1", "TOO_LARGE")
+          else:
+              for n, c in enumerate(chunks, 1):
+                  note("bls-raw-b64-%d-of-%d" % (n, len(chunks)), c)
           try:
               d = json.loads(raw)
               rows = d["Results"]["series"][0]["data"]
